@@ -1,0 +1,3623 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherAI Studio - 免安裝單一網頁版 (Local AI Client)</title>
+  <meta name="description" content="AetherAI Studio 是一款免安裝、開箱即用的單一網頁版 Local AI 用戶端。下載後直接雙擊開啟，即可連線本機 Ollama 服務或 Google Gemini API，數據 100% 儲存於本機瀏覽器。">
+  
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22url(%23g)%22/><defs><linearGradient id=%22g%22 x1=%220%25%22 y1=%220%25%22 x2=%22100%25%22 y2=%22100%25%22><stop offset=%220%25%22 stop-color=%22%2300f2fe%22/><stop offset=%22100%25%22 stop-color=%22%23ff007f%22/></linearGradient></defs></svg>">
+
+  <!-- ==========================================================================
+     STYLESHEETS: Combined and Embedded CSS Design System
+     ========================================================================== -->
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+    :root {
+      --bg-deep: #05050d;
+      --bg-space: #0a0915;
+      --bg-glass: rgba(13, 12, 28, 0.45);
+      --bg-glass-hover: rgba(18, 17, 38, 0.6);
+      --bg-glass-active: rgba(22, 21, 46, 0.75);
+      --bg-glass-border: rgba(255, 255, 255, 0.06);
+      --bg-glass-border-glow: rgba(0, 242, 254, 0.25);
+      
+      --accent-cyan: #00f2fe;
+      --accent-cyan-rgb: 0, 242, 254;
+      --accent-purple: #9b51e0;
+      --accent-purple-rgb: 155, 81, 224;
+      --accent-magenta: #ff007f;
+      --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 30%, #9b51e0 70%, #ff007f 100%);
+      --accent-gradient-glow: linear-gradient(135deg, rgba(0, 242, 254, 0.4) 0%, rgba(155, 81, 224, 0.4) 100%);
+      
+      --text-main: #f5f5fa;
+      --text-muted: #8d8c9f;
+      --text-dark: #0a0a0f;
+      --text-highlight: #ffffff;
+      
+      --color-success: #00f2fe;
+      --color-warning: #f2994a;
+      --color-error: #eb5757;
+      
+      --border-radius-sm: 8px;
+      --border-radius-md: 16px;
+      --border-radius-lg: 24px;
+      
+      --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.15);
+      --shadow-neon-purple: 0 0 20px rgba(155, 81, 224, 0.2);
+      --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+      
+      --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+      --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      
+      --sidebar-width: 280px;
+      --control-panel-width: 360px;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      outline: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-deep);
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      font-size: 15px;
+      line-height: 1.6;
+    }
+
+    h1, h2, h3, h4 {
+      font-family: 'Outfit', sans-serif;
+      color: var(--text-highlight);
+      font-weight: 600;
+      letter-spacing: -0.02em;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.08);
+      border-radius: 10px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--accent-gradient-glow);
+    }
+
+    /* Glassmorphism Classes */
+    .glass-panel {
+      background: var(--bg-glass);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid var(--bg-glass-border);
+      box-shadow: var(--shadow-glass);
+      border-radius: var(--border-radius-md);
+      transition: border-color var(--transition-smooth), box-shadow var(--transition-smooth);
+    }
+
+    .glass-panel:hover {
+      border-color: rgba(0, 242, 254, 0.15);
+    }
+
+    .glass-interactive {
+      cursor: pointer;
+    }
+    .glass-interactive:hover {
+      background: var(--bg-glass-hover);
+      border-color: rgba(155, 81, 224, 0.25);
+      box-shadow: var(--shadow-neon-purple);
+      transform: translateY(-2px);
+    }
+    .glass-interactive:active {
+      transform: translateY(0);
+    }
+
+    .text-glow-cyan {
+      text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+      color: var(--accent-cyan);
+    }
+    .text-glow-purple {
+      text-shadow: 0 0 10px rgba(155, 81, 224, 0.5);
+      color: var(--accent-purple);
+    }
+
+    /* App Layout */
+    .app-container {
+      display: flex;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+      overflow: hidden;
+      background: radial-gradient(circle at 10% 10%, rgba(20, 10, 45, 0.6) 0%, transparent 40%),
+                  radial-gradient(circle at 90% 90%, rgba(5, 30, 45, 0.6) 0%, transparent 40%),
+                  var(--bg-deep);
+    }
+
+    #neural-canvas {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    .sidebar {
+      width: var(--sidebar-width);
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      border-right: 1px solid var(--bg-glass-border);
+      z-index: 10;
+      flex-shrink: 0;
+      transition: transform var(--transition-smooth);
+    }
+
+    .main-content {
+      flex-grow: 1;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      z-index: 5;
+      overflow: hidden;
+    }
+
+    .control-panel {
+      width: var(--control-panel-width);
+      height: 100%;
+      border-left: 1px solid var(--bg-glass-border);
+      z-index: 10;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      transition: transform var(--transition-smooth);
+    }
+
+    /* Sidebar styles */
+    .sidebar-header {
+      padding: 24px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .sidebar-logo {
+      font-family: 'Outfit', sans-serif;
+      font-size: 20px;
+      font-weight: 800;
+      letter-spacing: -0.03em;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .sidebar-logo-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.4);
+    }
+    .sidebar-logo-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--bg-deep);
+      stroke-width: 2.5px;
+    }
+    .sidebar-action {
+      padding: 16px 20px;
+    }
+    .sidebar-scroll-area {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 8px 12px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .history-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 14px;
+      border-radius: var(--border-radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.02);
+      font-size: 13.5px;
+      color: var(--text-muted);
+      transition: all var(--transition-smooth);
+      cursor: pointer;
+    }
+    .history-item:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(0, 242, 254, 0.15);
+      color: var(--text-main);
+    }
+    .history-item.active {
+      background: rgba(155, 81, 224, 0.1);
+      border-color: rgba(155, 81, 224, 0.3);
+      color: var(--text-highlight);
+      box-shadow: inset 2px 0 0 var(--accent-purple);
+    }
+    .history-title-wrap {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-grow: 1;
+      overflow: hidden;
+    }
+    .history-title {
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 170px;
+    }
+    .history-btn-del {
+      opacity: 0;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      padding: 2px;
+      border-radius: 4px;
+    }
+    .history-item:hover .history-btn-del {
+      opacity: 1;
+    }
+    .history-btn-del:hover {
+      color: var(--color-error);
+      background: rgba(235, 87, 87, 0.1);
+    }
+    .sidebar-footer {
+      padding: 16px 20px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+      background: rgba(0, 0, 0, 0.15);
+    }
+
+    /* Buttons */
+    .btn-glass {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: var(--text-main);
+      padding: 10px 20px;
+      border-radius: var(--border-radius-sm);
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all var(--transition-smooth);
+    }
+    .btn-glass:hover {
+      background: rgba(255, 255, 255, 0.12);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    .btn-glass:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .btn-neon {
+      background: var(--accent-gradient);
+      border: none;
+      color: var(--text-dark);
+      padding: 10px 20px;
+      border-radius: var(--border-radius-sm);
+      font-family: 'Outfit', sans-serif;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all var(--transition-smooth);
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+    }
+    .btn-neon:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 0 25px rgba(155, 81, 224, 0.5);
+      color: var(--text-highlight);
+    }
+    .btn-neon.secondary {
+      background: transparent;
+      border: 1px solid var(--accent-purple);
+      color: var(--text-main);
+      box-shadow: none;
+    }
+    .btn-neon.secondary:hover {
+      background: rgba(155, 81, 224, 0.15);
+      box-shadow: var(--shadow-neon-purple);
+    }
+
+    /* Inputs */
+    .input-glass {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      border-radius: var(--border-radius-sm);
+      padding: 12px 16px;
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      font-size: 14px;
+      width: 100%;
+      transition: all var(--transition-smooth);
+    }
+    .input-glass:focus {
+      border-color: var(--accent-cyan);
+      background: rgba(0, 0, 0, 0.45);
+    }
+    .select-glass {
+      appearance: none;
+      background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238d8c9f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+      background-repeat: no-repeat;
+      background-position: right 16px center;
+      background-size: 16px;
+      padding-right: 40px;
+    }
+
+    /* Chat header & workspaces */
+    .chat-header {
+      height: 72px;
+      padding: 0 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--bg-glass-border);
+      background: rgba(10, 9, 21, 0.2);
+    }
+    .chat-model-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .chat-model-avatar {
+      width: 38px;
+      height: 38px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(0, 242, 254, 0.1) 0%, rgba(155, 81, 224, 0.1) 100%);
+      border: 1px solid rgba(0, 242, 254, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+    .chat-model-title {
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--text-highlight);
+    }
+    .chat-model-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .chat-actions {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* Chat screen message threads */
+    .chat-messages {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+      position: relative;
+    }
+
+    /* Welcome widget */
+    .cognitive-core-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      margin: auto;
+      padding: 40px;
+      text-align: center;
+      max-width: 500px;
+    }
+    .cognitive-core {
+      width: 90px;
+      height: 90px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.3) 0%, rgba(155, 81, 224, 0.1) 60%);
+      border: 2px solid rgba(0, 242, 254, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 24px;
+      position: relative;
+    }
+    .cognitive-core-waves {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 1px solid rgba(155, 81, 224, 0.3);
+      animation: corePulse 3s infinite linear;
+    }
+    .cognitive-core-inner {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: var(--accent-gradient);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 0 20px rgba(0, 242, 254, 0.4);
+    }
+    .cognitive-core-inner svg {
+      width: 24px;
+      height: 24px;
+      stroke: var(--bg-deep);
+      stroke-width: 2px;
+    }
+    .cognitive-core-title {
+      font-family: 'Outfit', sans-serif;
+      font-size: 22px;
+      font-weight: 700;
+      margin-bottom: 8px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .cognitive-core-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      margin-bottom: 24px;
+    }
+    .cognitive-preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      width: 100%;
+    }
+    .preset-card {
+      padding: 14px;
+      text-align: left;
+      border-radius: var(--border-radius-sm);
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      cursor: pointer;
+      transition: all var(--transition-smooth);
+    }
+    .preset-card:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(0, 242, 254, 0.2);
+      transform: translateY(-2px);
+    }
+    .preset-card-title {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--text-highlight);
+      margin-bottom: 4px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .preset-card-desc {
+      font-size: 12px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
+    /* Message rows */
+    .message-row {
+      display: flex;
+      width: 100%;
+      gap: 16px;
+    }
+    .message-row.user {
+      justify-content: flex-end;
+    }
+    .message-avatar {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--bg-glass);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .message-avatar svg {
+      width: 18px;
+      height: 18px;
+      stroke: var(--text-muted);
+    }
+    .message-row.assistant .message-avatar {
+      background: var(--accent-gradient-glow);
+      border: 1px solid rgba(0, 242, 254, 0.2);
+    }
+    .message-row.assistant .message-avatar svg {
+      stroke: var(--accent-cyan);
+    }
+    .message-content {
+      max-width: 80%;
+      padding: 16px 20px;
+      border-radius: var(--border-radius-md);
+      font-size: 14.5px;
+      line-height: 1.6;
+      position: relative;
+      box-shadow: var(--shadow-glass);
+    }
+    .message-row.user .message-content {
+      background: rgba(155, 81, 224, 0.15);
+      border: 1px solid rgba(155, 81, 224, 0.25);
+      border-top-right-radius: 4px;
+    }
+    .message-row.assistant .message-content {
+      background: var(--bg-glass);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-top-left-radius: 4px;
+    }
+
+    /* Markdown */
+    .message-content p {
+      margin-bottom: 12px;
+    }
+    .message-content p:last-child {
+      margin-bottom: 0;
+    }
+    .message-content strong {
+      color: var(--text-highlight);
+    }
+    .message-content pre {
+      margin: 16px 0;
+      border-radius: var(--border-radius-sm);
+      background: #020205;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      overflow: hidden;
+    }
+    .code-header {
+      background: rgba(255, 255, 255, 0.03);
+      padding: 6px 16px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+    .code-header-lang {
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+    .btn-copy {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 11px;
+    }
+    .btn-copy:hover {
+      color: var(--accent-cyan);
+    }
+    .message-content code {
+      font-family: 'Fira Code', monospace;
+      font-size: 13px;
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.35);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: var(--accent-cyan);
+    }
+    .message-content pre code {
+      display: block;
+      padding: 16px;
+      overflow-x: auto;
+      background: transparent;
+      border: none;
+      color: #e2e2ec;
+    }
+    .message-content ul, .message-content ol {
+      margin-left: 20px;
+      margin-bottom: 12px;
+    }
+    .message-content li {
+      margin-bottom: 6px;
+    }
+    .message-content blockquote {
+      border-left: 3px solid var(--accent-purple);
+      padding-left: 16px;
+      margin: 16px 0;
+      color: var(--text-muted);
+      font-style: italic;
+    }
+    .message-content table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 13.5px;
+    }
+    .message-content th, .message-content td {
+      padding: 10px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+    .message-content th {
+      background: rgba(255, 255, 255, 0.03);
+      color: var(--text-highlight);
+    }
+
+    /* Input box area */
+    .chat-input-area {
+      padding: 24px;
+      background: linear-gradient(to top, rgba(5, 5, 13, 0.95) 60%, rgba(5, 5, 13, 0));
+    }
+    .chat-input-wrapper {
+      max-width: 800px;
+      margin: 0 auto;
+    }
+    .prompt-suggestions {
+      display: flex;
+      gap: 8px;
+      overflow-x: auto;
+      padding-bottom: 8px;
+      margin-bottom: 8px;
+    }
+    .prompt-suggestions::-webkit-scrollbar {
+      display: none;
+    }
+    .suggestion-chip {
+      padding: 6px 12px;
+      border-radius: 14px;
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      font-size: 12px;
+      color: var(--text-muted);
+      cursor: pointer;
+      white-space: nowrap;
+      transition: all var(--transition-fast);
+    }
+    .suggestion-chip:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(155, 81, 224, 0.25);
+      color: var(--text-main);
+    }
+    .chat-input-card {
+      display: flex;
+      flex-direction: column;
+      padding: 10px;
+      position: relative;
+    }
+    .chat-textarea {
+      background: transparent;
+      border: none;
+      resize: none;
+      width: 100%;
+      height: 48px;
+      min-height: 48px;
+      max-height: 200px;
+      color: var(--text-main);
+      font-family: 'Inter', sans-serif;
+      font-size: 14.5px;
+      padding: 10px 12px;
+    }
+    /* Dynamic File Attachments */
+    .attachment-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 6px;
+      padding: 4px 8px;
+      font-size: 11.5px;
+      color: var(--text-muted);
+      backdrop-filter: blur(4px);
+      animation: fadeIn 0.2s ease-out;
+      margin: 4px;
+    }
+    .attachment-pill img {
+      width: 16px;
+      height: 16px;
+      border-radius: 3px;
+      object-fit: cover;
+    }
+    .attachment-pill-remove {
+      cursor: pointer;
+      color: var(--color-error);
+      font-weight: bold;
+      font-size: 13px;
+      margin-left: 4px;
+      display: inline-flex;
+      align-items: center;
+    }
+    .attachment-pill-remove:hover {
+      color: #ff5c5c;
+    }
+    /* Glowing High-Tech Toast Notification */
+    .aether-toast {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: rgba(10, 10, 20, 0.85);
+      border: 1px solid var(--accent-cyan);
+      box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+      backdrop-filter: blur(16px);
+      border-radius: 8px;
+      padding: 12px 20px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 13.5px;
+      font-weight: 500;
+      z-index: 10000;
+      transform: translateY(100px);
+      opacity: 0;
+      transition: all 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      pointer-events: none;
+    }
+    .aether-toast.show {
+      transform: translateY(0);
+      opacity: 1;
+    }
+    .toast-icon {
+      color: var(--accent-cyan);
+      display: inline-flex;
+      align-items: center;
+    }
+    .chat-input-controls {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 8px 12px 2px 12px;
+      border-top: 1px solid rgba(255, 255, 255, 0.04);
+    }
+    .input-util-btns {
+      display: flex;
+      gap: 4px;
+    }
+    .btn-util {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      cursor: pointer;
+      width: 32px;
+      height: 32px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .btn-util:hover {
+      color: var(--accent-cyan);
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .btn-send {
+      background: var(--accent-gradient);
+      border: none;
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+    }
+    .btn-send svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--text-dark);
+      stroke-width: 2.5px;
+    }
+
+    /* Right parameters control bar */
+    .control-header {
+      padding: 24px;
+      border-bottom: 1px solid var(--bg-glass-border);
+    }
+    .control-title {
+      font-size: 16px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .control-scroll-area {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+    .settings-card {
+      padding: 18px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    .settings-card-title {
+      font-size: 13.5px;
+      font-weight: 600;
+      color: var(--text-highlight);
+      border-left: 2px solid var(--accent-cyan);
+      padding-left: 8px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+    .form-label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 500;
+    }
+    .connection-card {
+      background: rgba(0, 242, 254, 0.02);
+      border-color: rgba(0, 242, 254, 0.08);
+    }
+
+    /* Sliders */
+    .slider-container {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .slider-header {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: var(--text-muted);
+    }
+    .slider-val {
+      color: var(--accent-cyan);
+      font-weight: 600;
+      font-family: 'Fira Code', monospace;
+    }
+    .slider-glass {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: rgba(255, 255, 255, 0.1);
+    }
+    .slider-glass::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+      cursor: pointer;
+    }
+
+    /* Monitors */
+    .monitor-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    .monitor-stat {
+      padding: 12px;
+      background: rgba(0, 0, 0, 0.25);
+      border-radius: var(--border-radius-sm);
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      display: flex;
+      flex-direction: column;
+    }
+    .monitor-stat-lbl {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-bottom: 4px;
+    }
+    .monitor-stat-val {
+      font-size: 16px;
+      font-weight: 700;
+      font-family: 'Fira Code', monospace;
+      color: var(--text-highlight);
+    }
+
+    .status-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 500;
+      background: rgba(255, 255, 255, 0.05);
+    }
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+    }
+    .status-online {
+      color: var(--accent-cyan);
+      background: rgba(0, 242, 254, 0.08);
+      border: 1px solid rgba(0, 242, 254, 0.15);
+    }
+    .status-online .status-dot {
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+    .status-alert {
+      color: var(--color-warning);
+      background: rgba(242, 153, 74, 0.08);
+      border: 1px solid rgba(242, 153, 74, 0.15);
+    }
+    .status-alert .status-dot {
+      background: var(--color-warning);
+      box-shadow: 0 0 8px var(--color-warning);
+    }
+
+    /* Animations & Keyframes */
+    @keyframes corePulse {
+      0%, 100% {
+        transform: scale(1);
+        box-shadow: 0 0 30px rgba(0, 242, 254, 0.3);
+      }
+      50% {
+        transform: scale(1.05);
+        box-shadow: 0 0 50px rgba(0, 242, 254, 0.5);
+      }
+    }
+    .ai-core-active {
+      animation: corePulse 2s infinite ease-in-out;
+    }
+
+    @keyframes pulseNeonRed {
+      0%, 100% {
+        box-shadow: 0 0 5px rgba(235, 87, 87, 0.4);
+        background: rgba(235, 87, 87, 0.1);
+        color: var(--color-error);
+      }
+      50% {
+        box-shadow: 0 0 15px rgba(235, 87, 87, 0.8);
+        background: rgba(235, 87, 87, 0.25);
+        color: #ff8888;
+      }
+    }
+    .pulse-neon-red {
+      animation: pulseNeonRed 1.5s infinite ease-in-out !important;
+    }
+
+    @keyframes typistBlink {
+      0%, 100% { opacity: 0; }
+      50% { opacity: 1; }
+    }
+    .typing-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 15px;
+      background-color: var(--accent-cyan);
+      margin-left: 4px;
+      animation: typistBlink 0.8s infinite;
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(12px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+    .animate-slide-in {
+      animation: slideInUp 0.35s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+    }
+
+    .loader-spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255, 255, 255, 0.1);
+      border-top-color: var(--accent-cyan);
+      border-radius: 50%;
+      animation: spinnerRotate 0.8s linear infinite;
+      display: inline-block;
+    }
+    @keyframes spinnerRotate {
+      to { transform: rotate(360deg); }
+    }
+
+    .glowing-orb {
+      position: absolute;
+      width: 400px;
+      height: 400px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(155, 81, 224, 0.1) 0%, transparent 70%);
+      filter: blur(40px);
+      z-index: 0;
+      pointer-events: none;
+    }
+    .glowing-orb.cyan {
+      background: radial-gradient(circle, rgba(0, 242, 254, 0.08) 0%, transparent 70%);
+    }
+
+    .btn-collapse {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      width: 32px;
+      height: 32px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: var(--text-muted);
+    }
+    .menu-toggle {
+      display: none;
+    }
+
+    @media (max-width: 1024px) {
+      .control-panel {
+        position: absolute;
+        right: 0;
+        top: 0;
+        height: 100%;
+        transform: translateX(100%);
+        background: #06050e;
+      }
+      .control-panel.open {
+        transform: translateX(0);
+      }
+    }
+    /* ==========================================
+       Phase 11: LaTeX Math Styles
+       ========================================== */
+    .math-inline {
+      font-family: 'Outfit', 'Inter', sans-serif;
+      font-style: italic;
+      color: var(--accent-cyan);
+      padding: 0 4px;
+      text-shadow: 0 0 6px rgba(0, 242, 254, 0.15);
+    }
+    .math-block {
+      font-family: 'Outfit', 'Inter', sans-serif;
+      font-style: italic;
+      color: var(--accent-cyan);
+      text-align: center;
+      padding: 14px;
+      margin: 14px 0;
+      background: rgba(0, 242, 254, 0.03);
+      border-radius: var(--border-radius-sm);
+      border: 1px solid rgba(0, 242, 254, 0.08);
+      font-size: 1.05em;
+      text-shadow: 0 0 8px rgba(0, 242, 254, 0.2);
+      overflow-x: auto;
+    }
+
+    /* ==========================================
+       Phase 11: Collapsible Sidebar Styles (Desktop)
+       ========================================== */
+    .sidebar {
+      transition: width var(--transition-smooth), transform var(--transition-smooth) !important;
+    }
+    .sidebar.collapsed {
+      width: 80px;
+    }
+    .sidebar.collapsed .sidebar-logo-icon {
+      display: none;
+    }
+    .sidebar.collapsed .sidebar-logo {
+      display: none;
+    }
+    .sidebar.collapsed .sidebar-header {
+      padding: 24px 12px;
+      justify-content: center;
+    }
+    .sidebar.collapsed #sidebar-collapse-btn {
+      margin: 0 auto;
+    }
+    .sidebar.collapsed .sidebar-action {
+      padding: 16px 12px;
+    }
+    .sidebar.collapsed #btn-new-chat {
+      padding: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      margin: 0 auto;
+      justify-content: center;
+    }
+    .sidebar.collapsed #btn-new-chat span {
+      display: none;
+    }
+    .sidebar.collapsed .sidebar-scroll-area {
+      padding: 8px 6px;
+    }
+    .sidebar.collapsed .history-item {
+      padding: 12px;
+      justify-content: center;
+      border-radius: 50%;
+      width: 44px;
+      height: 44px;
+      margin: 0 auto;
+    }
+    .sidebar.collapsed .history-title-wrap {
+      margin: 0;
+      width: auto;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+    .sidebar.collapsed .history-title-wrap svg {
+      margin: 0;
+    }
+    .sidebar.collapsed .history-title-wrap span {
+      display: none;
+    }
+    .sidebar.collapsed .history-btn-del {
+      display: none;
+    }
+    .sidebar.collapsed .sidebar-footer {
+      padding: 16px 12px;
+    }
+    .sidebar.collapsed #btn-clear-all {
+      padding: 0;
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      margin: 0 auto;
+      justify-content: center;
+    }
+    .sidebar.collapsed #btn-clear-all span {
+      display: none;
+    }
+
+    /* ==========================================
+       Phase 11: Floating Settings Modal Styles
+       ========================================== */
+    .modal-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5, 5, 13, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .modal-content {
+      width: 650px;
+      max-width: 90%;
+      max-height: 85vh;
+      display: flex;
+      flex-direction: column;
+      background: rgba(13, 12, 28, 0.8) !important;
+      border: 1px solid rgba(0, 242, 254, 0.2) !important;
+      box-shadow: 0 0 35px rgba(0, 242, 254, 0.18) !important;
+      border-radius: var(--border-radius-md);
+      animation: zoomIn 0.35s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      overflow: hidden;
+    }
+    .modal-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .btn-close-modal {
+      background: transparent;
+      border: none;
+      font-size: 28px;
+      color: var(--text-muted);
+      cursor: pointer;
+      line-height: 1;
+      transition: color var(--transition-fast);
+    }
+    .btn-close-modal:hover {
+      color: var(--accent-magenta);
+    }
+    .modal-tabs {
+      display: flex;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 0 16px;
+      overflow-x: auto;
+    }
+    .modal-tabs::-webkit-scrollbar {
+      display: none;
+    }
+    .modal-tab-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      padding: 14px 20px;
+      font-size: 13.5px;
+      font-weight: 500;
+      cursor: pointer;
+      position: relative;
+      transition: color var(--transition-fast);
+      white-space: nowrap;
+    }
+    .modal-tab-btn:hover {
+      color: var(--text-main);
+    }
+    .modal-tab-btn.active {
+      color: var(--accent-cyan);
+      font-weight: 600;
+    }
+    .modal-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-cyan);
+      box-shadow: 0 0 8px var(--accent-cyan);
+    }
+    .modal-scroll-area {
+      flex-grow: 1;
+      overflow-y: auto;
+      padding: 24px;
+    }
+    .modal-tab-content {
+      display: none;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .modal-tab-content.active {
+      display: flex;
+    }
+    .modal-footer {
+      padding: 16px 24px;
+      border-top: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: flex-end;
+      background: rgba(0, 0, 0, 0.1);
+    }
+    
+    @keyframes zoomIn {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+
+
+
+  <div class="app-container">
+    <canvas id="neural-canvas"></canvas>
+    
+    <div class="glowing-orb"></div>
+    <div class="glowing-orb cyan" style="right: 10%; bottom: 10%;"></div>
+
+    <!-- 1. SIDEBAR -->
+    <aside class="sidebar glass-panel" id="app-sidebar">
+      <header class="sidebar-header">
+        <div class="sidebar-logo-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 2a10 10 0 0 1 10 10v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7A10 10 0 0 1 12 2z"/></svg>
+        </div>
+        <span class="sidebar-logo">AetherAI Studio</span>
+        <button class="btn-collapse" id="sidebar-collapse-btn" title="縮放側邊欄" style="margin-left: auto; width: 28px; height: 28px; border-radius: 50%; padding: 0; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.05); color: var(--text-muted); cursor: pointer; transition: all var(--transition-fast);">
+          <svg id="sidebar-collapse-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform var(--transition-smooth);"><polyline points="15 18 9 12 15 6"></polyline></svg>
+        </button>
+      </header>
+
+      <section class="sidebar-action">
+        <button class="btn-neon" id="btn-new-chat" style="width: 100%;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <span data-i18n="btn_new_chat">開啟新對話</span>
+        </button>
+      </section>
+
+      <nav class="sidebar-scroll-area" id="history-container">
+        <div style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;" data-i18n="history_loading">載入對話歷史中...</div>
+      </nav>
+
+      <footer class="sidebar-footer">
+        <button class="btn-glass" id="btn-clear-all" style="width: 100%; font-size: 12.5px; border-color: rgba(235, 87, 87, 0.15); color: #eb5757;">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          <span data-i18n="btn_clear_all">清除所有歷史</span>
+        </button>
+      </footer>
+    </aside>
+
+    <!-- 2. MAIN CHAT AREA -->
+    <main class="main-content">
+      <header class="chat-header">
+        <div class="chat-model-info">
+          <button class="btn-collapse menu-toggle" id="sidebar-toggle" style="margin-right: 8px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="18" x2="21" y2="18"/></svg>
+          </button>
+          
+          <div class="chat-model-avatar">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="20" height="20" style="stroke: var(--accent-cyan);"><path d="M12 2a10 10 0 0 1 10 10v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7A10 10 0 0 1 12 2z"/></svg>
+            <div class="cognitive-core-waves"></div>
+          </div>
+          <div>
+            <div class="chat-model-title" id="active-model-name">Aether-Neural-9B</div>
+            <div class="chat-model-sub">
+              <span data-i18n="provider_label">來源：</span><span id="active-model-provider" style="font-weight: 600; color: var(--accent-cyan);">SIMULATOR</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="chat-actions">
+          <!-- Language Selector -->
+          <div class="lang-selector-wrapper" style="margin-right: 8px;">
+            <select class="input-glass select-glass" id="select-lang" style="padding: 6px 30px 6px 12px; font-size: 12.5px; height: 32px; min-width: 100px; background-position: right 10px center;">
+              <option value="en" selected>English</option>
+              <option value="zh-TW">繁體中文</option>
+              <option value="ja">日本語</option>
+            </select>
+          </div>
+
+          <button class="btn-glass" id="btn-export" disabled>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+            <span data-i18n="btn_export">匯出對話</span>
+          </button>
+          
+          <button class="btn-collapse" id="panel-toggle" title="設定 (Settings)">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+          </button>
+        </div>
+      </header>
+
+      <section class="chat-messages" id="chat-messages">
+        <div class="cognitive-core-container" id="chat-welcome">
+          <div class="cognitive-core animate-slide-in">
+            <div class="cognitive-core-waves"></div>
+            <div class="cognitive-core-inner">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+            </div>
+          </div>
+          <h2 class="cognitive-core-title animate-slide-in">AetherAI Studio</h2>
+          <p class="cognitive-core-desc animate-slide-in" data-i18n="welcome_desc">
+            極致奢華的 Local AI 遊樂場。連接您的 Ollama 本機服務，或透過智慧離線仿真進行參數調試與創作。
+          </p>
+          
+          <div class="cognitive-preset-grid animate-slide-in">
+            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-general">
+              <div class="preset-card-title">
+                <span class="text-glow-cyan" style="display:flex;align-items:center;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                </span>
+                <span data-i18n="preset_general_title">全能助理</span>
+              </div>
+              <div class="preset-card-desc" data-i18n="preset_general_desc">邏輯思維與企劃寫作</div>
+            </div>
+            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-coder">
+              <div class="preset-card-title">
+                <span class="text-glow-purple" style="display:flex;align-items:center;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+                </span>
+                <span data-i18n="preset_coder_title">代碼架構師</span>
+              </div>
+              <div class="preset-card-desc" data-i18n="preset_coder_desc">程式碼撰寫與重構分析</div>
+            </div>
+            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-uiux">
+              <div class="preset-card-title">
+                <span style="color:var(--accent-magenta); display:flex;align-items:center;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
+                </span>
+                <span data-i18n="preset_uiux_title">UI/UX 評委</span>
+              </div>
+              <div class="preset-card-desc" data-i18n="preset_uiux_desc">嚴苛的體驗與美學點評</div>
+            </div>
+            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-english">
+              <div class="preset-card-title">
+                <span style="color:var(--color-warning); display:flex;align-items:center;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
+                </span>
+                <span data-i18n="preset_english_title">語系學習教練</span>
+              </div>
+              <div class="preset-card-desc" data-i18n="preset_english_desc">糾錯與道地英語口語</div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="chat-input-area">
+        <div class="chat-input-wrapper">
+          <div class="prompt-suggestions" id="suggestions-container"></div>
+          <div class="chat-input-card glass-panel pulse-neon">
+            <div id="attachment-preview-container" style="display: none; gap: 4px; flex-wrap: wrap; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15); border-top-left-radius: inherit; border-top-right-radius: inherit;"></div>
+            <textarea class="chat-textarea" id="chat-textarea" data-i18n-placeholder="chat_placeholder" placeholder="輸入訊息與 AetherAI 對話... (Enter 發送，Shift+Enter 換行)"></textarea>
+            <div class="chat-input-controls">
+              <div class="input-util-btns">
+                <button class="btn-util" id="btn-attach-file" title="附加檔案 (Upload File)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"/></svg>
+                </button>
+                <input type="file" id="file-upload-input" multiple style="display: none;">
+                <button class="btn-util" id="btn-voice-input" title="語音輸入 (Voice Input)">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>
+                </button>
+              </div>
+              <div style="display: flex; gap: 8px;">
+                <button class="btn-neon secondary" id="btn-stop" style="display: none; padding: 6px 12px; border-color: var(--color-error); color: var(--color-error);" disabled>
+                  <span class="loader-spinner" style="border-top-color: var(--color-error); width:12px; height:12px;"></span>
+                  <span data-i18n="btn_stop">中斷生成</span>
+                </button>
+                <button class="btn-send" id="btn-send">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </footer>
+    </main>
+
+    <!-- 3. PARAMETERS DRAWER -->
+    <!-- 3. FLOATING SETTINGS MODAL -->
+    <div class="modal-backdrop" id="settings-backdrop" style="display: none;">
+      <div class="modal-content glass-panel" id="settings-modal">
+        <header class="modal-header">
+          <div class="modal-title text-glow-cyan" style="display: flex; align-items: center; gap: 8px; font-weight: bold; font-size: 16px;">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+            <span data-i18n="settings_title">AetherAI Studio 設定中心</span>
+          </div>
+          <button class="btn-close-modal" id="btn-close-settings-modal">&times;</button>
+        </header>
+
+        <div class="modal-tabs">
+          <button class="modal-tab-btn active" data-tab="tab-models" data-i18n="tab_models">模型與連線</button>
+          <button class="modal-tab-btn" data-tab="tab-advanced" data-i18n="tab_advanced">高級人設與參數</button>
+          <button class="modal-tab-btn" data-tab="tab-bridges" data-i18n="tab_bridges">社群軟體串接</button>
+          <button class="modal-tab-btn" data-tab="tab-presets" data-i18n="tab_presets">預設提示詞與監控</button>
+        </div>
+
+        <div class="modal-scroll-area">
+          <!-- Tab 1: Models & Connection -->
+          <div class="modal-tab-content active" id="tab-models">
+            <section class="settings-card glass-panel connection-card" style="border:none; background:transparent; padding:0; box-shadow:none;">
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" for="select-provider" data-i18n="provider_select_label">模型供應商</label>
+                <select class="input-glass select-glass" id="select-provider">
+                  <option value="ollama" selected>Ollama (本機對話 - Local Chat)</option>
+                  <option value="lmstudio">LM Studio (本機對話 - Local Chat)</option>
+                  <option value="vllm">vLLM (本機對話 - Local Chat)</option>
+                  <option value="agent">Agent Code (智能代理 - Local Agent)</option>
+                </select>
+              </div>
+
+              <div class="form-group" id="group-ollama-url" style="margin-bottom: 14px;">
+                <label class="form-label" for="input-ollama-url" data-i18n="ollama_url_label">Ollama API 位址</label>
+                <input type="url" class="input-glass" id="input-ollama-url" value="http://localhost:11434">
+              </div>
+
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" for="select-model" data-i18n="model_select_label">AI 核心模型</label>
+                <select class="input-glass select-glass" id="select-model">
+                  <option value="">正在載入...</option>
+                </select>
+              </div>
+              <div class="status-pill status-alert" id="connection-status-pill" style="align-self: flex-start; margin-top: 8px;">
+                <span class="status-dot"></span>
+                <span>正在載入...</span>
+              </div>
+            </section>
+          </div>
+
+          <!-- Tab 2: Advanced Settings -->
+          <div class="modal-tab-content" id="tab-advanced">
+            <section class="settings-card glass-panel" style="border:none; background:transparent; padding:0; box-shadow:none;">
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <label for="slider-temp" data-i18n="temp_label">溫度權重 (Temperature)</label>
+                    <span class="slider-val" id="val-temp">0.7</span>
+                  </div>
+                  <input type="range" class="slider-glass" id="slider-temp" min="0" max="2" step="0.1" value="0.7">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <label for="slider-tokens" data-i18n="tokens_label">最大 Token 限制 (Max Tokens)</label>
+                    <span class="slider-val" id="val-tokens">2048</span>
+                  </div>
+                  <input type="range" class="slider-glass" id="slider-tokens" min="128" max="8192" step="128" value="2048">
+                </div>
+              </div>
+              <div class="form-group">
+                <div class="settings-card-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
+                  <span data-i18n="system_prompt_title">系統設定 (System Prompt)</span>
+                  <span id="active-preset-label" style="font-size:11px; font-weight:600; color:var(--accent-cyan); background:rgba(0,242,254,0.08); padding:2px 8px; border-radius:10px;">Aether AI 助理</span>
+                </div>
+                <textarea class="input-glass" id="textarea-system-prompt" rows="5" style="resize:vertical; min-height:100px; font-size:13px; line-height:1.5;" data-i18n-placeholder="system_prompt_placeholder" placeholder="定義 AI 的人設、背景、專業能力與回應要求..."></textarea>
+              </div>
+            </section>
+          </div>
+
+          <!-- Tab 3: Messaging Bridges -->
+          <div class="modal-tab-content" id="tab-bridges">
+            <section class="settings-card glass-panel" style="border:none; background:transparent; padding:0; box-shadow:none;">
+              <!-- Telegram Integration -->
+              <div class="form-group" style="border-bottom: 1px dashed rgba(255,255,255,0.06); padding-bottom: 14px; margin-bottom: 14px;">
+                <label class="form-label" style="color: #0088cc; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm4.64 6.8c-.15 1.58-.8 5.42-1.13 7.19-.14.75-.42 1-.68 1.03-.58.05-1.02-.38-1.58-.75-.88-.58-1.38-.94-2.23-1.5-.99-.65-.35-1.01.22-1.59.15-.15 2.71-2.48 2.76-2.69.01-.03.01-.14-.07-.2-.08-.06-.19-.04-.27-.02-.11.02-1.89 1.2-5.33 3.52-.5.35-.96.52-1.37.51-.45-.01-1.31-.26-1.95-.47-.78-.26-1.4-.4-1.35-.85.03-.24.35-.48.97-.73 3.8-1.65 6.33-2.73 7.6-3.26 3.61-1.52 4.36-1.78 4.85-1.79.11 0 .35.03.5.15.13.12.17.28.19.39.02.13.02.26.01.39z"/></svg>
+                  <span data-i18n="bridge_telegram_title">Telegram Bot 串接</span>
+                </label>
+                <div style="margin-top: 6px; display: flex; flex-direction: column; gap: 8px;">
+                  <div>
+                    <label class="form-label" style="font-size: 11px;" for="input-telegram-token" data-i18n="telegram_token_label">Telegram Bot Token</label>
+                    <input type="password" class="input-glass" id="input-telegram-token" data-i18n-placeholder="telegram_token_placeholder" placeholder="輸入由 @BotFather 取得的 Token">
+                  </div>
+                  <div>
+                    <label class="form-label" style="font-size: 11px;" for="input-telegram-chat-id" data-i18n="telegram_chat_id_label">Telegram Chat ID (User/Group)</label>
+                    <input type="text" class="input-glass" id="input-telegram-chat-id" data-i18n-placeholder="telegram_chat_id_placeholder" placeholder="輸入您的 Chat ID (可向 @userinfobot 查詢)">
+                  </div>
+                </div>
+              </div>
+
+              <!-- Discord Integration -->
+              <div class="form-group">
+                <label class="form-label" style="color: #5865F2; font-weight: bold; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.27 4.73A9.012 9.012 0 0 0 13.67 3c-.1 0-.17.07-.19.16-.43 1.54-.89 3.15-1.48 4.84-1.2-.15-2.4-.15-3.6 0-.59-1.69-1.05-3.3-1.48-4.84-.02-.09-.09-.16-.19-.16a9.012 9.012 0 0 0-5.6 1.73.08.08 0 0 0-.03.07C.3 10.74-.7 16.58.5 20.91a.068.068 0 0 0 .03.05c2.62 1.94 5.16 3.13 7.6 3.88a.09.09 0 0 0 .1-.04c.58-.79 1.1-1.63 1.55-2.52a.08.08 0 0 0-.04-.11c-.8-.3-1.57-.69-2.3-1.15a.08.08 0 0 1-.01-.13c.16-.12.32-.24.48-.36a.08.08 0 0 1 .08-.01c4.86 2.22 10.14 2.22 15 0a.08.08 0 0 1 .08.01c.16.12.32.24.48.36a.08.08 0 0 1-.01.13c-.73.46-1.5 1.15-2.3 1.15a.08.08 0 0 0-.04.11c.45.89.97 1.73 1.55 2.52a.09.09 0 0 0 .1.04c2.44-.75 4.98-1.94 7.6-3.88a.07.07 0 0 0 .03-.05c1.37-4.78.37-10.62-.73-16.11a.072.072 0 0 0-.03-.07zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.9 2.12s-.84 2.12-1.9 2.12zm6.96 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.9 2.12s-.84 2.12-1.9 2.12z"/></svg>
+                  <span data-i18n="bridge_discord_title">Discord 廣播串接</span>
+                </label>
+                <div style="margin-top: 6px;">
+                  <label class="form-label" style="font-size: 11px;" for="input-discord-webhook" data-i18n="discord_webhook_label">Discord Webhook URL</label>
+                  <input type="url" class="input-glass" id="input-discord-webhook" data-i18n-placeholder="discord_webhook_placeholder" placeholder="輸入 Discord 頻道之 Webhook 網址">
+                </div>
+              </div>
+            </section>
+          </div>
+
+          <!-- Tab 4: Presets & HUD -->
+          <div class="modal-tab-content" id="tab-presets">
+            <section style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
+              <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-left: 4px;" data-i18n="preset_library_header">載入大師提示詞預設 (Presets)</div>
+              <div class="presets-grid" id="presets-grid"></div>
+            </section>
+
+            <section class="settings-card glass-panel" style="border:none; background:transparent; padding:0; box-shadow:none;">
+              <div class="settings-card-title" data-i18n="monitor_title" style="margin-bottom: 10px;">效能監控器 (HUD Metrics)</div>
+              <div class="monitor-grid">
+                <div class="monitor-stat">
+                  <span class="monitor-stat-lbl" data-i18n="metric_speed">輸出速率 (Speed)</span>
+                  <span class="monitor-stat-val text-glow-cyan" id="metric-tps">0 t/s</span>
+                </div>
+                <div class="monitor-stat">
+                  <span class="monitor-stat-lbl" data-i18n="metric_tokens">總評估 Token</span>
+                  <span class="monitor-stat-val text-glow-purple" id="metric-tokens">0</span>
+                </div>
+                <div class="monitor-stat" style="grid-column: span 2;">
+                  <span class="monitor-stat-lbl" data-i18n="metric_time">總生成時間 (Latency)</span>
+                  <span class="monitor-stat-val" id="metric-time" style="color: var(--color-warning);">0.0s</span>
+                </div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <footer class="modal-footer">
+          <!-- Hidden original save button to keep JS references happy -->
+          <button id="btn-save-settings" style="display: none;"></button>
+          
+          <button class="btn-neon" id="btn-modal-save-settings">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg>
+            <span data-i18n="btn_save_settings">儲存並套用設定</span>
+          </button>
+        </footer>
+      </div>
+    </div>
+  </div>
+
+  <!-- ==========================================================================
+     JAVASCRIPTS: Unified Multi-module Core Application Logic
+     ========================================================================== -->
+  <script>
+    /* 1. Translations dictionary catalog */
+    const translations = {
+      "zh-TW": {
+        "brand_title": "AetherAI Studio",
+        "btn_new_chat": "開啟新對話",
+        "btn_clear_all": "清除所有歷史",
+        "history_empty": "無歷史對話紀錄",
+        "history_loading": "載入對話歷史中...",
+        "btn_del_chat": "刪除對話",
+        "provider_label": "來源：",
+        "btn_export": "匯出對話",
+        "welcome_title": "AetherAI Studio",
+        "welcome_desc": "極致奢華的本機 Local AI 與智能代理遊樂場。連接您的 Ollama 本機服務，或啟用 Agent Code 模式讓 AI 協助您管理本機工作區。",
+        "preset_general_title": "全能助理",
+        "preset_general_desc": "邏輯思維與企劃寫作",
+        "preset_coder_title": "代碼架構師",
+        "preset_coder_desc": "程式碼撰寫與重構分析",
+        "preset_uiux_title": "UI/UX 評委",
+        "preset_uiux_desc": "嚴苛的體驗與美學點評",
+        "preset_english_title": "語系學習教練",
+        "preset_english_desc": "糾錯與道地英語口語",
+        "chat_placeholder": "輸入訊息與 AetherAI 對話... (Enter 發送，Shift+Enter 換行)",
+        "btn_stop": "中斷生成",
+        "panel_title": "AI 控制面板",
+        "settings_source_title": "模型來源設定",
+        "provider_select_label": "模型供應商",
+        "provider_ollama": "Ollama (本機對話 - Local Chat)",
+        "provider_lmstudio": "LM Studio (本機對話 - Local Chat)",
+        "provider_vllm": "vLLM (本機對話 - Local Chat)",
+        "provider_agent": "Agent Code (智能代理 - Local Agent)",
+        "ollama_url_label": "Ollama API 位址",
+        "custom_url_label": "API 端點位址 (Endpoint)",
+        "api_key_label": "API 金鑰 (Bearer Token)",
+        "model_select_label": "AI 核心模型",
+        "settings_tuning_title": "超參數微調 (Tuning)",
+        "temp_label": "溫度權重 (Temperature)",
+        "tokens_label": "最大 Token 限制 (Max Tokens)",
+        "system_prompt_title": "系統設定 (System Prompt)",
+        "system_prompt_placeholder": "定義 AI 的人設、背景、專業能力與回應要求...",
+        "preset_library_header": "載入大師提示詞預設 (Presets)",
+        "monitor_title": "效能監控器 (HUD Metrics)",
+        "metric_speed": "輸出速率 (Speed)",
+        "metric_tokens": "總評估 Token",
+        "metric_time": "總生成時間 (Latency)",
+        "confirm_del_all": "您確定要永久刪除所有歷史對話記錄嗎？此動作將無法復原。",
+        "confirm_del_chat": "確定要永久刪除此對話嗎？",
+        "custom_model_label": "自定義模型名稱 (選填)",
+        "custom_model_placeholder": "例如: deepseek-chat 或 gpt-4o",
+        "btn_save_settings": "儲存設定 (Apply Settings)",
+        "toast_settings_saved": "設定已成功更新！",
+        "bridges_title": "社群軟體串接 (Messaging Bridges)",
+        "bridge_telegram_title": "Telegram Bot 串接",
+        "telegram_token_label": "Telegram Bot Token",
+        "telegram_token_placeholder": "輸入由 @BotFather 取得的 Token",
+        "telegram_chat_id_label": "Telegram Chat ID (使用者/群組)",
+        "telegram_chat_id_placeholder": "輸入您的 Chat ID (可向 @userinfobot 查詢)",
+        "bridge_discord_title": "Discord 廣播串接",
+        "discord_webhook_label": "Discord Webhook 網址",
+        "discord_webhook_placeholder": "輸入 Discord 頻道之 Webhook 網址"
+      },
+      "en": {
+        "brand_title": "AetherAI Studio",
+        "btn_new_chat": "New Chat",
+        "btn_clear_all": "Clear History",
+        "history_empty": "No Chat History",
+        "history_loading": "Loading history...",
+        "btn_del_chat": "Delete Chat",
+        "provider_label": "Source: ",
+        "btn_export": "Export Chat",
+        "welcome_title": "AetherAI Studio",
+        "welcome_desc": "The ultimate Local AI and intelligent agent playground. Connect your local Ollama services, or enable Agent Code mode to let AI manage your workspace.",
+        "preset_general_title": "Generalist AI",
+        "preset_general_desc": "Reasoning & creative writing",
+        "preset_coder_title": "Code Architect",
+        "preset_coder_desc": "Code generation & debugging",
+        "preset_uiux_title": "UI/UX Critique",
+        "preset_uiux_desc": "Brutally honest feedback",
+        "preset_english_title": "Language Coach",
+        "preset_english_desc": "Grammar tuning & idioms",
+        "chat_placeholder": "Type a message to chat with AetherAI... (Enter to send, Shift+Enter for newline)",
+        "btn_stop": "Cancel Generation",
+        "panel_title": "AI Control Panel",
+        "settings_source_title": "Model Provider Settings",
+        "provider_select_label": "Model Provider",
+        "provider_ollama": "Ollama (Local Chat)",
+        "provider_lmstudio": "LM Studio (Local Chat)",
+        "provider_vllm": "vLLM (Local Chat)",
+        "provider_agent": "Agent Code (Local Agent)",
+        "ollama_url_label": "Ollama API Endpoint",
+        "custom_url_label": "Custom API URL",
+        "api_key_label": "API Key (Bearer Token)",
+        "model_select_label": "AI Core Model",
+        "settings_tuning_title": "Hyperparameters Tuning",
+        "temp_label": "Temperature Weight",
+        "tokens_label": "Max Tokens Limit",
+        "system_prompt_title": "System Prompt",
+        "system_prompt_placeholder": "Define the AI persona, background, skills, and output guidelines...",
+        "preset_library_header": "Load Master Prompt Presets",
+        "monitor_title": "HUD Metrics Monitor",
+        "metric_speed": "Output Speed",
+        "metric_tokens": "Total Eval Tokens",
+        "metric_time": "Generation Latency",
+        "confirm_del_all": "Are you absolutely sure you want to permanently delete all conversation history? This cannot be undone.",
+        "confirm_del_chat": "Are you sure you want to permanently delete this chat?",
+        "custom_model_label": "Custom Model Name (Optional)",
+        "custom_model_placeholder": "e.g. deepseek-chat or gpt-4o",
+        "btn_save_settings": "Save Settings",
+        "toast_settings_saved": "Settings updated successfully!",
+        "bridges_title": "Messaging Bridges",
+        "bridge_telegram_title": "Telegram Bot Integration",
+        "telegram_token_label": "Telegram Bot Token",
+        "telegram_token_placeholder": "Enter Token obtained from @BotFather",
+        "telegram_chat_id_label": "Telegram Chat ID (User/Group)",
+        "telegram_chat_id_placeholder": "Enter Chat ID (query @userinfobot)",
+        "bridge_discord_title": "Discord Broadcast Bridge",
+        "discord_webhook_label": "Discord Webhook URL",
+        "discord_webhook_placeholder": "Enter Discord channel Webhook URL"
+      },
+      "ja": {
+        "brand_title": "AetherAI Studio",
+        "btn_new_chat": "新規対話",
+        "btn_clear_all": "履歴クリア",
+        "history_empty": "会話履歴なし",
+        "history_loading": "読み込み中...",
+        "btn_del_chat": "対話を削除",
+        "provider_label": "ソース：",
+        "btn_export": "履歴を出力",
+        "welcome_title": "AetherAI Studio",
+        "welcome_desc": "極上のローカルAIプレイグラウンド。本機のOllamaサービスに接続するか、高度なオフラインシミュレーションでパラメータ調整や創作を行えます。",
+        "preset_general_title": "万能アシスタント",
+        "preset_general_desc": "論理的思考とコンテンツ企画",
+        "preset_coder_title": "コード設計者",
+        "preset_coder_desc": "コーディングと構造リファクタリング",
+        "preset_uiux_title": "UI/UX 批評家",
+        "preset_uiux_desc": "厳格な体験と美学的批評",
+        "preset_english_title": "語学コーチ",
+        "preset_english_desc": "文法修正とネイティブ英語",
+        "chat_placeholder": "AetherAI にメッセージを入力... (Enterで送信、Shift+Enterで改行)",
+        "btn_stop": "生成を中止",
+        "panel_title": "AI コントロールパネル",
+        "settings_source_title": "モデルソース設定",
+        "provider_select_label": "プロバイダー",
+        "provider_ollama": "Ollama (ローカル対話 - Local Chat)",
+        "provider_lmstudio": "LM Studio (ローカル対話 - Local Chat)",
+        "provider_vllm": "vLLM (ローカル対話 - Local Chat)",
+        "provider_agent": "Agent Code (高度代理 - Local Agent)",
+        "ollama_url_label": "Ollama API アドレス",
+        "custom_url_label": "カスタム API アドレス",
+        "api_key_label": "API キー",
+        "model_select_label": "コア AI モデル",
+        "settings_tuning_title": "パラメータ微調整",
+        "temp_label": "温度パラメータ",
+        "tokens_label": "最大トークン制限",
+        "system_prompt_title": "システム設定 (System Prompt)",
+        "system_prompt_placeholder": "AI のキャラクター、専門知識、応答ガイドラインを定義します...",
+        "preset_library_header": "マスタープロンプトプリセット",
+        "monitor_title": "HUD パフォーマンスモニター",
+        "metric_speed": "出力速度 (Speed)",
+        "metric_tokens": "総評価トークン",
+        "metric_time": "総生成時間 (Latency)",
+        "confirm_del_all": "すべての履歴を完全に削除してもよろしいですか？この操作は取り消せません。",
+        "confirm_del_chat": "この会話を完全に削除してもよろしいですか？",
+        "custom_model_label": "カスタムモデル名 (任意)",
+        "custom_model_placeholder": "例: deepseek-chat や gpt-4o",
+        "btn_save_settings": "設定を保存",
+        "toast_settings_saved": "設定が正常に更新されました！",
+        "bridges_title": "ソーシャル・ブリッジ (Messaging Bridges)",
+        "bridge_telegram_title": "Telegram ボット連携",
+        "telegram_token_label": "Telegram Bot Token",
+        "telegram_token_placeholder": "@BotFather から取得したトークンを入力",
+        "telegram_chat_id_label": "Telegram チャット ID",
+        "telegram_chat_id_placeholder": "チャットIDを入力 (@userinfobot で確認)",
+        "bridge_discord_title": "Discord 配信連携",
+        "discord_webhook_label": "Discord Webhook URL",
+        "discord_webhook_placeholder": "Discord チャンネルの Webhook URL を入力"
+      }
+    };
+
+    /* 2. System Presets Library */
+    const PromptLibraryRaw = [
+      {
+        id: "general",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>`,
+        "zh-TW": {
+          name: "Aether AI 助理",
+          category: "一般",
+          description: "全能型智慧助理，擅長邏輯分析、日常諮詢與多領域寫作。",
+          systemPrompt: "你是一個名為 AetherAI 的智慧 AI 助理。請以親切、專業且條理分明的態度回答使用者的問題，並儘可能給出具體且實用的回答。",
+          suggestions: ["解釋什麼是量子力學，用小學生聽得懂的話", "幫我規劃一份 3 天的台南文青美食輕旅行行程", "如何寫出一封得體的請假 Email？"]
+        },
+        "en": {
+          name: "Aether AI Assistant",
+          category: "General",
+          description: "All-purpose intelligent assistant skilled in logic, writing, and analysis.",
+          systemPrompt: "You are an intelligent AI assistant named AetherAI. Please reply in a warm, professional, and well-structured manner.",
+          suggestions: ["Explain quantum mechanics in a way a 10-year-old can understand", "Help me plan a 3-day cultural travel itinerary for Kyoto, Japan", "How do I write a formal leave-of-absence email?"]
+        },
+        "ja": {
+          name: "Aether AI アシスタント",
+          category: "一般",
+          description: "論理分析、日常相談、多分野のライティングに優れた万能型AI。",
+          systemPrompt: "あなたはAetherAIという名前のインテリジェントなAIアシスタントです。親切、プロフェッショナル、そして構造化された方法で返答してください。",
+          suggestions: ["量子力学とは何か、小学生でも分かるように説明して", "京都の3日間の旅程を計画して", "丁寧な有給休暇の申請メールの書き方は？"]
+        }
+      },
+      {
+        id: "coder",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>`,
+        "zh-TW": {
+          name: "代碼架構師",
+          category: "編程",
+          description: "精通多門程式語言，擅長編寫高品質代碼、重構與性能調優。",
+          systemPrompt: "你是一位資深代碼架構師。在給出程式碼時，請遵循最佳實踐、注重安全與效能。程式碼請加上適當註解，並說明背後的設計理念與可能遇到的坑。如果程式碼中有關鍵地方，請加上詳細解釋。",
+          suggestions: ["用 JS 寫一個高效能的防抖 (debounce) 函數", "如何設計一個支持分頁的 SQL 查詢與資料庫索引設計？", "請幫我重構這段程式碼並解釋理由..."]
+        },
+        "en": {
+          name: "Code Architect",
+          category: "Coding",
+          description: "Master of multiple languages, specializing in clean code and performance.",
+          systemPrompt: "You are a senior Code Architect. When providing code, follow modern best practices, safety guidelines, and optimization.",
+          suggestions: ["Write a high-performance debounce function in JavaScript", "How do I design a paginated SQL query with proper indexes?", "Please help me refactor this code block..."]
+        },
+        "ja": {
+          name: "コード設計者",
+          category: "開発",
+          description: "複数言語をマスターし、高品質なコード記述、リファクタリング、最適化を得意とします。",
+          systemPrompt: "あなたはシニアコードアーキテクトです。コードを提供する際は、ベストプラクティス、セキュリティ、およびパフォーマンスに従ってください。",
+          suggestions: ["JSで高性能なデバウンス（debounce）関数を書いて", "ページネーション対応のSQLクエリの書き方は？", "このコードをリファクタリングして、理由を説明してください..."]
+        }
+      },
+      {
+        id: "uiux",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>`,
+        "zh-TW": {
+          name: "UI/UX 嚴苛評委",
+          category: "設計",
+          description: "以犀利、專業的視角審視產品流程、界面設計與易用性問題。",
+          systemPrompt: "你是一位資深 UI/UX 專家，審美極高且極其注重細節。你將以犀利、富有建設性但毫不客氣的語氣分析介面設計與互動流程。請指出問題點並給出具體的改善建議與排版靈感。",
+          suggestions: ["我的購物網站結帳率很低，從 UX 角度該怎麼分析？", "請評估一個登入頁面應該包含哪些關鍵的微互動 (Micro-interactions)？", "暗黑模式 (Dark Mode) 的配色有哪些經典錯誤需要避免？"]
+        },
+        "en": {
+          name: "UI/UX Critic",
+          category: "Design",
+          description: "Critiques product flows, interfaces, and usability with sharp, expert eyes.",
+          systemPrompt: "You are an experienced UI/UX critic. Critique designs and layouts honestly, constructively, yet brutally.",
+          suggestions: ["My e-commerce checkout conversion rate is low. Analyze it.", "What key micro-interactions should a login page include?", "What are the most common Dark Mode palette mistakes?"]
+        },
+        "ja": {
+          name: "UI/UX 批評家",
+          category: "設計",
+          description: "鋭く専門的な視点から、プロダクトのワークフロー、インターフェース、操作性の問題をレビューします。",
+          systemPrompt: "あなたは経験豊富なUI/UX批評家です。辛口でありながら建設的なトーンでUI設計やインタラクションを分析してください。",
+          suggestions: ["ECサイトの購入率が低いUXの分析方法は？", "ログインページに必要なマイクロインタラクションは？", "ダークモード配色における定番の失敗例は？"]
+        }
+      },
+      {
+        id: "english",
+        icon: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>`,
+        "zh-TW": {
+          name: "語系學習教練",
+          category: "語言",
+          description: "糾正語法錯誤、教授道地用法，並支援流暢的中英雙語教學對話。",
+          systemPrompt: "你是一位經驗豐富的雙語外語學習教練。當使用者與你對話時，請自動辨識其語法錯誤並提供修正。請介紹更道地、自然的口語表達方式，並提供情境例句，讓學習過程輕鬆有趣。",
+          suggestions: ["請幫我修改這段自薦信的英文語法：'I very hope to get this job...'", "在職場開會時，如何禮貌地表達「我有不同意見」？", "讓我們用英文進行一場模擬咖啡店點餐的對話吧！"]
+        },
+        "en": {
+          name: "Language Coach",
+          category: "Language",
+          description: "Identifies grammar errors, teaches local idioms, and guides conversations.",
+          systemPrompt: "You are an experienced Language Learning Coach. Point out grammar issues gently, provide natural ways to say things, and offer real examples.",
+          suggestions: ["Fix my grammar: 'I very hope to get this job...'", "How do I politely express 'I disagree' in a business meeting?", "Let's practice a mock conversation of ordering coffee!"]
+        },
+        "ja": {
+          name: "語学学習コーチ",
+          category: "言語",
+          description: "文法ミスを修正し、自然な現地表現を教え、スムーズな二か国語の対話をサポートします。",
+          systemPrompt: "あなたは語学学習コーチです。ユーザーとの会話中に文法ミスがあれば自動的に検知して修正してください。",
+          suggestions: ["自己PRの英語文法を修正して：'I very hope to get this job...'", "会議で「別の意見があります」と礼儀正しく伝える方法は？", "カフェでの注文を想定したロールプレイを英語で！"]
+        }
+      }
+    ];
+
+    const PromptLibrary = [];
+    function getActiveLanguage() { return localStorage.getItem('aether_lang') || 'en'; }
+
+    function updatePromptLibraryLanguage(lang) {
+      PromptLibrary.length = 0;
+      PromptLibraryRaw.forEach(base => {
+        const localizedData = base[lang] || base["en"];
+        PromptLibrary.push({
+          id: base.id,
+          icon: base.icon,
+          name: localizedData.name,
+          category: localizedData.category,
+          description: localizedData.description,
+          systemPrompt: localizedData.systemPrompt,
+          suggestions: localizedData.suggestions
+        });
+      });
+    }
+
+    function getPresetById(id) {
+      return PromptLibrary.find(p => p.id === id) || PromptLibrary[0];
+    }
+    updatePromptLibraryLanguage(getActiveLanguage());
+
+    /* 3. API Connection Engine */
+    class AetherAPI {
+      constructor() {
+        this.provider = 'ollama';
+        this.ollamaUrl = 'http://localhost:11434';
+        this.customUrl = '';
+        this.apiKey = '';
+        this.modelName = '';
+      }
+
+      updateConfig(config) {
+        if (config.provider) this.provider = config.provider;
+        if (config.ollamaUrl) this.ollamaUrl = config.ollamaUrl.replace(/\/$/, '');
+        if (config.customUrl) this.customUrl = config.customUrl;
+        if (config.apiKey) this.apiKey = config.apiKey;
+        if (config.modelName) this.modelName = config.modelName;
+      }
+
+      async fetchModels() {
+        if (this.provider === 'ollama' || this.provider === 'agent') {
+          try {
+            const response = await fetch(`${this.ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+            if (!response.ok) throw new Error('Ollama error');
+            const data = await response.json();
+            return data.models.map(m => ({
+              name: m.name,
+              details: `${m.details?.parameter_size || 'N/A'} · ${Math.round(m.size / (1024*1024*1024)*10)/10} GB`
+            }));
+          } catch (err) {
+            throw err;
+          }
+        } else if (this.provider === 'lmstudio' || this.provider === 'vllm') {
+          try {
+            const response = await fetch(`${this.ollamaUrl}/v1/models`, { signal: AbortSignal.timeout(2000) });
+            if (!response.ok) throw new Error(`${this.provider.toUpperCase()} error`);
+            const data = await response.json();
+            if (data && Array.isArray(data.data)) {
+              return data.data.map(m => ({
+                name: m.id,
+                details: `${this.provider.toUpperCase()} Model`
+              }));
+            }
+            return [];
+          } catch (err) {
+            throw err;
+          }
+        }
+        return [];
+      }
+
+      async streamChat(messages, options, onChunk, onError, abortController) {
+        if (!this.modelName) {
+          onError(new Error('No active model selected. Please check your service and download a model.'));
+          return;
+        }
+
+        const systemPrompt = options.systemPrompt || '';
+        const temp = options.temperature ?? 0.7;
+        const apiMessages = [];
+        if (systemPrompt) apiMessages.push({ role: 'system', content: systemPrompt });
+        apiMessages.push(...messages);
+
+        if (this.provider === 'ollama' || this.provider === 'agent') {
+          try {
+            const payload = {
+              model: this.modelName,
+              messages: apiMessages,
+              options: { temperature: temp, num_predict: options.maxTokens || 2048 },
+              stream: true
+            };
+
+            // If images are attached, attach them to the last message in Ollama API payload
+            if (options.images && options.images.length > 0) {
+              const lastMsg = apiMessages[apiMessages.length - 1];
+              if (lastMsg && lastMsg.role === 'user') {
+                lastMsg.images = options.images.map(img => img.base64);
+              }
+            }
+
+            const response = await fetch(`${this.ollamaUrl}/api/chat`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              signal: abortController.signal
+            });
+            if (!response.ok) throw new Error(`Ollama returned ${response.status}`);
+            
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let fullText = '';
+            let startTimestamp = performance.now();
+            let tokenCount = 0;
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              const chunkStr = decoder.decode(value, { stream: true });
+              const lines = chunkStr.split('\n');
+              for (const line of lines) {
+                if (!line.trim()) continue;
+                try {
+                  const parsed = JSON.parse(line);
+                  if (parsed.message?.content) {
+                    fullText += parsed.message.content;
+                    tokenCount++;
+                    const elapsedSec = (performance.now() - startTimestamp) / 1000;
+                    const tokensPerSec = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
+                    onChunk(parsed.message.content, { tokensPerSec, evalCount: tokenCount, totalDuration: Math.round(elapsedSec * 10) / 10 });
+                  }
+                } catch (e) {}
+              }
+            }
+          } catch (err) {
+            if (err.name !== 'AbortError') onError(err);
+          }
+        } else if (this.provider === 'lmstudio' || this.provider === 'vllm') {
+          try {
+            // Convert visual images to standard OpenAI multimodal format
+            if (options.images && options.images.length > 0) {
+              const lastMsg = apiMessages[apiMessages.length - 1];
+              if (lastMsg && lastMsg.role === 'user') {
+                const textContent = lastMsg.content;
+                const contentArray = [{ type: 'text', text: textContent }];
+                options.images.forEach(img => {
+                  contentArray.push({
+                    type: 'image_url',
+                    image_url: { url: `data:image/jpeg;base64,${img.base64}` }
+                  });
+                });
+                lastMsg.content = contentArray;
+              }
+            }
+
+            const payload = {
+              model: this.modelName,
+              messages: apiMessages,
+              temperature: temp,
+              max_tokens: options.maxTokens || 2048,
+              stream: true
+            };
+
+            const response = await fetch(`${this.ollamaUrl}/v1/chat/completions`, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload),
+              signal: abortController.signal
+            });
+            if (!response.ok) throw new Error(`${this.provider.toUpperCase()} returned ${response.status}`);
+
+            const reader = response.body.getReader();
+            const decoder = new TextDecoder('utf-8');
+            let fullText = '';
+            let startTimestamp = performance.now();
+            let tokenCount = 0;
+            let streamBuffer = '';
+
+            while (true) {
+              const { done, value } = await reader.read();
+              if (done) break;
+
+              streamBuffer += decoder.decode(value, { stream: true });
+              const lines = streamBuffer.split('\n');
+              streamBuffer = lines.pop(); // Keep incomplete line in buffer
+
+              for (const line of lines) {
+                const cleanedLine = line.trim();
+                if (!cleanedLine) continue;
+                if (cleanedLine === 'data: [DONE]') continue;
+                if (cleanedLine.startsWith('data: ')) {
+                  try {
+                    const parsed = JSON.parse(cleanedLine.substring(6));
+                    const content = parsed.choices?.[0]?.delta?.content;
+                    if (content) {
+                      fullText += content;
+                      tokenCount++;
+                      const elapsedSec = (performance.now() - startTimestamp) / 1000;
+                      const tokensPerSec = elapsedSec > 0 ? Math.round(tokenCount / elapsedSec) : 0;
+                      onChunk(content, { tokensPerSec, evalCount: tokenCount, totalDuration: Math.round(elapsedSec * 10) / 10 });
+                    }
+                  } catch (e) {}
+                }
+              }
+            }
+          } catch (err) {
+            if (err.name !== 'AbortError') onError(err);
+          }
+        }
+      }
+    }
+    const aetherApi = new AetherAPI();
+
+    /* 4. Markdown compiler & copy handler */
+    /* 4. Markdown compiler & copy handler */
+    function renderMath(text) {
+      if (!text) return '';
+      let rendered = text;
+
+      const mathSymbols = {
+        '\\rightarrow': '&rarr;',
+        '\\leftarrow': '&larr;',
+        '\\leftrightarrow': '&harr;',
+        '\\Rightarrow': '&rArr;',
+        '\\Leftarrow': '&lArr;',
+        '\\Leftrightarrow': '&hArr;',
+        '\\to': '&rarr;',
+        '\\in': '&isin;',
+        '\\notin': '&notin;',
+        '\\ni': '&ni;',
+        '\\infty': '&infin;',
+        '\\alpha': '&alpha;',
+        '\\beta': '&beta;',
+        '\\gamma': '&gamma;',
+        '\\delta': '&delta;',
+        '\\epsilon': '&epsilon;',
+        '\\zeta': '&zeta;',
+        '\\eta': '&eta;',
+        '\\theta': '&theta;',
+        '\\iota': '&iota;',
+        '\\kappa': '&kappa;',
+        '\\lambda': '&lambda;',
+        '\\mu': '&mu;',
+        '\\nu': '&nu;',
+        '\\xi': '&xi;',
+        '\\pi': '&pi;',
+        '\\rho': '&rho;',
+        '\\sigma': '&sigma;',
+        '\\tau': '&tau;',
+        '\\upsilon': '&upsilon;',
+        '\\phi': '&phi;',
+        '\\chi': '&chi;',
+        '\\psi': '&psi;',
+        '\\omega': '&omega;',
+        '\\Gamma': '&Gamma;',
+        '\\Delta': '&Delta;',
+        '\\Theta': '&Theta;',
+        '\\Lambda': '&Lambda;',
+        '\\Xi': '&Xi;',
+        '\\Pi': '&Pi;',
+        '\\Sigma': '&Sigma;',
+        '\\Upsilon': '&Upsilon;',
+        '\\Phi': '&Phi;',
+        '\\Psi': '&Psi;',
+        '\\Omega': '&Omega;',
+        '\\sum': '&sum;',
+        '\\prod': '&prod;',
+        '\\int': '&int;',
+        '\\approx': '&asymp;',
+        '\\ne': '&ne;',
+        '\\neq': '&ne;',
+        '\\le': '&le;',
+        '\\leq': '&le;',
+        '\\ge': '&ge;',
+        '\\geq': '&ge;',
+        '\\times': '&times;',
+        '\\div': '&divide;',
+        '\\pm': '&plusmn;',
+        '\\cdot': '&middot;',
+        '\\partial': '&part;',
+        '\\nabla': '&nabla;',
+        '\\cup': '&cup;',
+        '\\cap': '&cap;',
+        '\\subset': '&sub;',
+        '\\supset': '&sup;',
+        '\\subseteq': '&sube;',
+        '\\supseteq': '&supe;',
+        '\\emptyset': '&empty;',
+        '\\forall': '&forall;',
+        '\\exists': '&exists;',
+        '\\quad': '&nbsp;&nbsp;&nbsp;&nbsp;',
+        '\\qquad': '&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;'
+      };
+
+      for (const [key, value] of Object.entries(mathSymbols)) {
+        rendered = rendered.split(key).join(value);
+      }
+
+      // Format line breaks in math blocks
+      rendered = rendered.split('\\\\').join('<br/>');
+
+      // Simple fraction: \frac{a}{b} -> <sup>a</sup>&frasl;<sub>b</sub>
+      rendered = rendered.replace(/\\frac\s*{([^{}]+)}\s*{([^{}]+)}/g, '<sup>$1</sup>&frasl;<sub>$2</sub>');
+
+      // Square root: \sqrt{a} -> &radic;<span style="border-top: 1px solid; padding-top: 1px;">$1</span>
+      rendered = rendered.replace(/\\sqrt\s*{([^{}]+)}/g, '&radic;<span style="border-top: 1px solid; padding-top: 1px;">$1</span>');
+
+      // Exponents: a^b -> a<sup>b</sup>, supports wrapped in {} or plain characters
+      rendered = rendered.replace(/([a-zA-Z0-9\(\)]+)\^{([^{}]+)}/g, '$1<sup>$2</sup>');
+      rendered = rendered.replace(/([a-zA-Z0-9\(\)]+)\^([a-zA-Z0-9]+)/g, '$1<sup>$2</sup>');
+
+      // Subscripts: a_b -> a<sub>b</sub>, supports wrapped in {} or plain characters
+      rendered = rendered.replace(/([a-zA-Z0-9\(\)]+)_{([^{}]+)}/g, '$1<sub>$2</sub>');
+      rendered = rendered.replace(/([a-zA-Z0-9\(\)]+)_([a-zA-Z0-9]+)/g, '$1<sub>$2</sub>');
+
+      return rendered.trim();
+    }
+
+    function compileMarkdown(markdownText) {
+      if (!markdownText) return '';
+      let html = markdownText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      html = html.replace(/^&gt;\s+(.*)$/gm, '<blockquote>$1</blockquote>');
+
+      const codeBlocks = [];
+      html = html.replace(/```(\w*)\n([\s\S]*?)```/g, (match, lang, code) => {
+        const placeholder = `__CODE_BLOCK_PLACEHOLDER_${codeBlocks.length}__`;
+        codeBlocks.push({ lang: lang || 'code', code: code.trim() });
+        return placeholder;
+      });
+
+      const inlineCodes = [];
+      html = html.replace(/`([^`]+)`/g, (match, code) => {
+        const placeholder = `__INLINE_CODE_PLACEHOLDER_${inlineCodes.length}__`;
+        inlineCodes.push(code);
+        return placeholder;
+      });
+
+      const blockMath = [];
+      html = html.replace(/\$\$([\s\S]*?)\$\$/g, (match, math) => {
+        const placeholder = `__BLOCK_MATH_PLACEHOLDER_${blockMath.length}__`;
+        blockMath.push(math);
+        return placeholder;
+      });
+
+      const inlineMath = [];
+      html = html.replace(/\$([^\$\n]+)\$/g, (match, math) => {
+        const placeholder = `__INLINE_MATH_PLACEHOLDER_${inlineMath.length}__`;
+        inlineMath.push(math);
+        return placeholder;
+      });
+
+      // Simple Table parser
+      html = html.replace(/\|([^\n]+)\|\r?\n\|[ :|-]+\|\r?\n((?:\|[^\n]+\|\r?\n?)*)/g, (match, headerRow, bodyRows) => {
+        let tableHtml = '<table><thead><tr>' + headerRow.split('|').map(h => h.trim()).filter(h => h).map(h => `<th>${h}</th>`).join('') + '</tr></thead><tbody>';
+        bodyRows.trim().split('\n').forEach(row => {
+          const cols = row.split('|').map(c => c.trim()).filter((c, i, a) => i > 0 && i < a.length - 1);
+          tableHtml += '<tr>' + cols.map(c => `<td>${c}</td>`).join('') + '</tr>';
+        });
+        return tableHtml + '</tbody></table>';
+      });
+
+      html = html.replace(/^#### (.*)$/gm, '<h4>$1</h4>').replace(/^### (.*)$/gm, '<h3>$1</h3>').replace(/^## (.*)$/gm, '<h2>$1</h2>').replace(/^# (.*)$/gm, '<h1>$1</h1>');
+      html = html.replace(/^\s*[-*+]\s+(.*)$/gm, '<li>$1</li>').replace(/(<li>.*<\/li>)/s, '<ul>$1</ul>').replace(/<\/ul>\s*<ul>/g, '');
+      html = html.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>').replace(/\*([^*]+)\*/g, '<em>$1</em>');
+
+      const lines = html.split('\n').map(line => {
+        const t = line.trim();
+        if (!t) return '';
+        if (/^<\/?(h[1-4]|ul|ol|li|blockquote|table|thead|tbody|tr|th|td|p)/i.test(t)) return line;
+        return `<p>${line}</p>`;
+      });
+      html = lines.filter(l => l).join('\n');
+
+      inlineCodes.forEach((code, index) => {
+        html = html.replace(`__INLINE_CODE_PLACEHOLDER_${index}__`, `<code>${code}</code>`);
+      });
+
+      codeBlocks.forEach((block, index) => {
+        const blockHtml = `
+          <pre><div class="code-header"><span class="code-header-lang">${block.lang}</span>
+          <button class="btn-copy" onclick="copyCodeSnippet(this)"><span>Copy</span></button></div>
+          <code>${block.code}</code></pre>
+        `.trim();
+        html = html.replace(`__CODE_BLOCK_PLACEHOLDER_${index}__`, blockHtml);
+      });
+
+      inlineMath.forEach((math, index) => {
+        html = html.replace(`__INLINE_MATH_PLACEHOLDER_${index}__`, `<span class="math-inline">${renderMath(math)}</span>`);
+      });
+
+      blockMath.forEach((math, index) => {
+        html = html.replace(`__BLOCK_MATH_PLACEHOLDER_${index}__`, `<div class="math-block">${renderMath(math)}</div>`);
+      });
+
+      // Replaces agent XML tags with premium terminal boxes
+      html = html.replace(/&lt;list_dir&gt;&lt;\/list_dir&gt;/gi, `
+        <div class="agent-terminal" style="font-family:'Fira Code', monospace; font-size:12px; margin: 12px 0; border: 1px solid rgba(0, 242, 254, 0.25); background: rgba(5, 5, 15, 0.9); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,242,254,0.15);">
+          <div style="background: rgba(0, 242, 254, 0.08); padding: 8px 12px; border-bottom: 1px solid rgba(0, 242, 254, 0.15); display: flex; justify-content: space-between; align-items: center; color: var(--accent-cyan); font-weight:600;">
+            <span>🖥️ Agent Action: List Directory</span>
+            <span style="font-size:10px; background: rgba(0,242,254,0.2); padding: 2px 6px; border-radius: 8px; color: var(--accent-cyan);">COMPLETED</span>
+          </div>
+          <div style="padding: 10px; color: #a2e2ff;">[Listed workspace files]</div>
+        </div>
+      `);
+
+      html = html.replace(/&lt;read_file&gt;([\s\S]*?)&lt;\/read_file&gt;/gi, (match, path) => `
+        <div class="agent-terminal" style="font-family:'Fira Code', monospace; font-size:12px; margin: 12px 0; border: 1px solid rgba(155, 81, 224, 0.25); background: rgba(5, 5, 15, 0.9); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 20px rgba(155,81,224,0.15);">
+          <div style="background: rgba(155, 81, 224, 0.08); padding: 8px 12px; border-bottom: 1px solid rgba(155, 81, 224, 0.15); display: flex; justify-content: space-between; align-items: center; color: var(--accent-purple); font-weight:600;">
+            <span>📖 Agent Action: Read File</span>
+            <span style="font-size:10px; background: rgba(155,81,224,0.2); padding: 2px 6px; border-radius: 8px; color: var(--accent-purple);">COMPLETED</span>
+          </div>
+          <div style="padding: 6px 12px; border-bottom: 1px dashed rgba(255,255,255,0.05); color: #c8c8d8;">Path: <span style="color:#e2e2ec; font-weight:bold;">${path.trim()}</span></div>
+        </div>
+      `);
+
+      html = html.replace(/&lt;write_file\s+path=&quot;([^&quot;]+)&quot;&gt;([\s\S]*?)&lt;\/write_file&gt;/gi, (match, path, content) => `
+        <div class="agent-terminal" style="font-family:'Fira Code', monospace; font-size:12px; margin: 12px 0; border: 1px solid var(--accent-magenta); background: rgba(5, 5, 15, 0.9); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 20px rgba(255, 0, 127, 0.15);">
+          <div style="background: rgba(255, 0, 127, 0.08); padding: 8px 12px; border-bottom: 1px solid rgba(255, 0, 127, 0.15); display: flex; justify-content: space-between; align-items: center; color: var(--accent-magenta); font-weight:600;">
+            <span>✍️ Agent Action: Write File</span>
+            <span style="font-size:10px; background: rgba(255,0,127,0.2); padding: 2px 6px; border-radius: 8px; color: var(--accent-magenta);">COMPLETED</span>
+          </div>
+          <div style="padding: 6px 12px; color: #c8c8d8;">File: <span style="color:#e2e2ec; font-weight:bold;">${path.trim()}</span></div>
+        </div>
+      `);
+
+      html = html.replace(/&lt;run_command&gt;([\s\S]*?)&lt;\/run_command&gt;/gi, (match, cmd) => `
+        <div class="agent-terminal" style="font-family:'Fira Code', monospace; font-size:12px; margin: 12px 0; border: 1px solid rgba(0, 242, 254, 0.25); background: rgba(5, 5, 15, 0.9); border-radius: 6px; overflow: hidden; box-shadow: 0 4px 20px rgba(0,242,254,0.15);">
+          <div style="background: rgba(0, 242, 254, 0.08); padding: 8px 12px; border-bottom: 1px solid rgba(0, 242, 254, 0.15); display: flex; justify-content: space-between; align-items: center; color: var(--accent-cyan); font-weight:600;">
+            <span>🖥️ Agent Command Terminal</span>
+            <span style="font-size:10px; background: rgba(0,242,254,0.2); padding: 2px 6px; border-radius: 8px; color: var(--accent-cyan);">COMPLETED</span>
+          </div>
+          <div style="padding: 10px; color: #a2e2ff; border-bottom: 1px dashed rgba(255,255,255,0.05); background: rgba(0,0,0,0.2);">&gt; ${cmd.trim()}</div>
+        </div>
+      `);
+
+      return html;
+    }
+
+    window.copyCodeSnippet = function(button) {
+      const plainText = button.closest('pre').querySelector('code').textContent;
+      navigator.clipboard.writeText(plainText).then(() => {
+        const textSpan = button.querySelector('span');
+        textSpan.innerText = 'Copied!';
+        setTimeout(() => { textSpan.innerText = 'Copy'; }, 2000);
+      });
+    };
+
+    /* 5. Chat Logs Manager */
+    class ChatHistoryManager {
+      constructor() {
+        this.storageKey = 'aether_conversations';
+        this.activeChatKey = 'aether_active_chat_id';
+        this.conversations = this._loadFromStorage();
+      }
+      _loadFromStorage() {
+        try { return JSON.parse(localStorage.getItem(this.storageKey)) || []; } catch (e) { return []; }
+      }
+      _saveToStorage() { localStorage.setItem(this.storageKey, JSON.stringify(this.conversations)); }
+      getActiveChatId() { return localStorage.getItem(this.activeChatKey) || null; }
+      setActiveChatId(id) { if (id) localStorage.setItem(this.activeChatKey, id); else localStorage.removeItem(this.activeChatKey); }
+      getAllChats() { return this.conversations; }
+      getChatById(id) { return this.conversations.find(c => c.id === id) || null; }
+      
+      createChat(modelName = 'Ollama', systemPrompt = '', presetId = 'general') {
+        const lang = getActiveLanguage();
+        const defaultTitle = lang === 'zh-TW' ? '新對話' : (lang === 'ja' ? '新規対話' : 'New Chat');
+        const newChat = {
+          id: 'chat_' + Date.now(),
+          title: defaultTitle,
+          model: modelName,
+          presetId,
+          systemPrompt,
+          createdAt: new Date().toISOString(),
+          messages: []
+        };
+        this.conversations.unshift(newChat);
+        this._saveToStorage();
+        this.setActiveChatId(newChat.id);
+        return newChat;
+      }
+      appendMessage(chatId, role, content) {
+        const chat = this.getChatById(chatId);
+        if (!chat) return null;
+        chat.messages.push({ role, content, timestamp: new Date().toISOString() });
+        if ((chat.title === '新對話' || chat.title === 'New Chat' || chat.title === '新規対話') && role === 'user') {
+          chat.title = content.length > 20 ? content.slice(0, 20) + '...' : content;
+        }
+        this._saveToStorage();
+        return chat;
+      }
+      deleteChat(id) {
+        const idx = this.conversations.findIndex(c => c.id === id);
+        if (idx !== -1) {
+          this.conversations.splice(idx, 1);
+          this._saveToStorage();
+          if (this.getActiveChatId() === id) {
+            this.setActiveChatId(this.conversations.length > 0 ? this.conversations[0].id : null);
+          }
+          return true;
+        }
+        return false;
+      }
+      clearAll() {
+        this.conversations = [];
+        this._saveToStorage();
+        this.setActiveChatId(null);
+      }
+    }
+    const chatHistory = new ChatHistoryManager();
+
+    /* File Attachment Store & Helper Methods */
+    let attachedFiles = [];
+
+    function handleFileSelect(e) {
+      const files = Array.from(e.target.files);
+      files.forEach(file => {
+        const isImage = file.type.startsWith('image/');
+        const reader = new FileReader();
+
+        reader.onload = function(evt) {
+          const fileData = {
+            name: file.name,
+            type: file.type,
+            size: file.size,
+            isImage: isImage,
+            dataUrl: isImage ? evt.target.result : null,
+            textContent: isImage ? null : evt.target.result
+          };
+          attachedFiles.push(fileData);
+          renderAttachmentPreviews();
+        };
+
+        if (isImage) {
+          reader.readAsDataURL(file);
+        } else {
+          reader.readAsText(file);
+        }
+      });
+      e.target.value = '';
+    }
+
+    function renderAttachmentPreviews() {
+      const container = elements.attachmentPreviewContainer;
+      if (!container) return;
+
+      if (attachedFiles.length === 0) {
+        container.style.display = 'none';
+        container.innerHTML = '';
+        return;
+      }
+
+      container.style.display = 'flex';
+      container.innerHTML = '';
+
+      attachedFiles.forEach((file, index) => {
+        const pill = document.createElement('div');
+        pill.className = 'attachment-pill';
+        
+        if (file.isImage) {
+          const img = document.createElement('img');
+          img.src = file.dataUrl;
+          pill.appendChild(img);
+        } else {
+          const icon = document.createElement('span');
+          icon.style.marginRight = '2px';
+          icon.innerText = '📄';
+          pill.appendChild(icon);
+        }
+
+        const nameSpan = document.createElement('span');
+        nameSpan.innerText = file.name.length > 20 ? file.name.slice(0, 17) + '...' : file.name;
+        pill.appendChild(nameSpan);
+
+        const removeBtn = document.createElement('span');
+        removeBtn.className = 'attachment-pill-remove';
+        removeBtn.innerHTML = '&times;';
+        removeBtn.addEventListener('click', () => {
+          attachedFiles.splice(index, 1);
+          renderAttachmentPreviews();
+        });
+        pill.appendChild(removeBtn);
+
+        container.appendChild(pill);
+      });
+    }
+
+    /* 6. Main controller glue */
+    const elements = {
+      neuralCanvas: document.getElementById('neural-canvas'),
+      sidebar: document.querySelector('.sidebar'),
+      sidebarToggle: document.getElementById('sidebar-toggle'),
+      controlPanel: document.getElementById('settings-backdrop'),
+      panelToggle: document.getElementById('panel-toggle'),
+      historyContainer: document.getElementById('history-container'),
+      btnNewChat: document.getElementById('btn-new-chat'),
+      btnClearAll: document.getElementById('btn-clear-all'),
+      chatMessages: document.getElementById('chat-messages'),
+      chatWelcome: document.getElementById('chat-welcome'),
+      chatTextarea: document.getElementById('chat-textarea'),
+      btnSend: document.getElementById('btn-send'),
+      btnStop: document.getElementById('btn-stop'),
+      btnExport: document.getElementById('btn-export'),
+      btnAttachFile: document.getElementById('btn-attach-file'),
+      fileUploadInput: document.getElementById('file-upload-input'),
+      attachmentPreviewContainer: document.getElementById('attachment-preview-container'),
+      btnSaveSettings: document.getElementById('btn-save-settings'),
+      btnVoiceInput: document.getElementById('btn-voice-input'),
+      langSelect: document.getElementById('select-lang'),
+      suggestionsContainer: document.getElementById('suggestions-container'),
+      activeModelNameDisplay: document.getElementById('active-model-name'),
+      activeModelProviderDisplay: document.getElementById('active-model-provider'),
+      connectionStatusPill: document.getElementById('connection-status-pill'),
+      providerSelect: document.getElementById('select-provider'),
+      modelSelect: document.getElementById('select-model'),
+      ollamaUrlInput: document.getElementById('input-ollama-url'),
+      customUrlInput: document.getElementById('input-custom-url'),
+      apiKeyInput: document.getElementById('input-api-key'),
+      customModelInput: document.getElementById('input-custom-model'),
+      tempSlider: document.getElementById('slider-temp'),
+      tempValue: document.getElementById('val-temp'),
+      tokensSlider: document.getElementById('slider-tokens'),
+      tokensValue: document.getElementById('val-tokens'),
+      systemPromptArea: document.getElementById('textarea-system-prompt'),
+      presetsGrid: document.getElementById('presets-grid'),
+      activePresetLabelDisplay: document.getElementById('active-preset-label'),
+      metricTps: document.getElementById('metric-tps'),
+      metricTokens: document.getElementById('metric-tokens'),
+      metricTime: document.getElementById('metric-time'),
+      telegramTokenInput: document.getElementById('input-telegram-token'),
+      telegramChatIdInput: document.getElementById('input-telegram-chat-id'),
+      discordWebhookInput: document.getElementById('input-discord-webhook')
+    };
+
+    let currentAbortController = null;
+    let isGenerating = false;
+
+    // Translation Applier
+    function updateLanguage(lang) {
+      localStorage.setItem('aether_lang', lang);
+      document.documentElement.lang = lang;
+      updatePromptLibraryLanguage(lang);
+
+      const dict = translations[lang] || translations['en'];
+      document.querySelectorAll('[data-i18n]').forEach(el => {
+        const key = el.getAttribute('data-i18n');
+        if (dict[key]) {
+          let replaced = false;
+          for (const node of el.childNodes) {
+            if (node.nodeType === Node.TEXT_NODE && node.nodeValue.trim() !== '') {
+              node.nodeValue = dict[key];
+              replaced = true;
+              break;
+            }
+          }
+          if (!replaced) el.innerText = dict[key];
+        }
+      });
+
+      document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+        const key = el.getAttribute('data-i18n-placeholder');
+        if (dict[key]) el.setAttribute('placeholder', dict[key]);
+      });
+
+      initPresetsGrid();
+      
+      const activeChatId = chatHistory.getActiveChatId();
+      if (!activeChatId) {
+        const selectedIdx = document.querySelector('.preset-card[style*="border-color"]') ? 
+          Array.from(document.querySelectorAll('.preset-card')).findIndex(c => c.style.borderColor !== '') : 0;
+        injectPreset(PromptLibrary[selectedIdx >= 0 ? selectedIdx : 0]?.id || 'general');
+      } else {
+        const chat = chatHistory.getChatById(activeChatId);
+        if (chat && chat.presetId) injectPreset(chat.presetId);
+      }
+      
+      // Dynamic endpoint label override based on active provider
+      const prov = elements.providerSelect ? elements.providerSelect.value : 'ollama';
+      const labelEl = document.querySelector('[data-i18n="ollama_url_label"]');
+      if (labelEl) {
+        if (prov === 'lmstudio') {
+          labelEl.innerText = lang === 'zh-TW' ? 'LM Studio 位址' : (lang === 'ja' ? 'LM Studio アドレス' : 'LM Studio API Endpoint');
+        } else if (prov === 'vllm') {
+          labelEl.innerText = lang === 'zh-TW' ? 'vLLM 位址' : (lang === 'ja' ? 'vLLM アドレス' : 'vLLM API Endpoint');
+        } else {
+          const dict = translations[lang] || translations['en'];
+          labelEl.innerText = dict['ollama_url_label'];
+        }
+      }
+
+      renderSessionsHistory();
+    }
+
+    // Neural canvas
+    function initNeuralBackground() {
+      const canvas = elements.neuralCanvas;
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      let w = (canvas.width = window.innerWidth);
+      let h = (canvas.height = window.innerHeight);
+
+      window.addEventListener('resize', () => { w = (canvas.width = window.innerWidth); h = (canvas.height = window.innerHeight); });
+      const particles = [];
+      const mouse = { x: null, y: null, radius: 180 };
+      window.addEventListener('mousemove', e => { mouse.x = e.x; mouse.y = e.y; });
+      window.addEventListener('mouseleave', () => { mouse.x = null; mouse.y = null; });
+
+      class Particle {
+        constructor() {
+          this.x = Math.random() * w; this.y = Math.random() * h;
+          this.vx = (Math.random() - 0.5) * 0.45; this.vy = (Math.random() - 0.5) * 0.45;
+          this.radius = Math.random() * 2 + 1;
+          this.color = Math.random() > 0.5 ? '#00f2fe' : '#9b51e0';
+        }
+        update() {
+          this.x += this.vx; this.y += this.vy;
+          if (this.x < 0 || this.x > w) this.vx *= -1;
+          if (this.y < 0 || this.y > h) this.vy *= -1;
+          if (mouse.x !== null) {
+            const dx = mouse.x - this.x, dy = mouse.y - this.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < mouse.radius) {
+              const force = (mouse.radius - dist) / mouse.radius;
+              this.x -= dx * force * 0.02; this.y -= dy * force * 0.02;
+            }
+          }
+        }
+        draw() {
+          ctx.beginPath(); ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+          ctx.fillStyle = this.color; ctx.fill();
+        }
+      }
+
+      for (let i = 0; i < 40; i++) particles.push(new Particle());
+      function animate() {
+        ctx.clearRect(0, 0, w, h);
+        for (let i = 0; i < particles.length; i++) {
+          const p1 = particles[i]; p1.update(); p1.draw();
+          for (let j = i + 1; j < particles.length; j++) {
+            const p2 = particles[j];
+            const dx = p1.x - p2.x, dy = p1.y - p2.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist < 140) {
+              const alpha = (1 - dist / 140) * 0.15;
+              ctx.beginPath(); ctx.moveTo(p1.x, p1.y); ctx.lineTo(p2.x, p2.y);
+              ctx.strokeStyle = `rgba(0, 242, 254, ${alpha})`; ctx.stroke();
+            }
+          }
+        }
+        requestAnimationFrame(animate);
+      }
+      animate();
+    }
+
+    // Setups and bindings
+    function setupDrawerCollapsers() {
+      // Toggle sidebar open/close on mobile
+      elements.sidebarToggle?.addEventListener('click', () => elements.sidebar.classList.toggle('open'));
+
+      // Sidebar collapse (expand/shrink) trigger for desktop
+      const sidebarCollapseBtn = document.getElementById('sidebar-collapse-btn');
+      const sidebarCollapseIcon = document.getElementById('sidebar-collapse-icon');
+      if (sidebarCollapseBtn && elements.sidebar) {
+        sidebarCollapseBtn.addEventListener('click', () => {
+          elements.sidebar.classList.toggle('collapsed');
+          if (sidebarCollapseIcon) {
+            if (elements.sidebar.classList.contains('collapsed')) {
+              sidebarCollapseIcon.style.transform = 'rotate(180deg)';
+            } else {
+              sidebarCollapseIcon.style.transform = '';
+            }
+          }
+        });
+      }
+
+      // Settings Modal togglers (since elements.controlPanel is now the modal backdrop)
+      elements.panelToggle?.addEventListener('click', (e) => {
+        e.preventDefault();
+        if (elements.controlPanel) {
+          elements.controlPanel.style.display = 'flex';
+        }
+      });
+
+      const btnCloseSettingsModal = document.getElementById('btn-close-settings-modal');
+      if (btnCloseSettingsModal && elements.controlPanel) {
+        btnCloseSettingsModal.addEventListener('click', () => {
+          elements.controlPanel.style.display = 'none';
+        });
+      }
+
+      // Hide modal when clicking on the backdrop area
+      if (elements.controlPanel) {
+        elements.controlPanel.addEventListener('click', (e) => {
+          if (e.target === elements.controlPanel) {
+            elements.controlPanel.style.display = 'none';
+          }
+        });
+      }
+
+      // Modal Tab switching logic
+      const tabBtns = document.querySelectorAll('.modal-tab-btn');
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          tabBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const targetTabId = btn.getAttribute('data-tab');
+          const tabContents = document.querySelectorAll('.modal-tab-content');
+          tabContents.forEach(content => {
+            if (content.id === targetTabId) {
+              content.classList.add('active');
+            } else {
+              content.classList.remove('active');
+            }
+          });
+        });
+      });
+
+      // Modal Save trigger
+      const btnModalSaveSettings = document.getElementById('btn-modal-save-settings');
+      if (btnModalSaveSettings) {
+        btnModalSaveSettings.addEventListener('click', () => {
+          const originalSaveBtn = document.getElementById('btn-save-settings');
+          if (originalSaveBtn) {
+            originalSaveBtn.click();
+          }
+          if (elements.controlPanel) {
+            elements.controlPanel.style.display = 'none';
+          }
+        });
+      }
+
+      // Close drawers on message area click
+      elements.chatMessages.addEventListener('click', () => {
+        if (window.innerWidth <= 768) elements.sidebar.classList.remove('open');
+        if (elements.controlPanel && elements.controlPanel.style.display !== 'none' && window.innerWidth <= 1024) {
+          elements.controlPanel.style.display = 'none';
+        }
+      });
+    }
+
+    function initSettingsValues() {
+      elements.tempSlider?.addEventListener('input', e => elements.tempValue.innerText = e.target.value);
+      elements.tokensSlider?.addEventListener('input', e => elements.tokensValue.innerText = e.target.value);
+
+      elements.providerSelect?.addEventListener('change', e => {
+        const prov = e.target.value;
+        const groupOllama = document.getElementById('group-ollama-url');
+        const urlLabel = groupOllama ? groupOllama.querySelector('.form-label') : null;
+        const activeLang = getActiveLanguage();
+        
+        if (groupOllama) {
+          groupOllama.style.display = 'flex';
+          
+          if (prov === 'lmstudio') {
+            if (urlLabel) urlLabel.innerText = activeLang === 'zh-TW' ? 'LM Studio 位址' : (activeLang === 'ja' ? 'LM Studio アドレス' : 'LM Studio API Endpoint');
+            elements.ollamaUrlInput.value = 'http://localhost:1234';
+          } else if (prov === 'vllm') {
+            if (urlLabel) urlLabel.innerText = activeLang === 'zh-TW' ? 'vLLM 位址' : (activeLang === 'ja' ? 'vLLM アドレス' : 'vLLM API Endpoint');
+            elements.ollamaUrlInput.value = 'http://localhost:8000';
+          } else if (prov === 'agent') {
+            if (urlLabel) urlLabel.innerText = activeLang === 'zh-TW' ? 'Ollama API 位址' : (activeLang === 'ja' ? 'Ollama API アドレス' : 'Ollama API Endpoint');
+            elements.ollamaUrlInput.value = 'http://localhost:11434';
+          } else {
+            if (urlLabel) urlLabel.innerText = activeLang === 'zh-TW' ? 'Ollama API 位址' : (activeLang === 'ja' ? 'Ollama API アドレス' : 'Ollama API Endpoint');
+            elements.ollamaUrlInput.value = 'http://localhost:11434';
+          }
+        }
+        updateProviderConnection();
+      });
+
+      const updateConfig = () => {
+        let modelName = elements.modelSelect.value;
+
+        aetherApi.updateConfig({
+          provider: elements.providerSelect.value,
+          ollamaUrl: elements.ollamaUrlInput.value,
+          modelName: modelName
+        });
+      };
+      elements.ollamaUrlInput?.addEventListener('input', updateConfig);
+      elements.modelSelect?.addEventListener('change', () => {
+        updateConfig();
+        const activeId = chatHistory.getActiveChatId();
+        if (activeId) {
+          const chat = chatHistory.getChatById(activeId);
+          if (chat) chat.model = aetherApi.modelName || elements.modelSelect.value;
+        }
+        updateTopBarModelName();
+      });
+    }
+
+    async function updateProviderConnection() {
+      const provider = elements.providerSelect.value;
+      aetherApi.updateConfig({ provider, ollamaUrl: elements.ollamaUrlInput.value });
+      elements.connectionStatusPill.className = 'status-pill status-alert';
+      elements.connectionStatusPill.querySelector('span:last-child').innerText = 'Loading...';
+
+      try {
+        const models = await aetherApi.fetchModels();
+        elements.modelSelect.innerHTML = '';
+        models.forEach(m => {
+          const opt = document.createElement('option');
+          opt.value = m.name; opt.innerText = `${m.name} (${m.details})`;
+          elements.modelSelect.appendChild(opt);
+        });
+        if (models.length > 0) {
+          let mName = models[0].name;
+          aetherApi.updateConfig({ modelName: mName });
+        }
+        elements.connectionStatusPill.className = 'status-pill status-online';
+        elements.connectionStatusPill.querySelector('span:last-child').innerText = 'Connected';
+      } catch (e) {
+        elements.connectionStatusPill.className = 'status-pill status-alert';
+        elements.connectionStatusPill.querySelector('span:last-child').innerText = 'Disconnected';
+        
+        let offlineText = 'Ollama 未啟動或無模型 (Ollama Offline)';
+        if (provider === 'lmstudio') {
+          offlineText = 'LM Studio 未啟動或無模型 (LM Studio Offline)';
+        } else if (provider === 'vllm') {
+          offlineText = 'vLLM 未啟動或無模型 (vLLM Offline)';
+        }
+        
+        elements.modelSelect.innerHTML = `
+          <option value="">${offlineText}</option>
+        `;
+        aetherApi.updateConfig({ modelName: '' });
+      }
+      updateTopBarModelName();
+    }
+
+    function updateTopBarModelName() {
+      elements.activeModelNameDisplay.innerText = aetherApi.modelName || 'Disconnected';
+      elements.activeModelProviderDisplay.innerText = aetherApi.provider.toUpperCase();
+    }
+
+    function initPresetsGrid() {
+      const container = elements.presetsGrid;
+      if (!container) return;
+      container.innerHTML = '';
+      PromptLibrary.forEach(preset => {
+        const card = document.createElement('div');
+        card.className = 'preset-card glass-panel glass-interactive animate-slide-in';
+        card.innerHTML = `<div class="preset-card-title">${preset.icon}<span>${preset.name}</span></div><div class="preset-card-desc">${preset.description}</div>`;
+        card.addEventListener('click', () => {
+          injectPreset(preset.id);
+          document.querySelectorAll('.preset-card').forEach(c => c.style.borderColor = '');
+          card.style.borderColor = 'var(--accent-purple)';
+        });
+        container.appendChild(card);
+      });
+    }
+
+    function injectPreset(presetId) {
+      const preset = getPresetById(presetId);
+      elements.systemPromptArea.value = preset.systemPrompt;
+      elements.activePresetLabelDisplay.innerText = preset.name;
+      
+      const chips = elements.suggestionsContainer;
+      chips.innerHTML = '';
+      preset.suggestions.forEach(s => {
+        const chip = document.createElement('div');
+        chip.className = 'suggestion-chip'; chip.innerText = s;
+        chip.addEventListener('click', () => {
+          elements.chatTextarea.value = s; elements.chatTextarea.focus();
+        });
+        chips.appendChild(chip);
+      });
+    }
+
+    function renderSessionsHistory() {
+      const container = elements.historyContainer;
+      if (!container) return;
+      container.innerHTML = '';
+      const chats = chatHistory.getAllChats();
+      const activeId = chatHistory.getActiveChatId();
+
+      if (chats.length === 0) {
+        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;" data-i18n="history_empty">無歷史對話紀錄</div>`;
+        return;
+      }
+
+      chats.forEach(chat => {
+        const item = document.createElement('div');
+        item.className = `history-item ${chat.id === activeId ? 'active' : ''}`;
+        item.innerHTML = `
+          <div class="history-title-wrap">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <span class="history-title">${chat.title}</span>
+          </div>
+          <button class="history-btn-del">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+          </button>
+        `;
+        item.addEventListener('click', e => {
+          if (!e.target.closest('.history-btn-del')) switchSession(chat.id);
+        });
+        item.querySelector('.history-btn-del').addEventListener('click', e => {
+          e.stopPropagation();
+          const lang = getActiveLanguage();
+          const confirmText = (translations[lang] || translations['zh-TW']).confirm_del_chat;
+          if (confirm(confirmText)) {
+            chatHistory.deleteChat(chat.id);
+            renderSessionsHistory();
+            if (chatHistory.getActiveChatId()) switchSession(chatHistory.getActiveChatId());
+            else loadNewSessionState();
+          }
+        });
+        container.appendChild(item);
+      });
+    }
+
+    function switchSession(chatId) {
+      chatHistory.setActiveChatId(chatId);
+      renderSessionsHistory();
+      const chat = chatHistory.getChatById(chatId);
+      if (!chat) return;
+
+      elements.chatWelcome.style.display = 'none';
+      elements.chatMessages.innerHTML = '';
+      if (chat.presetId) injectPreset(chat.presetId);
+
+      chat.messages.forEach(m => appendMessageRowToDOM(m.role, m.content));
+      elements.btnExport.removeAttribute('disabled');
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+    }
+
+    function loadNewSessionState() {
+      chatHistory.setActiveChatId(null);
+      elements.chatMessages.innerHTML = '';
+      elements.chatWelcome.style.display = 'flex';
+      elements.btnExport.setAttribute('disabled', 'true');
+      injectPreset('general');
+      renderSessionsHistory();
+    }
+
+    function appendMessageRowToDOM(role, rawContent) {
+      const row = document.createElement('div');
+      row.className = `message-row ${role} animate-slide-in`;
+      const avatarSVG = role === 'user' 
+        ? `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>`
+        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2a10 10 0 0 1 10 10v7a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-7A10 10 0 0 1 12 2z"/><path d="M12 18v-4"/><path d="M8 10h.01"/><path d="M16 10h.01"/></svg>`;
+      
+      row.innerHTML = `
+        ${role === 'assistant' ? `<div class="message-avatar">${avatarSVG}</div>` : ''}
+        <div class="message-content">
+          ${role === 'user' ? `<p>${rawContent.replace(/\n/g, '<br>')}</p>` : compileMarkdown(rawContent)}
+          ${role === 'assistant' && rawContent.trim() ? `
+            <div class="message-utils" style="display:flex; justify-content:flex-end; gap:6px; margin-top:6px; border-top:1px solid rgba(255,255,255,0.03); padding-top:4px; opacity:0.6; transition:opacity 0.2s;">
+              <button class="btn-msg-util btn-speak" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; display:flex; align-items:center; padding:2px; font-size:11px;" title="語音朗讀 (Speak)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" width="12" height="12" style="margin-right:2px; stroke: var(--accent-cyan);"><polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"/><path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"/></svg>
+                Speak
+              </button>
+            </div>
+          ` : ''}
+        </div>
+        ${role === 'user' ? `<div class="message-avatar">${avatarSVG}</div>` : ''}
+      `;
+
+      if (role === 'assistant') {
+        const speakBtn = row.querySelector('.btn-speak');
+        speakBtn?.addEventListener('click', () => {
+          const tempDiv = document.createElement('div');
+          tempDiv.innerHTML = compileMarkdown(rawContent);
+          const plainText = tempDiv.textContent || tempDiv.innerText || '';
+          
+          window.speechSynthesis.cancel();
+          const utterance = new SpeechSynthesisUtterance(plainText);
+          const lang = getActiveLanguage();
+          utterance.lang = lang === 'zh-TW' ? 'zh-TW' : lang === 'ja' ? 'ja-JP' : 'en-US';
+          window.speechSynthesis.speak(utterance);
+        });
+      }
+
+      elements.chatMessages.appendChild(row);
+      return row;
+    }
+
+    /* ==========================================================
+       AGENT CODE MODE: Autonomous Agent Loop & Helpers
+       ========================================================== */
+    const agentSystemPrompt = `You are a Local Coder Agent inside AetherAI Studio. You have autonomous access to the user's workspace directory via XML-like tags.
+You can execute shell commands, view files, write files, and list directory contents.
+To perform actions, you MUST output one of the following tags in your response. The client will execute them and return the results to you.
+When a task is given:
+1. First, list files or explore the codebase using <list_dir></list_dir> to understand the context.
+2. Read files to understand the details using <read_file>path</read_file>.
+3. Edit or write files using the <write_file path="path">content...</write_file> tag.
+4. Execute shell commands to build, test, or verify using <run_command>cmd</run_command>.
+5. Answer the user or confirm that the task is finished.
+
+Available Tags:
+- To list workspace directory contents:
+  <list_dir></list_dir>
+
+- To read the full contents of a file:
+  <read_file>relative/path/to/file</read_file>
+
+- To write/create a file with full content:
+  <write_file path="relative/path/to/file">
+  ... content here ...
+  </write_file>
+
+- To run a PowerShell terminal shell command in the workspace directory:
+  <run_command>command here</run_command>
+
+IMPORTANT RULES:
+- You must output only ONE tag at a time, and wait for the execution results before outputting more tags.
+- The results of the action will be provided to you by the system. You will then continue reasoning and editing until the task is complete.
+- Be concise. Explain what you are doing before outputting a tag.
+`;
+
+    let agentStepCount = 0;
+    const maxAgentSteps = 12;
+
+    function parseAgentTags(text) {
+      const listDirMatch = text.match(/<list_dir>\s*<\/list_dir>/i);
+      const readFileMatch = text.match(/<read_file>([\s\S]*?)<\/read_file>/i);
+      const writeFileMatch = text.match(/<write_file\s+path="([^"]+)">([\s\S]*?)<\/write_file>/i);
+      const runCmdMatch = text.match(/<run_command>([\s\S]*?)<\/run_command>/i);
+
+      if (listDirMatch) return { type: 'list_dir', args: null, raw: listDirMatch[0] };
+      if (readFileMatch) return { type: 'read_file', args: readFileMatch[1].trim(), raw: readFileMatch[0] };
+      if (writeFileMatch) return { type: 'write_file', args: { path: writeFileMatch[1].trim(), content: writeFileMatch[2] }, raw: writeFileMatch[0] };
+      if (runCmdMatch) return { type: 'run_command', args: runCmdMatch[1].trim(), raw: runCmdMatch[0] };
+      return null;
+    }
+
+    async function executeAgentAction(action, assistantRow) {
+      const contentDiv = assistantRow.querySelector('.message-content');
+      const cursor = contentDiv.querySelector('.typing-cursor');
+      if (cursor) cursor.remove();
+
+      const termDiv = document.createElement('div');
+      termDiv.className = 'agent-terminal glass-panel pulse-cyan animate-slide-in';
+      termDiv.style.cssText = "font-family:'Fira Code', monospace; font-size:12px; margin:12px 0; border:1px solid rgba(0, 242, 254, 0.4); background:rgba(5, 5, 15, 0.95); border-radius:6px; overflow:hidden; box-shadow:0 4px 20px rgba(0,242,254,0.25);";
+      
+      let title = "";
+      let cmdText = "";
+      if (action.type === 'list_dir') {
+        title = "🖥️ Agent Action: List Directory";
+        cmdText = "list workspace directory contents";
+      } else if (action.type === 'read_file') {
+        title = "📖 Agent Action: Read File";
+        cmdText = `read file: ${action.args}`;
+      } else if (action.type === 'write_file') {
+        title = "✍️ Agent Action: Write File";
+        cmdText = `write file: ${action.args.path}`;
+      } else if (action.type === 'run_command') {
+        title = "🖥️ Agent Command Terminal";
+        cmdText = `executing: ${action.args}`;
+      }
+
+      termDiv.innerHTML = `
+        <div style="background: rgba(0, 242, 254, 0.08); padding: 8px 12px; border-bottom: 1px solid rgba(0, 242, 254, 0.15); display: flex; justify-content: space-between; align-items: center; color: var(--accent-cyan); font-weight:600;">
+          <span>${title}</span>
+          <span class="loader-spinner" style="width: 10px; height: 10px; border-top-color: var(--accent-cyan);"></span>
+        </div>
+        <div style="padding: 10px; color: #a2e2ff; background: rgba(0,0,0,0.25); border-bottom: 1px dashed rgba(255,255,255,0.05); font-weight: bold;">&gt; ${cmdText}</div>
+        <div class="term-output" style="padding: 10px; color: #88c888; max-height: 200px; overflow-y: auto; white-space: pre-wrap; font-size:11px;">🔄 Running action on local server...</div>
+      `;
+      
+      contentDiv.appendChild(termDiv);
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+      let resultText = "";
+      try {
+        if (action.type === 'list_dir') {
+          const res = await fetch('/api/agent/list');
+          if (!res.ok) throw new Error(`Server returned ${res.status}`);
+          const files = await res.json();
+          resultText = files.length > 0 
+            ? files.map(f => `- ${f.path} (${Math.round(f.size/1024*10)/10} KB)`).join('\n')
+            : "No files found in workspace.";
+        } else if (action.type === 'read_file') {
+          const res = await fetch(`/api/agent/read?path=${encodeURIComponent(action.args)}`);
+          if (!res.ok) throw new Error(`File read failed with ${res.status}`);
+          resultText = await res.text();
+        } else if (action.type === 'write_file') {
+          const res = await fetch(`/api/agent/write?path=${encodeURIComponent(action.args.path)}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            body: action.args.content
+          });
+          if (!res.ok) throw new Error(`File write failed with ${res.status}`);
+          resultText = await res.text();
+        } else if (action.type === 'run_command') {
+          const res = await fetch('/api/agent/run', {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+            body: action.args
+          });
+          if (!res.ok) throw new Error(`Command execution failed with ${res.status}`);
+          resultText = await res.text();
+        }
+      } catch (err) {
+        resultText = `Execution Error: ${err.message}`;
+      }
+
+      const outputDiv = termDiv.querySelector('.term-output');
+      const spinner = termDiv.querySelector('.loader-spinner');
+      if (spinner) {
+        spinner.className = '';
+        spinner.style.fontSize = '10px';
+        spinner.style.background = 'rgba(0, 242, 254, 0.15)';
+        spinner.style.padding = '2px 6px';
+        spinner.style.borderRadius = '8px';
+        spinner.innerText = 'FINISHED';
+      }
+      
+      outputDiv.innerText = resultText;
+      outputDiv.style.color = resultText.startsWith('Execution Error:') ? 'var(--color-error)' : '#88c888';
+      outputDiv.scrollTop = outputDiv.scrollHeight;
+
+      const activeId = chatHistory.getActiveChatId();
+      if (activeId) {
+        chatHistory.appendMessage(activeId, 'user', `[Agent Action Execution Result for ${action.type}]:\n\`\`\`\n${resultText}\n\`\`\``);
+      }
+
+      setTimeout(() => {
+        runAgentAutonomousLoop();
+      }, 1000);
+    }
+
+    async function runAgentAutonomousLoop() {
+      if (!isGenerating) return;
+      
+      const activeId = chatHistory.getActiveChatId();
+      if (!activeId) {
+        setGeneratingState(false);
+        return;
+      }
+
+      if (agentStepCount >= maxAgentSteps) {
+        const assistantRow = appendMessageRowToDOM('assistant', `⚠️ **Agent Safety Stop**: Hit maximum autonomous step limit of ${maxAgentSteps} steps.`);
+        chatHistory.appendMessage(activeId, 'assistant', `⚠️ **Agent Safety Stop**: Hit maximum autonomous step limit of ${maxAgentSteps} steps.`);
+        setGeneratingState(false);
+        return;
+      }
+
+      agentStepCount++;
+
+      const chatLogs = chatHistory.getChatById(activeId).messages;
+      const assistantRow = appendMessageRowToDOM('assistant', '');
+      const contentDiv = assistantRow.querySelector('.message-content');
+      contentDiv.innerHTML = '<span class="typing-cursor"></span>';
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+      document.querySelector('.chat-model-avatar').classList.add('ai-core-active');
+      currentAbortController = new AbortController();
+      let fullStreamText = "";
+
+      const temp = parseFloat(elements.tempSlider.value);
+      const maxTokens = parseInt(elements.tokensSlider.value);
+      const systemPrompt = elements.systemPromptArea.value + "\n\n" + agentSystemPrompt;
+
+      try {
+        await aetherApi.streamChat(
+          chatLogs,
+          { temperature: temp, maxTokens, systemPrompt },
+          (chunk, stats) => {
+            fullStreamText += chunk;
+            contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
+            elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+            if (stats) {
+              elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
+              elements.metricTokens.innerText = stats.evalCount;
+              elements.metricTime.innerText = `${stats.totalDuration}s`;
+            }
+          },
+          (err) => {
+            contentDiv.innerHTML = `
+              <div class="status-pill status-alert" style="display: flex; flex-direction: column; align-items: flex-start; padding: 16px; margin-top: 10px; width: 100%; border-radius: var(--border-radius-sm);">
+                <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                  <span class="status-dot" style="background: var(--color-error)"></span>
+                  <span>智能代理執行失敗 (Agent Execution Failed)</span>
+                </div>
+                <div style="font-size: 13px; line-height: 1.5; opacity: 0.8;">
+                  ${err.message}
+                </div>
+              </div>
+            `;
+          },
+          currentAbortController
+        );
+
+        const cursor = contentDiv.querySelector('.typing-cursor');
+        if (cursor) cursor.remove();
+
+        if (fullStreamText.trim()) {
+          chatHistory.appendMessage(activeId, 'assistant', fullStreamText);
+          renderSessionsHistory();
+
+          const action = parseAgentTags(fullStreamText);
+          if (action) {
+            await executeAgentAction(action, assistantRow);
+          } else {
+            setGeneratingState(false);
+            document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
+          }
+        } else {
+          setGeneratingState(false);
+          document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
+        }
+      } catch (e) {
+        setGeneratingState(false);
+        document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
+      }
+    }
+
+    async function handleSendMessage() {
+      const prompt = elements.chatTextarea.value.trim();
+      if (!prompt && attachedFiles.length === 0 || isGenerating) return;
+
+      let finalPrompt = prompt;
+      let displayPrompt = prompt;
+      const attachedImages = [];
+
+      if (attachedFiles.length > 0) {
+        let textAttachments = "";
+        let imagesCount = 0;
+
+        attachedFiles.forEach(file => {
+          if (!file.isImage) {
+            textAttachments += `\n\n[Attached File: ${file.name}]\n\`\`\`\n${file.textContent}\n\`\`\``;
+          } else {
+            imagesCount++;
+            attachedImages.push({
+              name: file.name,
+              mimeType: file.type,
+              base64: file.dataUrl.split(',')[1]
+            });
+          }
+        });
+
+        finalPrompt = prompt + textAttachments;
+        if (imagesCount > 0) {
+          displayPrompt = `🖼️ [${imagesCount} Image(s) Attached] ` + (prompt || `Analyze attached image(s)`);
+        }
+      }
+
+      elements.chatTextarea.value = '';
+      
+      // Clear attachments store & preview container
+      attachedFiles = [];
+      renderAttachmentPreviews();
+
+      elements.chatWelcome.style.display = 'none';
+
+      let activeId = chatHistory.getActiveChatId();
+      if (!activeId) {
+        const newChat = chatHistory.createChat(aetherApi.modelName, elements.systemPromptArea.value);
+        activeId = newChat.id;
+        renderSessionsHistory();
+      }
+
+      chatHistory.appendMessage(activeId, 'user', finalPrompt);
+      appendMessageRowToDOM('user', displayPrompt);
+
+      if (aetherApi.provider === 'agent') {
+        agentStepCount = 0;
+        setGeneratingState(true);
+        runAgentAutonomousLoop();
+        return;
+      }
+
+      const assistantRow = appendMessageRowToDOM('assistant', '');
+      const contentDiv = assistantRow.querySelector('.message-content');
+      contentDiv.innerHTML = '<span class="typing-cursor"></span>';
+      elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+      setGeneratingState(true);
+      currentAbortController = new AbortController();
+      let fullStreamText = "";
+      
+      const temp = parseFloat(elements.tempSlider.value);
+      const maxTokens = parseInt(elements.tokensSlider.value);
+      const systemPrompt = elements.systemPromptArea.value;
+      const chatLogs = chatHistory.getChatById(activeId).messages;
+
+      document.querySelector('.chat-model-avatar').classList.add('ai-core-active');
+
+      try {
+        await aetherApi.streamChat(
+          chatLogs,
+          { temperature: temp, maxTokens, systemPrompt, images: attachedImages },
+          (chunk, stats) => {
+            fullStreamText += chunk;
+            contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
+            elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+            if (stats) {
+              elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
+              elements.metricTokens.innerText = stats.evalCount;
+              elements.metricTime.innerText = `${stats.totalDuration}s`;
+            }
+          },
+          (err) => {
+            const prov = elements.providerSelect.value;
+            const lang = getActiveLanguage();
+            let provName = 'Ollama';
+            let extraNote = '';
+            let connFailedText = '';
+            let errorMsg = '';
+            
+            if (lang === 'zh-TW') {
+              extraNote = '且已排除跨域 CORS 限制（使用 OLLAMA_ORIGINS="*" 啟動）';
+              if (prov === 'lmstudio') {
+                provName = 'LM Studio';
+                extraNote = '且已在 LM Studio 的 Developer/Local Server 面板中啟動 API 伺服器並開啟跨域 (CORS) 存取';
+              } else if (prov === 'vllm') {
+                provName = 'vLLM';
+                extraNote = '且已在啟動 vLLM 時加入 --allowed-origins "*" 參數開啟跨域存取';
+              }
+              connFailedText = '連線失敗 (Connection Failed)';
+              errorMsg = `無法與本機 AI 核心取得連線，請確保 <strong>${provName}</strong> 已經啟動，${extraNote}。`;
+            } else if (lang === 'ja') {
+              extraNote = 'そしてオリジン制限（CORS）が解除されていること（OLLAMA_ORIGINS="*" を設定して起動）';
+              if (prov === 'lmstudio') {
+                provName = 'LM Studio';
+                extraNote = 'および LM Studio の Developer/Local Server 面板で API サーバーを起動し、CORS 許可を有効にしていること';
+              } else if (prov === 'vllm') {
+                provName = 'vLLM';
+                extraNote = 'および vLLM の起動時に --allowed-origins "*" を追加して CORS 許可を有効にしていること';
+              }
+              connFailedText = '接続失敗 (Connection Failed)';
+              errorMsg = `ローカル AI コアとの接続を確立できません。<strong>${provName}</strong> が起動しており、${extraNote}であることを確認してください。`;
+            } else {
+              extraNote = 'and that CORS origins are enabled (started with OLLAMA_ORIGINS="*")';
+              if (prov === 'lmstudio') {
+                provName = 'LM Studio';
+                extraNote = 'and that API Server is started in LM Studio Developer/Local Server panel with CORS enabled';
+              } else if (prov === 'vllm') {
+                provName = 'vLLM';
+                extraNote = 'and that vLLM is started with --allowed-origins "*" to allow CORS requests';
+              }
+              connFailedText = 'Connection Failed';
+              errorMsg = `Could not connect to local AI core. Please make sure <strong>${provName}</strong> is running ${extraNote}.`;
+            }
+            contentDiv.innerHTML = `
+              <div class="status-pill status-alert" style="display: flex; flex-direction: column; align-items: flex-start; padding: 16px; margin-top: 10px; width: 100%; border-radius: var(--border-radius-sm);">
+                <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                  <span class="status-dot" style="background: var(--color-error)"></span>
+                  <span>${connFailedText}</span>
+                </div>
+                <div style="font-size: 13px; line-height: 1.5; opacity: 0.8;">
+                  ${errorMsg}
+                </div>
+              </div>
+            `;
+          },
+          currentAbortController
+        );
+
+        const cursor = contentDiv.querySelector('.typing-cursor');
+        if (cursor) cursor.remove();
+        if (fullStreamText.trim()) {
+          chatHistory.appendMessage(activeId, 'assistant', fullStreamText);
+          renderSessionsHistory();
+        }
+      } catch (e) {
+      } finally {
+        setGeneratingState(false);
+        document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
+      }
+    }
+
+    function setGeneratingState(generating) {
+      isGenerating = generating;
+      if (generating) {
+        elements.btnSend.style.display = 'none'; elements.btnStop.style.display = 'flex';
+        elements.btnStop.removeAttribute('disabled');
+      } else {
+        elements.btnSend.style.display = 'flex'; elements.btnStop.style.display = 'none';
+        elements.btnStop.setAttribute('disabled', 'true');
+      }
+    }
+
+    function handleStopGeneration() {
+      if (currentAbortController) {
+        currentAbortController.abort();
+        setGeneratingState(false);
+        const cursor = elements.chatMessages.querySelector('.typing-cursor');
+        if (cursor) cursor.remove();
+      }
+    }
+
+    function handleExportChat() {
+      const activeId = chatHistory.getActiveChatId();
+      const chat = chatHistory.getChatById(activeId);
+      if (!chat) return;
+
+      let md = `# ${chat.title}\n* Model: ${chat.model}\n\n`;
+      chat.messages.forEach(m => md += `### ${m.role === 'user' ? '🧑 User' : '🤖 AI'}\n\n${m.content}\n\n`);
+      
+      const blob = new Blob([md], { type: 'text/markdown;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      const lang = getActiveLanguage();
+      const filenameSuffix = lang === 'zh-TW' ? '_對話紀錄.md' : (lang === 'ja' ? '_会話履歴.md' : '_chat_history.md');
+      link.setAttribute('href', url); link.setAttribute('download', `${chat.title}${filenameSuffix}`);
+      link.click();
+    }
+
+    // App Bootstrapper
+    function init() {
+      const savedLang = localStorage.getItem('aether_lang') || 'en';
+      if (elements.langSelect) {
+        elements.langSelect.value = savedLang;
+        elements.langSelect.addEventListener('change', e => updateLanguage(e.target.value));
+      }
+
+      initNeuralBackground();
+      setupDrawerCollapsers();
+      initSettingsValues();
+      updateLanguage(savedLang);
+      updateProviderConnection();
+
+      if (chatHistory.getActiveChatId() && chatHistory.getChatById(chatHistory.getActiveChatId())) {
+        switchSession(chatHistory.getActiveChatId());
+      } else {
+        loadNewSessionState();
+      }
+
+      elements.chatTextarea?.addEventListener('input', function() {
+        this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';
+      });
+
+      elements.btnSend?.addEventListener('click', handleSendMessage);
+      elements.chatTextarea?.addEventListener('keydown', e => {
+        if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
+      });
+      elements.btnStop?.addEventListener('click', handleStopGeneration);
+      elements.btnNewChat?.addEventListener('click', () => {
+        loadNewSessionState();
+        if (window.innerWidth <= 768) elements.sidebar.classList.remove('open');
+      });
+      elements.btnClearAll?.addEventListener('click', () => {
+        const lang = getActiveLanguage();
+        const confirmText = (translations[lang] || translations['en']).confirm_del_all;
+        if (confirm(confirmText)) {
+          chatHistory.clearAll(); loadNewSessionState();
+        }
+      });
+      elements.btnExport?.addEventListener('click', handleExportChat);
+
+      // File Attachment & Save Settings Event Listeners
+      elements.fileUploadInput?.addEventListener('change', handleFileSelect);
+      elements.btnAttachFile?.addEventListener('click', (e) => {
+        e.preventDefault();
+        elements.fileUploadInput?.click();
+      });
+
+      // Voice Input (Speech-to-Text) Event Listener
+      let recognition = null;
+      let isListening = false;
+      const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+      if (SpeechRecognition) {
+        recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+        
+        recognition.onstart = () => {
+          isListening = true;
+          elements.btnVoiceInput.style.color = 'var(--color-error)';
+          elements.btnVoiceInput.classList.add('pulse-neon-red');
+          const lang = getActiveLanguage();
+          elements.chatTextarea.placeholder = lang === 'zh-TW' ? '正在聆聽中...' : lang === 'ja' ? '音声入力中...' : 'Listening...';
+        };
+
+        recognition.onend = () => {
+          isListening = false;
+          elements.btnVoiceInput.style.color = '';
+          elements.btnVoiceInput.classList.remove('pulse-neon-red');
+          const lang = getActiveLanguage();
+          const dict = translations[lang] || translations['en'];
+          elements.chatTextarea.placeholder = dict.chat_placeholder || 'Type a message...';
+        };
+
+        recognition.onresult = (e) => {
+          const resultText = e.results[0][0].transcript;
+          if (resultText) {
+            elements.chatTextarea.value += resultText;
+            elements.chatTextarea.dispatchEvent(new Event('input'));
+          }
+        };
+
+        recognition.onerror = (e) => {
+          console.error('Speech recognition error:', e.error);
+        };
+
+        elements.btnVoiceInput?.addEventListener('click', (e) => {
+          e.preventDefault();
+          if (isListening) {
+            recognition.stop();
+          } else {
+            const lang = getActiveLanguage();
+            recognition.lang = lang === 'zh-TW' ? 'zh-TW' : lang === 'ja' ? 'ja-JP' : 'en-US';
+            recognition.start();
+          }
+        });
+      } else {
+        if (elements.btnVoiceInput) {
+          elements.btnVoiceInput.style.opacity = '0.3';
+          elements.btnVoiceInput.title = '語音輸入 (不支援此瀏覽器 / Browser not supported)';
+        }
+      }
+
+      elements.btnSaveSettings?.addEventListener('click', async () => {
+        const prov = elements.providerSelect.value;
+        let modelName = elements.modelSelect.value;
+
+        aetherApi.updateConfig({
+          provider: prov,
+          ollamaUrl: elements.ollamaUrlInput.value,
+          modelName: modelName
+        });
+
+        updateProviderConnection();
+
+        // Save Bridges settings to local server
+        const tgToken = elements.telegramTokenInput ? elements.telegramTokenInput.value : '';
+        const tgChatId = elements.telegramChatIdInput ? elements.telegramChatIdInput.value : '';
+        const discWebhook = elements.discordWebhookInput ? elements.discordWebhookInput.value : '';
+        
+        try {
+          await fetch('/api/bridges/save', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              telegram_token: tgToken,
+              telegram_chat_id: tgChatId,
+              discord_webhook: discWebhook,
+              ollama_url: aetherApi.ollamaUrl,
+              provider: aetherApi.provider,
+              model_name: aetherApi.modelName
+            })
+          });
+        } catch (e) {}
+
+        const toast = document.getElementById('save-toast');
+        if (toast) {
+          const lang = getActiveLanguage();
+          const dict = translations[lang] || translations['en'];
+          document.getElementById('toast-text').innerText = dict.toast_settings_saved || "Settings saved!";
+          toast.classList.add('show');
+          setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+      });
+
+      const textarea = elements.chatTextarea;
+      if (textarea) {
+        textarea.addEventListener('dragover', e => {
+          e.preventDefault();
+          textarea.style.borderColor = 'var(--accent-cyan)';
+        });
+        textarea.addEventListener('dragleave', () => {
+          textarea.style.borderColor = '';
+        });
+        textarea.addEventListener('drop', e => {
+          e.preventDefault();
+          textarea.style.borderColor = '';
+          if (e.dataTransfer.files.length > 0) {
+            handleFileSelect({ target: { files: e.dataTransfer.files } });
+          }
+        });
+      }
+      
+      document.getElementById('preset-welcome-general').addEventListener('click', () => injectPreset('general'));
+      document.getElementById('preset-welcome-coder').addEventListener('click', () => injectPreset('coder'));
+      document.getElementById('preset-welcome-uiux').addEventListener('click', () => injectPreset('uiux'));
+      document.getElementById('preset-welcome-english').addEventListener('click', () => injectPreset('english'));
+
+      // Load Bridges settings from local server
+      async function loadBridgesSettings() {
+        try {
+          const res = await fetch('/api/bridges/settings');
+          if (res.ok) {
+            const data = await res.json();
+            if (data.telegram_token && elements.telegramTokenInput) elements.telegramTokenInput.value = data.telegram_token;
+            if (data.telegram_chat_id && elements.telegramChatIdInput) elements.telegramChatIdInput.value = data.telegram_chat_id;
+            if (data.discord_webhook && elements.discordWebhookInput) elements.discordWebhookInput.value = data.discord_webhook;
+          }
+        } catch (e) {}
+      }
+      loadBridgesSettings();
+    }
+
+    window.addEventListener('DOMContentLoaded', init);
+  </script>
+
+  <!-- Glowing high-tech Toast Notification -->
+  <div class="aether-toast" id="save-toast">
+    <span class="toast-icon">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+    </span>
+    <span id="toast-text" data-i18n="toast_settings_saved">設定已成功更新！</span>
+  </div>
+</body>
+</html>

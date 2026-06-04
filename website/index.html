@@ -1,0 +1,1902 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherAI Studio | Official Website & Portal</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  <style>
+    :root {
+      --bg-dark: #020617;
+      --bg-nav: rgba(15, 23, 42, 0.75);
+      --bg-card: rgba(30, 41, 59, 0.45);
+      --bg-card-hover: rgba(30, 41, 59, 0.7);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(6, 182, 212, 0.35);
+      --accent-cyan: #06b6d4;
+      --accent-purple: #a855f7;
+      --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #a855f7 100%);
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --glow-cyan: 0 0 30px rgba(6, 182, 212, 0.2);
+      --glow-purple: 0 0 30px rgba(168, 85, 247, 0.2);
+      --font-outfit: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-outfit);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Glow Backgrounds */
+    .glow-blob {
+      position: absolute;
+      width: 45vw;
+      height: 45vw;
+      border-radius: 50%;
+      filter: blur(100px);
+      pointer-events: none;
+      z-index: 0;
+      opacity: 0.15;
+    }
+
+    .glow-1 {
+      top: -15%;
+      left: -15%;
+      background: var(--accent-cyan);
+    }
+
+    .glow-2 {
+      bottom: 20%;
+      right: -15%;
+      background: var(--accent-purple);
+    }
+
+    /* Navigation Header */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1rem 5%;
+      background: var(--bg-nav);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+    }
+
+    .logo-badge {
+      width: 36px;
+      height: 36px;
+      background: var(--accent-gradient);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .logo-badge svg {
+      width: 20px;
+      height: 20px;
+      stroke: white;
+    }
+
+    .logo-title {
+      font-size: 1.5rem;
+      font-weight: 800;
+      letter-spacing: -0.5px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-links {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    .nav-tab-btn {
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      font-family: var(--font-outfit);
+      font-weight: 550;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: color 0.3s;
+      position: relative;
+      padding: 0.5rem 0;
+    }
+
+    .nav-tab-btn:hover {
+      color: var(--accent-cyan);
+    }
+
+    .nav-tab-btn.active {
+      color: var(--accent-cyan);
+    }
+
+    .nav-tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-gradient);
+      border-radius: 2px;
+    }
+
+    .btn-quick-download {
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      color: white;
+      padding: 0.55rem 1.25rem;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.3s;
+    }
+
+    .btn-quick-download:hover {
+      background: var(--accent-gradient);
+      border-color: transparent;
+      box-shadow: var(--glow-cyan);
+      transform: translateY(-2px);
+    }
+
+    /* Container SPA Tabs */
+    .tab-content {
+      display: none;
+      padding-top: 6rem;
+      min-height: calc(100vh - 80px);
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    /* Home View Elements */
+    .hero-section {
+      padding: 3rem 5% 5rem 5%;
+      display: grid;
+      grid-template-columns: 1.15fr 0.85fr;
+      gap: 5rem;
+      align-items: center;
+    }
+
+    .hero-info h1 {
+      font-size: 4rem;
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -2px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-info h1 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-info p {
+      font-size: 1.25rem;
+      color: var(--text-muted);
+      margin-bottom: 2.2rem;
+    }
+
+    /* Terminal Console Box */
+    .terminal-box {
+      background: rgba(10, 15, 30, 0.88);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
+      overflow: hidden;
+      margin-bottom: 2.5rem;
+    }
+
+    .terminal-titlebar {
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .term-controls {
+      display: flex;
+      gap: 8px;
+    }
+
+    .term-dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .term-title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .term-body {
+      padding: 1.2rem;
+      font-family: var(--font-mono);
+      font-size: 0.9rem;
+      background: rgba(0, 0, 0, 0.2);
+      min-height: 180px;
+      max-height: 380px;
+      overflow-y: auto;
+    }
+
+    .term-input-line {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+      background: rgba(255, 255, 255, 0.01);
+      padding: 0.6rem 0.8rem;
+      border-radius: 8px;
+    }
+
+    .term-prompt {
+      color: var(--accent-cyan);
+      user-select: none;
+      font-weight: bold;
+    }
+
+    .term-command {
+      color: #38bdf8;
+      font-weight: 500;
+      flex-grow: 1;
+    }
+
+    .term-btn-action {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: white;
+      padding: 5px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-family: var(--font-outfit);
+      font-weight: 550;
+      font-size: 0.8rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .term-btn-action:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .terminal-sub-header {
+      background: rgba(15, 23, 42, 0.35);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.5rem 1rem;
+      display: flex;
+      gap: 10px;
+      overflow-x: auto;
+    }
+
+    .term-tab {
+      background: none;
+      border: 1px solid transparent;
+      color: var(--text-muted);
+      font-family: var(--font-outfit);
+      font-weight: 600;
+      font-size: 0.85rem;
+      padding: 4px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+
+    .term-tab:hover {
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.05);
+    }
+
+    .term-tab.active {
+      color: var(--text-main);
+      background: rgba(6, 182, 212, 0.12);
+      border-color: rgba(6, 182, 212, 0.25);
+    }
+
+    .term-log {
+      margin-top: 1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .log-line {
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+
+    .log-info { color: #f8fafc; }
+    .log-success { color: #22c55e; }
+    .log-warning { color: #eab308; }
+    .log-error { color: #ef4444; }
+
+    /* Interactive Preview / Mockups */
+    .hero-graphic {
+      position: relative;
+    }
+
+    .graphic-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 6px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7);
+      transition: transform 0.4s ease;
+    }
+
+    .graphic-card:hover {
+      transform: scale(1.02);
+      border-color: var(--border-hover);
+    }
+
+    .graphic-img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      display: block;
+    }
+
+    /* Core Features Grid */
+    .features-section {
+      padding: 5rem 5%;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .section-title {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .section-title h2 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 0.8rem;
+    }
+
+    .section-title h2 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .section-title p {
+      color: var(--text-muted);
+      font-size: 1.15rem;
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-container {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2.5rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      transition: all 0.3s ease;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-gradient);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-5px);
+      box-shadow: 0 15px 35px rgba(0, 0, 0, 0.4);
+    }
+
+    .card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .card-icon {
+      width: 44px;
+      height: 44px;
+      background: rgba(6, 182, 212, 0.08);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--accent-cyan);
+      margin-bottom: 1.5rem;
+    }
+
+    .card:nth-child(even) .card-icon {
+      background: rgba(168, 85, 247, 0.08);
+      color: var(--accent-purple);
+    }
+
+    .card-icon svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2.2;
+    }
+
+    .card h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+    }
+
+    .card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Live Sandbox Interactive Chat Tab */
+    .sandbox-container {
+      display: grid;
+      grid-template-columns: 0.8fr 1.2fr;
+      gap: 5rem;
+      padding: 2rem 5% 5rem 5%;
+      align-items: center;
+    }
+
+    .sandbox-info h2 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 1rem;
+    }
+
+    .sandbox-info h2 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .sandbox-info p {
+      font-size: 1.15rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .sandbox-prompts {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .prompt-btn {
+      background: rgba(255, 255, 255, 0.02);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem 1.2rem;
+      color: var(--text-main);
+      font-family: var(--font-outfit);
+      font-weight: 550;
+      font-size: 0.95rem;
+      cursor: pointer;
+      text-align: left;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .prompt-btn:hover {
+      background: rgba(6, 182, 212, 0.06);
+      border-color: var(--accent-cyan);
+      transform: translateX(4px);
+    }
+
+    .prompt-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--accent-cyan);
+      fill: none;
+      stroke-width: 2.5;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .prompt-btn:hover svg {
+      opacity: 1;
+      transform: translateX(3px);
+    }
+
+    .chat-console {
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      height: 540px;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .console-header {
+      background: rgba(15, 23, 42, 0.6);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .console-status {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.1);
+      color: #22c55e;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .console-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+      animation: pulse 1.8s infinite;
+    }
+
+    .console-messages {
+      flex-grow: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+    }
+
+    .bubble {
+      max-width: 85%;
+      padding: 0.9rem 1.1rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .bubble-user {
+      align-self: flex-end;
+      background: var(--accent-gradient);
+      color: white;
+      border-bottom-right-radius: 2px;
+      box-shadow: var(--glow-purple);
+    }
+
+    .bubble-assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 2px;
+    }
+
+    .console-input-bar {
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.2);
+      padding: 1rem;
+      display: flex;
+      gap: 10px;
+    }
+
+    .chat-input {
+      flex-grow: 1;
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.7rem 1rem;
+      color: white;
+      font-family: var(--font-outfit);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .chat-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.1);
+    }
+
+    .btn-chat-send {
+      background: var(--accent-gradient);
+      border: none;
+      color: white;
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--glow-cyan);
+      transition: transform 0.2s;
+    }
+
+    .btn-chat-send:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-chat-send svg {
+      width: 16px;
+      height: 16px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2.2;
+    }
+
+    /* Math and Code Blocks inside Simulated Console */
+    .math-block {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+      text-align: center;
+      font-style: italic;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+    }
+
+    .math-inline {
+      font-style: italic;
+      color: var(--accent-cyan);
+      font-weight: 550;
+      padding: 0 2px;
+    }
+
+    .code-block {
+      background: rgba(0, 0, 0, 0.4);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      border-radius: 8px;
+      margin: 10px 0;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .kw { color: #f43f5e; }
+    .bu { color: #38bdf8; }
+    .st { color: #34d399; }
+    .co { color: #64748b; font-style: italic; }
+
+    .typing-cursor {
+      display: inline-block;
+      width: 6px;
+      height: 14px;
+      background-color: var(--accent-cyan);
+      margin-left: 2px;
+      animation: blink 0.8s infinite;
+      vertical-align: middle;
+    }
+
+    /* Documentation Tab Layout */
+    .docs-container {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      gap: 3.5rem;
+      padding: 2rem 5% 5rem 5%;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .docs-sidebar {
+      position: sticky;
+      top: 6rem;
+      height: fit-content;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      border-right: 1px solid var(--border-color);
+      padding-right: 1.5rem;
+    }
+
+    .docs-menu-btn {
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      text-align: left;
+      font-family: var(--font-outfit);
+      font-size: 0.95rem;
+      font-weight: 550;
+      cursor: pointer;
+      padding: 0.5rem 0.8rem;
+      border-radius: 6px;
+      transition: all 0.2s;
+    }
+
+    .docs-menu-btn:hover {
+      color: var(--text-main);
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .docs-menu-btn.active {
+      color: var(--accent-cyan);
+      background: rgba(6, 182, 212, 0.08);
+      font-weight: 600;
+    }
+
+    .docs-content {
+      display: flex;
+      flex-direction: column;
+      gap: 3rem;
+    }
+
+    .docs-section {
+      scroll-margin-top: 7rem;
+    }
+
+    .docs-section h2 {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 1rem;
+      border-bottom: 1px solid var(--border-color);
+      padding-bottom: 0.5rem;
+    }
+
+    .docs-section h2 span {
+      color: var(--accent-cyan);
+    }
+
+    .docs-section p {
+      color: var(--text-muted);
+      margin-bottom: 1.2rem;
+      font-size: 1.05rem;
+    }
+
+    .docs-section ol, .docs-section ul {
+      margin-left: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-muted);
+    }
+
+    .docs-section li {
+      margin-bottom: 0.5rem;
+    }
+
+    /* CLI Reference Tab Table */
+    .cli-container {
+      padding: 2rem 5% 5rem 5%;
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .cli-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 2rem;
+      border-radius: 12px;
+      overflow: hidden;
+      border: 1px solid var(--border-color);
+    }
+
+    .cli-table th, .cli-table td {
+      padding: 1.2rem 1.5rem;
+      text-align: left;
+    }
+
+    .cli-table th {
+      background: rgba(15, 23, 42, 0.8);
+      font-weight: 600;
+      color: var(--accent-cyan);
+      font-size: 0.95rem;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .cli-table tr {
+      background: rgba(17, 24, 39, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      transition: background 0.2s;
+    }
+
+    .cli-table tr:hover {
+      background: rgba(255, 255, 255, 0.02);
+    }
+
+    .cli-flag {
+      font-family: var(--font-mono);
+      color: var(--accent-cyan);
+      font-weight: 600;
+      font-size: 0.9rem;
+    }
+
+    .cli-desc {
+      color: var(--text-main);
+      font-size: 0.95rem;
+    }
+
+    .cli-lang-indicator {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      margin-top: 4px;
+    }
+
+    /* FAQ Tab Layout */
+    .faq-container {
+      padding: 2rem 5% 5rem 5%;
+      max-width: 800px;
+      margin: 0 auto;
+    }
+
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      margin-bottom: 1.2rem;
+      overflow: hidden;
+      transition: all 0.3s;
+    }
+
+    .faq-item:hover {
+      border-color: var(--border-hover);
+    }
+
+    .faq-question {
+      padding: 1.2rem 1.5rem;
+      font-weight: 600;
+      font-size: 1.1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      user-select: none;
+    }
+
+    .faq-answer {
+      padding: 0 1.5rem;
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.3s ease-out, padding 0.3s;
+      color: var(--text-muted);
+      font-size: 0.98rem;
+      border-top: 0 solid transparent;
+    }
+
+    .faq-item.active .faq-answer {
+      padding: 1rem 1.5rem;
+      max-height: 300px;
+      border-top: 1px solid var(--border-color);
+    }
+
+    .faq-icon {
+      transition: transform 0.3s;
+    }
+
+    .faq-item.active .faq-icon {
+      transform: rotate(180deg);
+    }
+
+    /* Alert Boxes (Docs, FAQs) */
+    .alert-card {
+      background: rgba(6, 182, 212, 0.05);
+      border-left: 4px solid var(--accent-cyan);
+      padding: 1.2rem;
+      border-radius: 0 8px 8px 0;
+      margin: 1.5rem 0;
+    }
+
+    .alert-card-title {
+      font-weight: bold;
+      color: var(--accent-cyan);
+      margin-bottom: 0.4rem;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .alert-card-title svg {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+    }
+
+    /* Footer */
+    footer {
+      background: #020617;
+      border-top: 1px solid var(--border-color);
+      padding: 4rem 5% 2rem 5%;
+      text-align: center;
+      margin-top: auto;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 2.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-links a, .footer-links button {
+      color: var(--text-muted);
+      background: none;
+      border: none;
+      text-decoration: none;
+      font-family: var(--font-outfit);
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover, .footer-links button:hover {
+      color: var(--accent-cyan);
+    }
+
+    .footer-copyright {
+      color: #4b5563;
+      font-size: 0.85rem;
+    }
+
+    /* Clipboard Toast */
+    .copy-toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 550;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(120px);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 2000;
+    }
+
+    .copy-toast.active {
+      transform: translateY(0);
+    }
+
+    /* Keyframes & General Animations */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); box-shadow: 0 0 8px #22c55e; }
+      50% { transform: scale(1.15); box-shadow: 0 0 16px #22c55e; }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Responsive grid styles */
+    @media (max-width: 1024px) {
+      .hero-section {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+      .sandbox-container {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+      .docs-container {
+        grid-template-columns: 1fr;
+        gap: 2rem;
+      }
+      .docs-sidebar {
+        position: static;
+        flex-direction: row;
+        border-right: none;
+        border-bottom: 1px solid var(--border-color);
+        padding-bottom: 1rem;
+        width: 100%;
+        overflow-x: auto;
+      }
+      .docs-menu-btn {
+        white-space: nowrap;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .nav-links {
+        display: none;
+      }
+      .hero-info h1 {
+        font-size: 3rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow Background Blobs -->
+  <div class="glow-blob glow-1"></div>
+  <div class="glow-blob glow-2"></div>
+
+  <!-- Navigation Bar -->
+  <header>
+    <a href="#" class="logo" onclick="switchTab('home')">
+      <div class="logo-badge">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+          <line x1="12" y1="22" x2="12" y2="15.5"></line>
+          <polyline points="22 8.5 12 15.5 2 8.5"></polyline>
+          <polyline points="2 15.5 12 8.5 22 15.5"></polyline>
+          <line x1="12" y1="2" x2="12" y2="8.5"></line>
+        </svg>
+      </div>
+      <span class="logo-title">AetherAI Studio</span>
+    </a>
+    <nav class="nav-links">
+      <button class="nav-tab-btn active" id="tabBtn-home" onclick="switchTab('home')">Home</button>
+      <button class="nav-tab-btn" id="tabBtn-sandbox" onclick="switchTab('sandbox')">Console Preview</button>
+      <button class="nav-tab-btn" id="tabBtn-docs" onclick="switchTab('docs')">Docs</button>
+      <button class="nav-tab-btn" id="tabBtn-cli" onclick="switchTab('cli')">CLI Flags</button>
+      <button class="nav-tab-btn" id="tabBtn-faq" onclick="switchTab('faq')">FAQs</button>
+      <a href="#installation" class="btn-quick-download" onclick="switchTab('home')">Install (PS)</a>
+    </nav>
+  </header>
+
+  <!-- ================= TAB 1: HOME ================= -->
+  <div class="tab-content active" id="tab-home">
+    <section class="hero-section">
+      <div class="hero-info">
+        <h1>Unleash Local AI with <span>AetherAI Studio</span></h1>
+        <p>A private, single-file, zero-dependency local Chat Console, Onboarding checker, and Autonomous command executor. Run completely private models using Ollama, LM Studio, and vLLM APIs locally on your Windows PC.</p>
+        
+        <!-- Terminal Box with Active Installation Script Demonstration -->
+        <div class="terminal-box">
+          <div class="terminal-titlebar">
+            <div class="term-controls">
+              <span class="term-dot" style="background:#ef4444;"></span>
+              <span class="term-dot" style="background:#eab308;"></span>
+              <span class="term-dot" style="background:#22c55e;"></span>
+            </div>
+            <span class="term-title" id="termTitle">Windows PowerShell Setup</span>
+          </div>
+          <div class="terminal-sub-header">
+            <button class="term-tab active" id="btn-win" onclick="setInstallMethod('windows')">Windows</button>
+            <button class="term-tab" id="btn-unix" onclick="setInstallMethod('unix')">macOS / Linux</button>
+            <button class="term-tab" id="btn-npm" onclick="setInstallMethod('npm')">npm -g</button>
+            <button class="term-tab" id="btn-hack" onclick="setInstallMethod('hackable')">Hackable (Source)</button>
+          </div>
+          <div class="term-body" id="termBody">
+            <div class="term-input-line">
+              <span class="term-prompt" id="termPrompt">PS &gt;</span>
+              <span class="term-command" id="pcmd">irm https://hankyle.com/run.ps1 | iex</span>
+              <button class="term-btn-action" id="copyInstallBtn" onclick="copyActiveInstallCommand()">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Copy
+              </button>
+              <button class="term-btn-action" style="background: rgba(6,182,212,0.1); border-color: rgba(6,182,212,0.25);" onclick="playInstallDemo()">
+                ⚡ Test Run
+              </button>
+            </div>
+            <div class="term-log" id="termLog">
+              <!-- Logs will stream here dynamically on Test Run click -->
+            </div>
+          </div>
+        </div>
+      </div>
+      
+      <div class="hero-graphic">
+        <div class="graphic-card">
+          <img src="aetherai_hero.png" alt="AetherAI Studio visual preview" class="graphic-img">
+        </div>
+      </div>
+    </section>
+
+    <!-- Detailed Features Grid -->
+    <section class="features-section" id="features">
+      <div class="section-title">
+        <h2>Rich Utilities. <span>100% Offline.</span></h2>
+        <p>Take absolute control over your local intelligence stack. Zero data collection, telemetry-free, runs entirely in sandboxed directories.</p>
+      </div>
+      
+      <div class="features-container">
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><polyline points="4 17 10 11 4 5"></polyline><line x1="12" y1="19" x2="20" y2="19"></line></svg>
+          </div>
+          <h3>Autonomous Command Agent</h3>
+          <p>Features an autonomous shell loop. Your local models write standard XML tags (read_file, write_file, list_dir, run_command) that are executed inside PowerShell to build or fix workspaces automatically.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect><rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect><line x1="6" y1="6" x2="6.01" y2="6"></line><line x1="6" y1="18" x2="6.01" y2="18"></line></svg>
+          </div>
+          <h3>Provider Hub Auto-Discovery</h3>
+          <p>Integrated connectors query model metadata routes dynamically. Open LM Studio on port 1234, vLLM on port 8000, or Ollama on port 11434 and let the interface pull active model lists automatically.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+          </div>
+          <h3>Telegram & Discord Bridges</h3>
+          <p>Sync background bridges safely. Long-poll incoming prompts via a dedicated Telegram Command Bot or stream status reports and metrics to Discord webhooks from the background thread.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><line x1="4" y1="9" x2="20" y2="9"></line><line x1="4" y1="15" x2="20" y2="15"></line><line x1="10" y1="3" x2="8" y2="21"></line><line x1="16" y1="3" x2="14" y2="21"></line></svg>
+          </div>
+          <h3>Scientific LaTeX typesetting</h3>
+          <p>Features a custom mathematical parser mapping. Instantly converts math tokens (both inline and block formula symbols) into beautiful HTML layouts with scroll bars.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path><path d="M19 10v2a7 7 0 0 1-14 0v-2"></path><line x1="12" y1="19" x2="12" y2="23"></line><line x1="8" y1="23" x2="16" y2="23"></line></svg>
+          </div>
+          <h3>Bilingual Voice Synthesis</h3>
+          <p>Equipped with browser speech synthesis API. Transcribe input voice prompts dynamically using browser speech dictation or hear replies spoken aloud with localized voices.</p>
+        </div>
+
+        <div class="card">
+          <div class="card-icon">
+            <svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect><line x1="9" y1="3" x2="9" y2="21"></line></svg>
+          </div>
+          <h3>Zero-Install Execution</h3>
+          <p>Extracts assets completely on demand. The installer loads in memory, generates wrappers, sets environment variables, creates Desktop shortcuts, and starts the server with one click.</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Dynamic Installation Steps -->
+    <section class="features-section" id="installation" style="background: rgba(15,23,42,0.15);">
+      <div class="section-title">
+        <h2>How to Setup in <span>3 Easy Steps</span></h2>
+        <p>No zip extraction, no manual path editing, completely automated compiler delivery.</p>
+      </div>
+      
+      <div style="max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 3rem;">
+        <div style="display: flex; gap: 2rem;">
+          <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(6,182,212,0.1); border: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3rem; color: var(--accent-cyan); flex-shrink: 0;">1</div>
+          <div>
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;" id="step1Title">Run Command in Terminal</h3>
+            <p style="color: var(--text-muted); margin-bottom: 1rem;" id="step1Desc">Open Windows PowerShell (Run as User), paste the installer pipeline, and press enter:</p>
+            <div class="term-input-line" style="max-width: 550px;">
+              <span class="term-prompt" id="step1Prompt">PS &gt;</span>
+              <span class="term-command" id="step1Cmd">irm https://hankyle.com/run.ps1 | iex</span>
+            </div>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 2rem;">
+          <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(168,85,247,0.1); border: 2px solid var(--accent-purple); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3rem; color: var(--accent-purple); flex-shrink: 0;">2</div>
+          <div>
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;" id="step2Title">Select Language & Setup Options</h3>
+            <p style="color: var(--text-muted);" id="step2Desc">The script downloads the compiled package, initializes the localized files inside <code>$env:UserProfile\AetherAI-Studio</code>, and runs diagnostic tests to detect your active local model provider.</p>
+          </div>
+        </div>
+
+        <div style="display: flex; gap: 2rem;">
+          <div style="width: 50px; height: 50px; border-radius: 50%; background: rgba(6,182,212,0.1); border: 2px solid var(--accent-cyan); display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1.3rem; color: var(--accent-cyan); flex-shrink: 0;">3</div>
+          <div>
+            <h3 style="font-size: 1.5rem; font-weight: 700; margin-bottom: 0.5rem;" id="step3Title">Launch Console UI</h3>
+            <p style="color: var(--text-muted);" id="step3Desc">The local web server will boot at port 8080 and automatically launch the chat HUD in your browser. A desktop shortcut named "AetherAI Studio" will be ready for subsequent launches!</p>
+          </div>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= TAB 2: SANDBOX / PREVIEW ================= -->
+  <div class="tab-content" id="tab-sandbox">
+    <div class="sandbox-container">
+      <div class="sandbox-info">
+        <h2>Interactive <span>Console Simulator</span></h2>
+        <p>Test drive the chat interface and rendering engine directly inside this official website. Click a preset prompt on the left to watch AetherAI stream responses, format LaTeX math equations, and highlight code.</p>
+        
+        <div class="sandbox-prompts">
+          <button class="prompt-btn" onclick="runSandboxPrompt('math')">
+            📐 Explain Euler's Identity with LaTeX
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="prompt-btn" onclick="runSandboxPrompt('code')">
+            💻 Write a bubble sort in Python
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="prompt-btn" onclick="runSandboxPrompt('agent')">
+            🤖 How does Agent Code Mode work?
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Simulated Chat Sandbox -->
+      <div class="chat-console">
+        <div class="console-header">
+          <div class="logo" style="gap: 8px;">
+            <div class="logo-badge" style="width: 24px; height: 24px; border-radius: 6px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+              </svg>
+            </div>
+            <span class="logo-title" style="font-size: 1.05rem;">AetherAI Playground</span>
+          </div>
+          <div class="console-status">
+            <span class="console-dot"></span>
+            <span>Local Engine Online</span>
+          </div>
+        </div>
+        
+        <!-- Messages Area -->
+        <div class="console-messages" id="sandboxMessages">
+          <div class="bubble bubble-assistant">
+            Hello! Select one of the preset prompts on the left or type your query in the box below to see how AetherAI Studio renders markdown text, LaTeX block math formulas, and code snippets in real-time.
+          </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="console-input-bar">
+          <input type="text" class="chat-input" id="sandboxInput" placeholder="Send a message locally..." onkeydown="handleSandboxInputKey(event)">
+          <button class="btn-chat-send" onclick="sendCustomSandboxMessage()">
+            <svg viewBox="0 0 24 24">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ================= TAB 3: DOCUMENTATION ================= -->
+  <div class="tab-content" id="tab-docs">
+    <div class="docs-container">
+      <aside class="docs-sidebar">
+        <button class="docs-menu-btn active" id="docsMenu-intro" onclick="scrollToDocs('intro')">Overview</button>
+        <button class="docs-menu-btn" id="docsMenu-prereq" onclick="scrollToDocs('prereq')">Prerequisites</button>
+        <button class="docs-menu-btn" id="docsMenu-bridges" onclick="scrollToDocs('bridges')">Messaging Bridges</button>
+        <button class="docs-menu-btn" id="docsMenu-agent" onclick="scrollToDocs('agent')">Agent Mode Guide</button>
+        <button class="docs-menu-btn" id="docsMenu-trouble" onclick="scrollToDocs('trouble')">Troubleshooting</button>
+      </aside>
+      
+      <main class="docs-content">
+        <div class="docs-section" id="docsSec-intro">
+          <h2>Overview <span>概述</span></h2>
+          <p>AetherAI Studio is a high-performance local AI client designed to run completely private intelligence processes. Unlike traditional web clients that require complex configurations or cloud connections, AetherAI serves as an interactive console loaded and extracted directly via Windows PowerShell.</p>
+          <p>Once deployed, it executes locally on port 8080 and registers a shell shortcut path so you can run it inside any CMD or terminal window at any time.</p>
+        </div>
+
+        <div class="docs-section" id="docsSec-prereq">
+          <h2>Prerequisites <span>準備工作</span></h2>
+          <p>To connect the application to actual local models, you must have an active local inference backend running on your computer. AetherAI Studio has native support for the following engines:</p>
+          <ul>
+            <li><strong>Ollama</strong> (Default): The installer can download and configure this for you. Ensures OLLAMA_ORIGINS is configured as <code>*</code> to permit browser Cross-Origin connections.</li>
+            <li><strong>LM Studio</strong>: Turn on the "Developer/Local Server" option inside LM Studio, start the API server on port 1234, and ensure CORS features are enabled.</li>
+            <li><strong>vLLM</strong>: Start your server API using the argument command flag <code>--allowed-origins "*"</code>.</li>
+          </ul>
+        </div>
+
+        <div class="docs-section" id="docsSec-bridges">
+          <h2>Messaging Bridges <span>社群軟體串接</span></h2>
+          <p>The messaging bridges system allows you to sync AetherAI Studio to background processes. This creates a multi-threaded daemon thread that communicates with Telegram or Discord.</p>
+          <p><strong>Telegram Command Bot Setup:</strong></p>
+          <ol>
+            <li>Talk to Telegram BotFather to generate a new Bot Token.</li>
+            <li>Obtain your Chat ID (using ID bots or webhook tools).</li>
+            <li>Paste both keys inside the Settings Modal in AetherAI Studio and click "Save Settings".</li>
+            <li>The server starts an asynchronous background thread. You can prompt AetherAI Studio via Telegram. If the prompt contains file or command tags, the agent will execute the shell actions locally on your machine and pipe results back to you!</li>
+          </ol>
+          <p><strong>Discord Webhook Broadcast:</strong></p>
+          <ul>
+            <li>Paste your Discord Webhook URL inside the settings pane. The server will broadcast color-coded status reports, loading indicators, and boot diagnostics directly to your channel.</li>
+          </ul>
+        </div>
+
+        <div class="docs-section" id="docsSec-agent">
+          <h2>Agent Mode Guide <span>智能代理操作</span></h2>
+          <p>When selecting **Agent Code** inside the provider panel, the application guides the local LLM to follow a recursive reasoning loop. The model outputs the following specific XML tool tags in its chat completions:</p>
+          <div class="code-block" style="font-size: 0.85rem;"><span class="keyword">&lt;list_dir&gt;&lt;/list_dir&gt;</span> <span class="comment"># Lists files recursively in the workspace</span>
+<span class="keyword">&lt;read_file&gt;</span><span class="string">path/to/file.txt</span><span class="keyword">&lt;/read_file&gt;</span> <span class="comment"># Reads file contents</span>
+<span class="keyword">&lt;write_file path="path/to/file.txt"&gt;</span><span class="string">content</span><span class="keyword">&lt;/write_file&gt;</span> <span class="comment"># Writes or edits files</span>
+<span class="keyword">&lt;run_command&gt;</span><span class="string">npm run build</span><span class="keyword">&lt;/run_command&gt;</span> <span class="comment"># Executes a shell command</span></div>
+          <p>The client intercepts the stream output, locks the UI, executes the command in local PowerShell, dumps the terminal output into the chat bubble, and recursively posts the output back to the model for the next step, capping execution loops at 12 steps for security.</p>
+        </div>
+
+        <div class="docs-section" id="docsSec-trouble">
+          <h2>Troubleshooting <span>疑難排解</span></h2>
+          <div class="alert-card">
+            <div class="alert-card-title">
+              <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0zM12 9v4M12 17h.01"/></svg>
+              Cloudflare Managed Challenge Intercepts CLI Queries
+            </div>
+            <p>If running the one-liner command <code>irm https://hankyle.com/run.ps1 | iex</code> returns a Cloudflare warning page, CLI anti-bot measures are blocking PowerShell. Solve the challenge by loading the script page in your browser at <code>https://hankyle.com/run.ps1</code>, save the script on disk, and run the downloaded file directly: <code>powershell -ExecutionPolicy Bypass -File .\run.ps1</code>.</p>
+          </div>
+          <div class="alert-card" style="border-left-color: var(--accent-purple); background: rgba(168,85,247,0.03);">
+            <div class="alert-card-title" style="color: var(--accent-purple);">
+              <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10zM12 16v-4M12 8h.01"/></svg>
+              CORS / Origin Connection Blocked
+            </div>
+            <p>If model indicators display 🔴 Offline, your browser is blocking requests due to missing CORS headers. Ensure Ollama is started with environment variables set: set <code>$env:OLLAMA_ORIGINS="*"</code> in PowerShell, or run the repair flag <code>aetherai --fix</code> which resolves this automatically.</p>
+          </div>
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ================= TAB 4: CLI FLAGS ================= -->
+  <div class="tab-content" id="tab-cli">
+    <div class="cli-container">
+      <div class="section-title">
+        <h2>CLI Maintenance <span>References</span></h2>
+        <p>AetherAI Studio registers global system wrapper paths. You can execute diagnostic, onboarding, or clean uninstall tasks directly from any terminal window using the flags listed below.</p>
+      </div>
+      
+      <table class="cli-table">
+        <thead>
+          <tr>
+            <th>Flag Options / 旗標參數</th>
+            <th>Description & Behavior / 執行行為與說明</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><span class="cli-flag">--onboard</span></td>
+            <td>
+              <div class="cli-desc">Runs localized onboarding checks. It checks local environment PATH variables for active Ollama setups, scans current active background bridges configuration in <code>config.json</code>, and polls thread statuses.</div>
+              <div class="cli-lang-indicator">語法：<code>aetherai --onboard</code> (執行系統引導檢測)</div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="cli-flag">--fix</span></td>
+            <td>
+              <div class="cli-desc">Automatically diagnoses and repairs common configuration roadblocks. It stops hung Ollama applications and restarts them served with CORS origins enabled (OLLAMA_ORIGINS=*), stops hung Telegram bridge background jobs, and checks if server port 8080 is free.</div>
+              <div class="cli-lang-indicator">語法：<code>aetherai --fix</code> (診斷並修復環境設定)</div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="cli-flag">--uninstall</span></td>
+            <td>
+              <div class="cli-desc">A clean system uninstall. It terminates background bridges, deletes desktop shortcuts ("AetherAI Studio.lnk"), removes global commands, and cleans up workspace path references inside the User Env Path variables.</div>
+              <div class="cli-lang-indicator">語法：<code>aetherai --uninstall</code> (移除系統指令與捷徑)</div>
+            </td>
+          </tr>
+          <tr>
+            <td><span class="cli-flag">--help / -h / /?</span></td>
+            <td>
+              <div class="cli-desc">Renders the bilingual CLI Usage Guide in the active console. Explains syntax rules and details all maintenance command references.</div>
+              <div class="cli-lang-indicator">語法：<code>aetherai --help</code> (顯示說明選單)</div>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- ================= TAB 5: FAQs ================= -->
+  <div class="tab-content" id="tab-faq">
+    <div class="faq-container">
+      <div class="section-title">
+        <h2>Frequently Asked <span>Questions</span></h2>
+        <p>Find answers to common inquiries regarding installation, data handling, and hosting configurations.</p>
+      </div>
+      
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-question">
+          Is AetherAI Studio telemetry-free?
+          <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-answer">
+          Yes! AetherAI Studio contains zero tracking scripts, cloud collectors, analytics engines, or external reporting channels. All inputs, prompts, file reads, and bridge operations occur 100% locally on your computer.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-question">
+          How do I set up Cloudflare WAF Bypass if Cloudflare blocks `irm`?
+          <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-answer">
+          If you are hosting `run.ps1` behind Cloudflare, you can add a Custom Rule in the WAF settings:
+          <br>1. Go to WAF -> Custom Rules -> Create Rule.
+          <br>2. Select Field: URI Path, Operator: equals, Value: /run.ps1.
+          <br>3. Action: Skip / Bypass security policies (WAF, rate limiting, and security levels).
+          <br>This lets script queries like `irm` fetch the script without getting blocked by Cloudflare's JS challenges.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-question">
+          Can I run Agent Mode without Ollama?
+          <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-answer">
+          Absolutely. You can select LM Studio or vLLM inside the provider options, input their API endpoints (e.g. port 1234 or 8000), save settings, and toggle "Agent Code". Ensure that the local model you load (like Llama 3 or Mistral) is capable of generating clean XML syntax.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-question">
+          What files does the installer create on my PC?
+          <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-answer">
+          The installer sets up a permanent directory at <code>%USERPROFILE%\AetherAI-Studio</code>. It extracts <code>index.html</code> (the portal UI), <code>server.ps1</code> (the static bypass server), and updates configurations inside <code>config.json</code>. No keys are written to the registry, making cleanup simple using the <code>--uninstall</code> flag.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <button onclick="switchTab('home')">Home</button>
+      <button onclick="switchTab('sandbox')">Console Simulator</button>
+      <button onclick="switchTab('docs')">Docs</button>
+      <button onclick="switchTab('cli')">CLI References</button>
+      <button onclick="switchTab('faq')">FAQs</button>
+    </div>
+    <p class="footer-copyright">&copy; 2026 AetherAI Studio. MIT Licensed. Completely Open-Source & Private.</p>
+  </footer>
+
+  <!-- Toast Notifier -->
+  <div class="copy-toast" id="clipToast">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    Command copied to clipboard!
+  </div>
+
+  <!-- SPA Router & Interactive Scripts -->
+  <script>
+    // Tab Router Switcher
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+      document.querySelectorAll('.nav-tab-btn').forEach(btn => btn.classList.remove('active'));
+      
+      const activeTab = document.getElementById(`tab-${tabId}`);
+      const activeBtn = document.getElementById(`tabBtn-${tabId}`);
+      
+      if (activeTab) activeTab.classList.add('active');
+      if (activeBtn) activeBtn.classList.add('active');
+      
+      window.scrollTo(0, 0);
+    }
+
+    // Scroll to specific section inside Docs Tab
+    function scrollToDocs(secId) {
+      document.querySelectorAll('.docs-menu-btn').forEach(btn => btn.classList.remove('active'));
+      document.getElementById(`docsMenu-${secId}`).classList.add('active');
+      
+      const element = document.getElementById(`docsSec-${secId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    }
+
+    // Clipboard copier helper
+    function copyText(text) {
+      navigator.clipboard.writeText(text).then(() => {
+        const toast = document.getElementById("clipToast");
+        toast.classList.add("active");
+        setTimeout(() => toast.classList.remove("active"), 2200);
+      });
+    }
+
+    // Toggles FAQ accordion answers
+    function toggleFaq(element) {
+      const isActive = element.classList.contains("active");
+      document.querySelectorAll(".faq-item").forEach(item => item.classList.remove("active"));
+      if (!isActive) {
+        element.classList.add("active");
+      }
+    }
+
+    // Simulated terminal installation logs generator
+    const installLogs = {
+      windows: [
+        { t: "Downloading package catalog...", c: "info" },
+        { t: "Extracting client files into %USERPROFILE%\\AetherAI-Studio...", c: "info" },
+        { t: " [+] File index.html generated successfully.", c: "success" },
+        { t: " [+] File server.ps1 generated successfully.", c: "success" },
+        { t: "Scanning system variables for local inference backends...", c: "info" },
+        { t: " [+] Detected Ollama service installed locally.", c: "success" },
+        { t: "Setting wildcard Cross-Origin origins (OLLAMA_ORIGINS=*)...", c: "info" },
+        { t: " [+] Ollama service restarted with CORS successfully.", c: "success" },
+        { t: "Setting Windows Shell wrappers environment PATH...", c: "info" },
+        { t: " [+] Registered global command 'aetherai'.", c: "success" },
+        { t: " [+] Desktop shortcut 'AetherAI Studio.lnk' created.", c: "success" },
+        { t: "Loading bypass static server on port 8080...", c: "info" },
+        { t: "==================================================", c: "info" },
+        { t: "  AetherAI Studio Web Server is Running!", c: "success" },
+        { t: "  👉 http://localhost:8080", c: "warning" },
+        { t: "==================================================", c: "info" },
+        { t: "Launching browser UI interface...", c: "info" },
+        { t: "🎉 AetherAI Studio is successfully deployed!", c: "success" }
+      ],
+      unix: [
+        { t: "Fetching run.sh installation script...", c: "info" },
+        { t: "Verifying system requirements (Node.js >= 18.0.0)...", c: "info" },
+        { t: " [+] Node.js detected: v20.11.0", c: "success" },
+        { t: "Extracting assets into ~/AetherAI-Studio...", c: "info" },
+        { t: " [+] File index.html extracted successfully.", c: "success" },
+        { t: " [+] File server.js extracted successfully.", c: "success" },
+        { t: "Adding global shell aliases to ~/.zshrc...", c: "info" },
+        { t: " [+] alias aetherai='node ~/AetherAI-Studio/server.js' added.", c: "success" },
+        { t: " [+] alias aether='node ~/AetherAI-Studio/server.js' added.", c: "success" },
+        { t: "Starting zero-dependency Node.js backend server...", c: "info" },
+        { t: "==================================================", c: "info" },
+        { t: "  AetherAI Studio Web Server is Running!", c: "success" },
+        { t: "  👉 http://localhost:8080", c: "warning" },
+        { t: "==================================================", c: "info" },
+        { t: "Opening default browser UI...", c: "info" },
+        { t: "🎉 Installation complete! Run 'source ~/.zshrc' to use command 'aetherai'.", c: "success" }
+      ],
+      npm: [
+        { t: "npm install -g aetherai-studio", c: "info" },
+        { t: "downloading package from registry...", c: "info" },
+        { t: "added 1 package in 1.2s", c: "success" },
+        { t: "Linking binary entries...", c: "info" },
+        { t: " [+] /usr/local/bin/aetherai -> /usr/local/lib/node_modules/aetherai-studio/cli.js", c: "success" },
+        { t: " [+] /usr/local/bin/aether -> /usr/local/lib/node_modules/aetherai-studio/cli.js", c: "success" },
+        { t: "Testing global command link...", c: "info" },
+        { t: "🎉 aetherai successfully registered in system PATH!", c: "success" }
+      ],
+      hackable: [
+        { t: "git clone https://github.com/yourusername/AetherAI-Studio.git", c: "info" },
+        { t: "Cloning into 'AetherAI-Studio'...", c: "info" },
+        { t: "Resolving deltas: 100% (done)", c: "success" },
+        { t: "cd AetherAI-Studio && npm install", c: "info" },
+        { t: "added 3 packages, audited 3 packages in 0.8s", c: "success" },
+        { t: "npm run dev", c: "info" },
+        { t: " > node cli.js", c: "info" },
+        { t: "Booting AetherAI Studio local server...", c: "info" },
+        { t: "  👉 http://localhost:8080", c: "warning" },
+        { t: "🎉 Offline development server active with Hot Reload!", c: "success" }
+      ]
+    };
+
+    const methodData = {
+      windows: {
+        title: "Windows PowerShell Setup",
+        prompt: "PS &gt;",
+        command: "irm https://hankyle.com/run.ps1 | iex",
+        step1Title: "Run Command in Terminal",
+        step1Desc: "Open Windows PowerShell (Run as User), paste the installer pipeline, and press enter:",
+        step2Title: "Select Language & Setup Options",
+        step2Desc: "The script downloads the compiled package, initializes the localized files inside <code>$env:UserProfile\\AetherAI-Studio</code>, and runs diagnostic tests to detect your active local model provider.",
+        step3Title: "Launch Console UI",
+        step3Desc: "The local web server will boot at port 8080 and automatically launch the chat HUD in your browser. A desktop shortcut named \"AetherAI Studio\" will be ready for subsequent launches!"
+      },
+      unix: {
+        title: "macOS / Linux Terminal Setup",
+        prompt: "$",
+        command: "curl -fsSL https://hankyle.com/run.sh | bash",
+        step1Title: "Run Unix Shell Pipeline",
+        step1Desc: "Open Terminal (Terminal.app or bash/zsh), paste the curl installer pipeline, and press enter:",
+        step2Title: "Auto-Extract & Configure Alias",
+        step2Desc: "The script initializes files inside <code>~/AetherAI-Studio</code>, registers terminal command aliases (<code>aether</code> and <code>aetherai</code>) in your shell profile (<code>.zshrc</code> or <code>.bashrc</code>), and performs onboarding diagnostics.",
+        step3Title: "Boot Static Web Server",
+        step3Desc: "The Node.js web server starts automatically, binding to port 8080 or next free port. Open <code>http://localhost:8080</code> to launch the chat console!"
+      },
+      npm: {
+        title: "Global npm Package Setup",
+        prompt: "&gt;",
+        command: "npm install -g aetherai-studio",
+        step1Title: "Install Globally from npm Registry",
+        step1Desc: "Open your terminal and install the global package using npm (requires Node.js 18+). If you are installing from local source code before publishing to the npm registry, run <code>npm install -g .</code> inside the project root folder instead:",
+        step2Title: "CLI Executable Linking",
+        step2Desc: "npm will register global executable bridges (<code>aetherai</code> and <code>aether</code>) linking directly to our zero-dependency backend CLI script.",
+        step3Title: "Run Everywhere in Terminal",
+        step3Desc: "Simply type <code>aetherai</code> in any folder to launch the local bridge server and immediately pop open the default browser UI."
+      },
+      hackable: {
+        title: "Hackable Developer Setup",
+        prompt: "$",
+        command: "git clone https://github.com/yourusername/AetherAI-Studio.git && cd AetherAI-Studio && npm install && npm run dev",
+        step1Title: "Clone and Install Dependencies",
+        step1Desc: "Clone the official Git repository and install native packages locally:",
+        step2Title: "Customize Backend and Frontend",
+        step2Desc: "You have 100% control over the source code. Edit the frontend inside <code>index.html</code>, customize the CLI in <code>cli.js</code>, or hack the bridge integrations inside <code>server.js</code>.",
+        step3Title: "Start Development Server",
+        step3Desc: "Execute <code>npm run dev</code> or <code>node cli.js</code> to spin up the local server, enable hot reload features, and test your custom offline features."
+      }
+    };
+
+    let activeInstallMethod = "windows";
+    let termDemoActive = false;
+
+    function setInstallMethod(method) {
+      if (termDemoActive) return;
+      activeInstallMethod = method;
+
+      // Update tabs active state
+      document.querySelectorAll(".term-tab").forEach(btn => btn.classList.remove("active"));
+      const activeBtn = document.getElementById(`btn-${method === 'windows' ? 'win' : method === 'unix' ? 'unix' : method === 'npm' ? 'npm' : 'hack'}`);
+      if (activeBtn) activeBtn.classList.add("active");
+
+      // Update terminal panel text
+      const data = methodData[method];
+      document.getElementById("termTitle").textContent = data.title;
+      document.getElementById("termPrompt").innerHTML = data.prompt;
+      document.getElementById("pcmd").textContent = data.command;
+
+      // Update step layout details
+      document.getElementById("step1Title").textContent = data.step1Title;
+      document.getElementById("step1Desc").textContent = data.step1Desc;
+      document.getElementById("step1Prompt").innerHTML = data.prompt;
+      document.getElementById("step1Cmd").textContent = data.command;
+
+      document.getElementById("step2Title").textContent = data.step2Title;
+      document.getElementById("step2Desc").innerHTML = data.step2Desc;
+
+      document.getElementById("step3Title").textContent = data.step3Title;
+      document.getElementById("step3Desc").innerHTML = data.step3Desc;
+
+      // Reset term log display
+      document.getElementById("termLog").innerHTML = "";
+    }
+
+    function copyActiveInstallCommand() {
+      const command = methodData[activeInstallMethod].command;
+      copyText(command);
+    }
+
+    function playInstallDemo() {
+      if (termDemoActive) return;
+      termDemoActive = true;
+      
+      const logContainer = document.getElementById("termLog");
+      logContainer.innerHTML = "";
+      
+      const logs = installLogs[activeInstallMethod];
+      let lineIndex = 0;
+      
+      function streamNextLogLine() {
+        if (lineIndex >= logs.length) {
+          termDemoActive = false;
+          return;
+        }
+        
+        const log = logs[lineIndex];
+        const line = document.createElement("div");
+        line.className = `log-line log-${log.c}`;
+        line.textContent = log.t;
+        logContainer.appendChild(line);
+        
+        const termBody = document.getElementById("termBody");
+        termBody.scrollTop = termBody.scrollHeight;
+        
+        lineIndex++;
+        setTimeout(streamNextLogLine, 350);
+      }
+      
+      streamNextLogLine();
+    }
+
+    // Interactive Demo Sandbox scripts
+    const sandboxDemoReplies = {
+      math: [
+        { type: 'text', content: 'Euler\'s Identity is a famous equation that links five fundamental mathematical constants:' },
+        { type: 'math-inline', content: 'e, i, \\pi, 1, \\text{ and } 0' },
+        { type: 'text', content: 'Here is the equation typeset in LaTeX format:' },
+        { type: 'math-block', content: 'e^{i\\pi} + 1 = 0' },
+        { type: 'text', content: 'Where:' },
+        { type: 'text', content: '• e is Euler\'s number, the base of natural logarithms.' },
+        { type: 'text', content: '• i is the imaginary unit, satisfying i² = -1.' },
+        { type: 'text', content: '• π is the ratio of circle circumference to diameter.' }
+      ],
+      code: [
+        { type: 'text', content: 'Here is the implementation of the Bubble Sort sorting algorithm in Python, optimized for early stopping:' },
+        { type: 'code', content: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        swapped = False
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                # Swap elements
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+                swapped = True
+        # If no elements were swapped, array is sorted
+        if not swapped:
+            break
+    return arr
+
+# Test run
+print(bubble_sort([64, 34, 25, 12, 22, 11, 90]))` },
+        { type: 'text', content: 'Time Complexity: Average and Worst case is O(n²), Best case is O(n) when already sorted.' }
+      ],
+      agent: [
+        { type: 'text', content: 'In AetherAI Studio, **Agent Code Mode** gives local AI models terminal-running and file-writing autonomy on your machine using custom XML tags:' },
+        { type: 'code', content: `<list_dir></list_dir>
+<read_file>src/server.js</read_file>
+<run_command>npm run test</run_command>` },
+        { type: 'text', content: 'When these tags are generated by the model, AetherAI Studio executes them in your local PowerShell terminal, captures the terminal feedback, and feeds it recursively back to the model until the task is successfully completed.' }
+      ]
+    };
+
+    let sandboxTypingActive = false;
+
+    function runSandboxPrompt(key) {
+      if (sandboxTypingActive) return;
+      
+      let promptText = "";
+      if (key === 'math') promptText = "Explain Euler's Identity with LaTeX formulas.";
+      else if (key === 'code') promptText = "Implement a bubble sort in Python with optimizations.";
+      else if (key === 'agent') promptText = "How does Autonomous Agent Code Mode work?";
+
+      appendSandboxBubble(promptText, 'user');
+      
+      const chunks = sandboxDemoReplies[key];
+      sandboxTypingActive = true;
+      const assistantBubble = appendSandboxBubble('', 'assistant');
+      
+      streamSandboxChunks(assistantBubble, chunks, 0);
+    }
+
+    function handleSandboxInputKey(e) {
+      if (e.key === 'Enter') sendCustomSandboxMessage();
+    }
+
+    function sendCustomSandboxMessage() {
+      if (sandboxTypingActive) return;
+      const input = document.getElementById("sandboxInput");
+      const text = input.value.trim();
+      if (!text) return;
+      
+      input.value = "";
+      appendSandboxBubble(text, 'user');
+      
+      sandboxTypingActive = true;
+      const assistantBubble = appendSandboxBubble('', 'assistant');
+      
+      const customReply = [
+        { type: 'text', content: `You sent: "${text}". AetherAI Studio runs 100% locally on your machine. To connect a live LLM, run the installer to set up Ollama, LM Studio, or vLLM:` },
+        { type: 'math-block', content: '\\text{Offline Connectivity} = 100\\%' },
+        { type: 'text', content: 'Once setup, click "Save Settings" in your dashboard to connect!' }
+      ];
+      
+      streamSandboxChunks(assistantBubble, customReply, 0);
+    }
+
+    function appendSandboxBubble(text, sender) {
+      const container = document.getElementById("sandboxMessages");
+      const bubble = document.createElement("div");
+      bubble.className = `bubble bubble-${sender}`;
+      bubble.innerHTML = text;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+      return bubble;
+    }
+
+    function streamSandboxChunks(bubbleElement, chunks, chunkIndex) {
+      if (chunkIndex >= chunks.length) {
+        sandboxTypingActive = false;
+        return;
+      }
+      
+      const chunk = chunks[chunkIndex];
+      let currentHTML = bubbleElement.innerHTML;
+      
+      if (chunkIndex > 0 && chunk.type === 'text') {
+        currentHTML += '<br><br>';
+      }
+
+      if (chunk.type === 'text') {
+        let i = 0;
+        const textVal = chunk.content;
+        
+        function typeChar() {
+          if (i < textVal.length) {
+            bubbleElement.innerHTML = currentHTML + textVal.substring(0, i + 1) + '<span class="typing-cursor"></span>';
+            i++;
+            document.getElementById("sandboxMessages").scrollTop = document.getElementById("sandboxMessages").scrollHeight;
+            setTimeout(typeChar, 18);
+          } else {
+            bubbleElement.innerHTML = currentHTML + textVal;
+            streamSandboxChunks(bubbleElement, chunks, chunkIndex + 1);
+          }
+        }
+        typeChar();
+      } 
+      else if (chunk.type === 'math-inline') {
+        let cleanFormula = chunk.content;
+        if (cleanFormula.includes('\\pi')) cleanFormula = cleanFormula.replace('\\pi', 'π');
+        if (cleanFormula.includes('\\text{ and }')) cleanFormula = cleanFormula.replace('\\text{ and }', ' and ');
+        bubbleElement.innerHTML = currentHTML + ` <span class="math-inline">${cleanFormula}</span> `;
+        setTimeout(() => streamSandboxChunks(bubbleElement, chunks, chunkIndex + 1), 300);
+      }
+      else if (chunk.type === 'math-block') {
+        let cleanFormula = chunk.content;
+        bubbleElement.innerHTML = currentHTML + `<div class="math-block">$$ ${cleanFormula} $$</div>`;
+        document.getElementById("sandboxMessages").scrollTop = document.getElementById("sandboxMessages").scrollHeight;
+        setTimeout(() => streamSandboxChunks(bubbleElement, chunks, chunkIndex + 1), 400);
+      }
+      else if (chunk.type === 'code') {
+        let codeHtml = chunk.content
+          .replace(/def /g, '<span class="kw">def </span>')
+          .replace(/for /g, '<span class="kw">for </span>')
+          .replace(/in /g, '<span class="kw">in </span>')
+          .replace(/if /g, '<span class="kw">if </span>')
+          .replace(/not /g, '<span class="kw">not </span>')
+          .replace(/break/g, '<span class="kw">break</span>')
+          .replace(/return /g, '<span class="kw">return </span>')
+          .replace(/len\(/g, '<span class="bu">len</span>(')
+          .replace(/range\(/g, '<span class="bu">range</span>(')
+          .replace(/print\(/g, '<span class="bu">print</span>(')
+          .replace(/# Swap elements/g, '<span class="co"># Swap elements</span>')
+          .replace(/# If no elements were swapped, array is sorted/g, '<span class="co"># If no elements were swapped, array is sorted</span>')
+          .replace(/# Test run/g, '<span class="co"># Test run</span>')
+          .replace(/&lt;list_dir&gt;&lt;\/list_dir&gt;/g, '<span class="kw">&lt;list_dir&gt;&lt;/list_dir&gt;</span>')
+          .replace(/&lt;read_file&gt;src\/server.js&lt;\/read_file&gt;/g, '<span class="kw">&lt;read_file&gt;</span><span class="st">src/server.js</span><span class="kw">&lt;/read_file&gt;</span>')
+          .replace(/&lt;run_command&gt;npm run test&lt;\/run_command&gt;/g, '<span class="kw">&lt;run_command&gt;</span><span class="st">npm run test</span><span class="kw">&lt;/run_command&gt;</span>');
+
+        bubbleElement.innerHTML = currentHTML + `<div class="code-block">${codeHtml}</div>`;
+        document.getElementById("sandboxMessages").scrollTop = document.getElementById("sandboxMessages").scrollHeight;
+        setTimeout(() => streamSandboxChunks(bubbleElement, chunks, chunkIndex + 1), 600);
+      }
+    }
+  </script>
+</body>
+</html>

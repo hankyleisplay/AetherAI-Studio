@@ -1,0 +1,20 @@
+# Ignore local configurations and logs
+config.json
+npm-debug.log
+node_modules/
+
+# Ignore local installers (very important - OllamaSetup is 395MB!)
+OllamaSetup.exe
+
+# Ignore local development compilation tools
+build_installer.ps1
+build.js
+run.ps1
+run.sh
+landing.html
+
+# Ignore website marketing assets (optional, saves space)
+website/aetherai_hero.png
+website/index.html
+website/
+.gemini/

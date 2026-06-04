@@ -1,0 +1,28 @@
+{
+  "name": "aetherai-studio",
+  "version": "1.0.0",
+  "description": "Private Local AI Playground and Chat Console with Agent Code Mode",
+  "main": "server.js",
+  "bin": {
+    "aetherai": "./cli.js",
+    "aether": "./cli.js"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "dev": "node cli.js",
+    "build": "node build.js"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "preferGlobal": true,
+  "license": "MIT",
+  "keywords": [
+    "ollama",
+    "lmstudio",
+    "vllm",
+    "local-ai",
+    "agent",
+    "cors-proxy"
+  ]
+}

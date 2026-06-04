@@ -1,0 +1,16 @@
+# Ignore local configurations with sensitive API tokens
+config.json
+
+# Ignore npm package dependencies and logs
+node_modules/
+npm-debug.log
+
+# Ignore massive binary installers (GitHub blocks files > 100MB)
+OllamaSetup.exe
+
+# Ignore local temporary/system cache folders
+.gemini/
+.idea/
+.vscode/
+Thumbs.db
+Desktop.ini

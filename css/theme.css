@@ -1,0 +1,251 @@
+/* ==========================================================================
+   AetherAI Studio - Theme & Visual Styling
+   ========================================================================== */
+
+/* Neon Text & Background Glow Utilities */
+.text-glow-cyan {
+  text-shadow: 0 0 10px rgba(0, 242, 254, 0.5);
+  color: var(--accent-cyan);
+}
+
+.text-glow-purple {
+  text-shadow: 0 0 10px rgba(155, 81, 224, 0.5);
+  color: var(--accent-purple);
+}
+
+.text-gradient {
+  background: var(--accent-gradient);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.border-glow-cyan:focus, .border-glow-cyan.active {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.25);
+}
+
+.border-glow-purple:focus, .border-glow-purple.active {
+  border-color: var(--accent-purple);
+  box-shadow: 0 0 15px rgba(155, 81, 224, 0.25);
+}
+
+/* Glass Buttons & Interactive Elements */
+.btn-glass {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: var(--text-main);
+  padding: 10px 20px;
+  border-radius: var(--border-radius-sm);
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-smooth);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.btn-glass:hover {
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.2);
+  color: var(--text-highlight);
+  transform: translateY(-1px);
+}
+
+.btn-glass:active {
+  transform: translateY(0);
+}
+
+/* Premium Primary Neon Glow Button */
+.btn-neon {
+  background: var(--accent-gradient);
+  border: none;
+  color: var(--text-dark);
+  padding: 10px 20px;
+  border-radius: var(--border-radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all var(--transition-smooth);
+  box-shadow: 0 0 15px rgba(0, 242, 254, 0.3);
+  position: relative;
+  overflow: hidden;
+}
+
+.btn-neon::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: -100%;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.3), transparent);
+  transition: all 0.6s ease;
+}
+
+.btn-neon:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 25px rgba(155, 81, 224, 0.5), 0 0 10px rgba(0, 242, 254, 0.4);
+  color: var(--text-highlight);
+}
+
+.btn-neon:hover::before {
+  left: 100%;
+}
+
+.btn-neon:active {
+  transform: translateY(0);
+}
+
+.btn-neon.secondary {
+  background: transparent;
+  border: 1px solid var(--accent-purple);
+  color: var(--text-main);
+  box-shadow: none;
+}
+
+.btn-neon.secondary:hover {
+  background: rgba(155, 81, 224, 0.15);
+  box-shadow: var(--shadow-neon-purple);
+}
+
+/* Glass Inputs & Form Controls */
+.input-glass {
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: var(--border-radius-sm);
+  padding: 12px 16px;
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  width: 100%;
+  transition: all var(--transition-smooth);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.input-glass:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.2), inset 0 2px 4px rgba(0, 0, 0, 0.2);
+  background: rgba(0, 0, 0, 0.45);
+}
+
+.input-glass::placeholder {
+  color: var(--text-muted);
+  opacity: 0.6;
+}
+
+.select-glass {
+  appearance: none;
+  background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238d8c9f' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 16px;
+  padding-right: 40px;
+}
+
+/* Status Indicators */
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 500;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-online {
+  color: var(--accent-cyan);
+  border-color: rgba(0, 242, 254, 0.15);
+  background: rgba(0, 242, 254, 0.08);
+}
+.status-online .status-dot {
+  background: var(--accent-cyan);
+  box-shadow: 0 0 8px var(--accent-cyan);
+}
+
+.status-offline {
+  color: var(--text-muted);
+  border-color: rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.02);
+}
+.status-offline .status-dot {
+  background: var(--text-muted);
+}
+
+.status-alert {
+  color: var(--color-warning);
+  border-color: rgba(242, 153, 74, 0.15);
+  background: rgba(242, 153, 74, 0.08);
+}
+.status-alert .status-dot {
+  background: var(--color-warning);
+  box-shadow: 0 0 8px var(--color-warning);
+}
+
+/* Custom Range Sliders */
+.slider-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+}
+
+.slider-header {
+  display: flex;
+  justify-content: space-between;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.slider-val {
+  color: var(--accent-cyan);
+  font-weight: 600;
+  font-family: 'Fira Code', monospace;
+}
+
+.slider-glass {
+  -webkit-appearance: none;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  background: rgba(255, 255, 255, 0.1);
+  outline: none;
+  transition: background var(--transition-fast);
+}
+
+.slider-glass::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--accent-cyan);
+  box-shadow: 0 0 10px rgba(0, 242, 254, 0.6);
+  cursor: pointer;
+  transition: transform var(--transition-fast), background-color var(--transition-fast);
+}
+
+.slider-glass::-webkit-slider-thumb:hover {
+  transform: scale(1.2);
+  background: var(--accent-purple);
+  box-shadow: 0 0 10px rgba(155, 81, 224, 0.6);
+}

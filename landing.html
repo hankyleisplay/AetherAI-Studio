@@ -1,0 +1,1314 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AetherAI Studio | The Ultimate Private Local AI Playground</title>
+  
+  <!-- Modern Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  
+  <!-- CSS Stylesheet -->
+  <style>
+    :root {
+      --bg-dark: #030712;
+      --bg-card: rgba(17, 24, 39, 0.7);
+      --bg-card-hover: rgba(31, 41, 55, 0.8);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(6, 182, 212, 0.3);
+      --accent-cyan: #06b6d4;
+      --accent-purple: #8b5cf6;
+      --accent-gradient: linear-gradient(135deg, #06b6d4 0%, #8b5cf6 100%);
+      --text-main: #f3f4f6;
+      --text-muted: #9ca3af;
+      --glow-cyan: 0 0 25px rgba(6, 182, 212, 0.15);
+      --glow-purple: 0 0 25px rgba(139, 92, 246, 0.15);
+      --font-outfit: 'Outfit', sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      background-color: var(--bg-dark);
+      color: var(--text-main);
+      font-family: var(--font-outfit);
+      line-height: 1.6;
+      overflow-x: hidden;
+    }
+
+    /* Ambient Background Glows */
+    .bg-glow-1 {
+      position: absolute;
+      top: -10%;
+      left: -10%;
+      width: 50vw;
+      height: 50vw;
+      background: radial-gradient(circle, rgba(6, 182, 212, 0.08) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    .bg-glow-2 {
+      position: absolute;
+      top: 50%;
+      right: -10%;
+      width: 60vw;
+      height: 60vw;
+      background: radial-gradient(circle, rgba(139, 92, 246, 0.06) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Navigation Bar */
+    header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      padding: 1.2rem 5%;
+      background: rgba(3, 7, 18, 0.7);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 100;
+    }
+
+    .logo-container {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-icon {
+      width: 32px;
+      height: 32px;
+      background: var(--accent-gradient);
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .logo-icon svg {
+      width: 18px;
+      height: 18px;
+      stroke: white;
+    }
+
+    .logo-text {
+      font-size: 1.4rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    nav {
+      display: flex;
+      align-items: center;
+      gap: 2rem;
+    }
+
+    nav a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.95rem;
+      transition: color 0.3s;
+    }
+
+    nav a:hover {
+      color: var(--accent-cyan);
+    }
+
+    .btn-nav-download {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      padding: 0.5rem 1.2rem;
+      border-radius: 8px;
+      color: white;
+      font-weight: 600;
+      transition: all 0.3s;
+    }
+
+    .btn-nav-download:hover {
+      background: var(--accent-gradient);
+      border-color: transparent;
+      box-shadow: var(--glow-cyan);
+      color: white;
+    }
+
+    /* Sections */
+    section {
+      padding: 8rem 8% 4rem 8%;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Hero Section */
+    .hero-container {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .hero-info h1 {
+      font-size: 3.8rem;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -1.5px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-info h1 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .hero-info p {
+      font-size: 1.2rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    /* Terminal Installer Widget */
+    .terminal-installer {
+      background: rgba(10, 15, 30, 0.85);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 1.2rem;
+      margin-bottom: 2.5rem;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+      position: relative;
+    }
+
+    .terminal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.8rem;
+    }
+
+    .terminal-dots {
+      display: flex;
+      gap: 6px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .dot-red { background: #ef4444; }
+    .dot-yellow { background: #eab308; }
+    .dot-green { background: #22c55e; }
+
+    .terminal-title {
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .terminal-body {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-family: var(--font-mono);
+      background: rgba(0, 0, 0, 0.3);
+      padding: 0.8rem 1rem;
+      border-radius: 8px;
+      border: 1px solid rgba(255, 255, 255, 0.03);
+    }
+
+    .terminal-prompt {
+      color: var(--accent-cyan);
+      user-select: none;
+    }
+
+    .terminal-cmd {
+      color: #38bdf8;
+      font-size: 0.9rem;
+      word-break: break-all;
+      flex-grow: 1;
+    }
+
+    .btn-copy {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: white;
+      padding: 6px 12px;
+      border-radius: 6px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s;
+    }
+
+    .btn-copy:hover {
+      background: rgba(255, 255, 255, 0.15);
+      border-color: var(--accent-cyan);
+    }
+
+    .btn-copy svg {
+      width: 14px;
+      height: 14px;
+      fill: none;
+      stroke: currentColor;
+      stroke-width: 2;
+    }
+
+    /* Hero Mockup Frame */
+    .hero-mockup {
+      position: relative;
+    }
+
+    .mockup-frame {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 6px;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6), 0 0 50px rgba(6, 182, 212, 0.05);
+      transition: transform 0.5s ease;
+      overflow: hidden;
+      display: flex;
+    }
+
+    .mockup-frame:hover {
+      transform: translateY(-8px) rotateY(-2px);
+      box-shadow: 0 30px 60px rgba(0, 0, 0, 0.8), 0 0 50px rgba(139, 92, 246, 0.1);
+    }
+
+    .mockup-img {
+      width: 100%;
+      height: auto;
+      border-radius: 12px;
+      display: block;
+    }
+
+    /* Copy Toast Notification */
+    .toast {
+      position: fixed;
+      bottom: 2rem;
+      right: 2rem;
+      background: rgba(17, 24, 39, 0.9);
+      border: 1px solid var(--accent-cyan);
+      box-shadow: var(--glow-cyan);
+      padding: 0.8rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 500;
+      font-size: 0.9rem;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateY(150px);
+      transition: transform 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateY(0);
+    }
+
+    /* Features Grid */
+    .features-header {
+      text-align: center;
+      margin-bottom: 4rem;
+    }
+
+    .features-header h2 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 1rem;
+    }
+
+    .features-header h2 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .features-header p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      max-width: 600px;
+      margin: 0 auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 2.5rem 2rem;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .feature-card::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: var(--accent-gradient);
+      transform: scaleX(0);
+      transform-origin: left;
+      transition: transform 0.4s ease;
+    }
+
+    .feature-card:hover {
+      background: var(--bg-card-hover);
+      border-color: var(--border-hover);
+      transform: translateY(-5px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+    }
+
+    .feature-card:hover::before {
+      transform: scaleX(1);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: rgba(6, 182, 212, 0.1);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1.5rem;
+      color: var(--accent-cyan);
+    }
+
+    .feature-card:nth-child(even) .feature-icon {
+      background: rgba(139, 92, 246, 0.1);
+      color: var(--accent-purple);
+    }
+
+    .feature-icon svg {
+      width: 24px;
+      height: 24px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .feature-card h3 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      margin-bottom: 0.8rem;
+    }
+
+    .feature-card p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      line-height: 1.6;
+    }
+
+    /* Simulated Interactive Chat Playground */
+    .playground-section {
+      background: radial-gradient(100% 100% at 50% 0%, rgba(139, 92, 246, 0.05) 0%, transparent 100%);
+    }
+
+    .playground-container {
+      display: grid;
+      grid-template-columns: 0.85fr 1.15fr;
+      gap: 4rem;
+      align-items: center;
+    }
+
+    .playground-info h2 {
+      font-size: 2.8rem;
+      font-weight: 800;
+      letter-spacing: -1px;
+      margin-bottom: 1.2rem;
+    }
+
+    .playground-info h2 span {
+      background: var(--accent-gradient);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .playground-info p {
+      font-size: 1.1rem;
+      color: var(--text-muted);
+      margin-bottom: 2rem;
+    }
+
+    .prompt-suggestions {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .suggestion-btn {
+      background: rgba(255, 255, 255, 0.03);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      padding: 1rem;
+      color: var(--text-main);
+      text-align: left;
+      font-family: var(--font-outfit);
+      font-size: 0.95rem;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      transition: all 0.2s;
+    }
+
+    .suggestion-btn:hover {
+      background: rgba(6, 182, 212, 0.06);
+      border-color: var(--accent-cyan);
+      transform: translateX(5px);
+    }
+
+    .suggestion-btn svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--accent-cyan);
+      fill: none;
+      stroke-width: 2.5;
+      opacity: 0;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    .suggestion-btn:hover svg {
+      opacity: 1;
+      transform: translateX(2px);
+    }
+
+    /* Custom Mock App UI Frame */
+    .mock-chat-frame {
+      background: rgba(10, 15, 30, 0.8);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      height: 520px;
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .mock-chat-header {
+      background: rgba(0, 0, 0, 0.2);
+      border-bottom: 1px solid var(--border-color);
+      padding: 0.8rem 1.2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mock-status-pill {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      background: rgba(34, 197, 94, 0.1);
+      color: #22c55e;
+      padding: 4px 10px;
+      border-radius: 20px;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      background: #22c55e;
+      border-radius: 50%;
+      box-shadow: 0 0 8px #22c55e;
+      animation: pulse 1.8s infinite;
+    }
+
+    .mock-chat-messages {
+      flex-grow: 1;
+      padding: 1.5rem;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 1.2rem;
+      scroll-behavior: smooth;
+    }
+
+    .message-bubble {
+      max-width: 85%;
+      padding: 1rem 1.2rem;
+      border-radius: 12px;
+      font-size: 0.95rem;
+      line-height: 1.5;
+    }
+
+    .msg-user {
+      align-self: flex-end;
+      background: var(--accent-gradient);
+      color: white;
+      border-bottom-right-radius: 2px;
+      box-shadow: var(--glow-purple);
+    }
+
+    .msg-assistant {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-bottom-left-radius: 2px;
+    }
+
+    /* Math Render Styles inside chat bubble */
+    .math-block {
+      background: rgba(0, 0, 0, 0.3);
+      border: 1px solid rgba(6, 182, 212, 0.2);
+      border-radius: 8px;
+      padding: 12px;
+      margin: 10px 0;
+      text-align: center;
+      font-style: italic;
+      color: var(--accent-cyan);
+      font-family: var(--font-mono);
+      font-size: 0.95rem;
+    }
+
+    .math-inline {
+      font-style: italic;
+      color: var(--accent-cyan);
+      font-weight: 500;
+      padding: 0 2px;
+    }
+
+    .mock-chat-input-area {
+      border-top: 1px solid var(--border-color);
+      background: rgba(0, 0, 0, 0.15);
+      padding: 1rem;
+      display: flex;
+      gap: 10px;
+    }
+
+    .mock-input {
+      flex-grow: 1;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      color: white;
+      font-family: var(--font-outfit);
+      font-size: 0.9rem;
+      outline: none;
+      transition: all 0.2s;
+    }
+
+    .mock-input:focus {
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(6, 182, 212, 0.1);
+    }
+
+    .btn-mock-send {
+      background: var(--accent-gradient);
+      border: none;
+      color: white;
+      width: 42px;
+      height: 42px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: var(--glow-cyan);
+      transition: transform 0.2s;
+    }
+
+    .btn-mock-send:hover {
+      transform: scale(1.05);
+    }
+
+    .btn-mock-send svg {
+      width: 18px;
+      height: 18px;
+      stroke: white;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    /* Typist effect container cursor */
+    .typing-cursor {
+      display: inline-block;
+      width: 6px;
+      height: 14px;
+      background-color: var(--accent-cyan);
+      margin-left: 2px;
+      animation: blink 0.8s infinite;
+      vertical-align: middle;
+    }
+
+    /* Code Block Mockup */
+    .code-block {
+      background: rgba(0, 0, 0, 0.4);
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      padding: 10px 14px;
+      border-radius: 6px;
+      margin: 8px 0;
+      border: 1px solid rgba(255, 255, 255, 0.04);
+      color: #e2e8f0;
+      overflow-x: auto;
+      white-space: pre;
+    }
+
+    .keyword { color: #f43f5e; }
+    .builtin { color: #38bdf8; }
+    .string { color: #34d399; }
+    .comment { color: #64748b; font-style: italic; }
+
+    /* Setup & Installation Guide Section */
+    .steps-section {
+      background: rgba(17, 24, 39, 0.3);
+      border-top: 1px solid var(--border-color);
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .steps-container {
+      max-width: 1000px;
+      margin: 0 auto;
+    }
+
+    .step-item {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: 1.5rem;
+      margin-bottom: 3.5rem;
+      position: relative;
+    }
+
+    .step-item:not(:last-child)::after {
+      content: '';
+      position: absolute;
+      top: 50px;
+      left: 30px;
+      width: 1px;
+      height: calc(100% - 20px);
+      background: var(--border-color);
+    }
+
+    .step-number {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: rgba(6, 182, 212, 0.1);
+      border: 2px solid var(--accent-cyan);
+      color: var(--accent-cyan);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      font-weight: 800;
+      box-shadow: var(--glow-cyan);
+    }
+
+    .step-item:nth-child(even) .step-number {
+      background: rgba(139, 92, 246, 0.1);
+      border-color: var(--accent-purple);
+      color: var(--accent-purple);
+      box-shadow: var(--glow-purple);
+    }
+
+    .step-content h3 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      margin-bottom: 0.6rem;
+    }
+
+    .step-content p {
+      color: var(--text-muted);
+      font-size: 1.05rem;
+      margin-bottom: 1.2rem;
+    }
+
+    /* Footer */
+    footer {
+      background: #020617;
+      border-top: 1px solid var(--border-color);
+      padding: 4rem 8% 2rem 8%;
+      text-align: center;
+    }
+
+    .footer-links {
+      display: flex;
+      justify-content: center;
+      gap: 3rem;
+      margin-bottom: 2rem;
+    }
+
+    .footer-links a {
+      color: var(--text-muted);
+      text-decoration: none;
+      font-size: 0.95rem;
+      transition: color 0.2s;
+    }
+
+    .footer-links a:hover {
+      color: var(--accent-cyan);
+    }
+
+    .footer-copyright {
+      color: #4b5563;
+      font-size: 0.85rem;
+    }
+
+    /* Animations */
+    @keyframes pulse {
+      0%, 100% {
+        transform: scale(1);
+        opacity: 1;
+        box-shadow: 0 0 8px #22c55e;
+      }
+      50% {
+        transform: scale(1.15);
+        opacity: 0.7;
+        box-shadow: 0 0 16px #22c55e;
+      }
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0; }
+    }
+
+    /* Responsive adjustments */
+    @media (max-width: 1024px) {
+      .hero-container {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+      .playground-container {
+        grid-template-columns: 1fr;
+        gap: 3rem;
+      }
+      .hero-info h1 {
+        font-size: 3rem;
+      }
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        display: none; /* simple mobile bypass for clean presentation */
+      }
+      section {
+        padding: 6rem 5% 3rem 5%;
+      }
+      .hero-info h1 {
+        font-size: 2.5rem;
+      }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Ambient Glow Effects -->
+  <div class="bg-glow-1"></div>
+  <div class="bg-glow-2"></div>
+
+  <!-- Header Navigation -->
+  <header>
+    <div class="logo-container">
+      <div class="logo-icon">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+          <line x1="12" y1="22" x2="12" y2="15.5"></line>
+          <polyline points="22 8.5 12 15.5 2 8.5"></polyline>
+          <polyline points="2 15.5 12 8.5 22 15.5"></polyline>
+          <line x1="12" y1="2" x2="12" y2="8.5"></line>
+        </svg>
+      </div>
+      <span class="logo-text">AetherAI Studio</span>
+    </div>
+    <nav>
+      <a href="#features">Features</a>
+      <a href="#playground">Interactive Demo</a>
+      <a href="#installation">Installation</a>
+      <a href="#installation" class="btn-nav-download">Install Now</a>
+    </nav>
+  </header>
+
+  <!-- Hero Section -->
+  <section id="hero">
+    <div class="hero-container">
+      <div class="hero-info">
+        <h1>Private Local AI Playground <span>Fully Unleashed</span></h1>
+        <p>AetherAI Studio is a single-file, zero-dependency local AI Chat console, code playground, and autonomous command agent. Connects seamlessly with Ollama, LM Studio, and vLLM with absolute privacy.</p>
+        
+        <!-- Terminal Command Box -->
+        <div class="terminal-installer">
+          <div class="terminal-header">
+            <div class="terminal-dots">
+              <span class="dot dot-red"></span>
+              <span class="dot dot-yellow"></span>
+              <span class="dot dot-green"></span>
+            </div>
+            <div class="terminal-title">Windows PowerShell</div>
+          </div>
+          <div class="terminal-body">
+            <span class="terminal-prompt">PS &gt;</span>
+            <span class="terminal-cmd" id="installCmd">irm https://hankyle.com/run.ps1 | iex</span>
+            <button class="btn-copy" onclick="copyInstallCmd()">
+              <svg viewBox="0 0 24 24">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              Copy
+            </button>
+          </div>
+        </div>
+      </div>
+      
+      <!-- Hero Mockup/Feature Image -->
+      <div class="hero-mockup">
+        <div class="mockup-frame">
+          <img src="aetherai_hero.png" alt="AetherAI Studio Interactive Console" class="mockup-img">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Showcase -->
+  <section id="features">
+    <div class="features-header">
+      <h2>Advanced Features for <span>Local Engines</span></h2>
+      <p>AetherAI Studio equips your local AI models with file system access, terminal capability, messaging endpoints, speech controls, and rich typesetting.</p>
+    </div>
+    
+    <div class="features-grid">
+      <!-- Feature 1: Agent Code Mode -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <polyline points="4 17 10 11 4 5"></polyline>
+            <line x1="12" y1="19" x2="20" y2="19"></line>
+          </svg>
+        </div>
+        <h3>Autonomous Agent Code Mode</h3>
+        <p>Gives your LLM the power to list directories, read/edit files, and run system shell commands. It acts as an autonomous developer looping tasks through an XML verification flow.</p>
+      </div>
+
+      <!-- Feature 2: local providers -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="2" y="2" width="20" height="8" rx="2" ry="2"></rect>
+            <rect x="2" y="14" width="20" height="8" rx="2" ry="2"></rect>
+            <line x1="6" y1="6" x2="6.01" y2="6"></line>
+            <line x1="6" y1="18" x2="6.01" y2="18"></line>
+          </svg>
+        </div>
+        <h3>Universal Provider Hub</h3>
+        <p>Integrated auto-discovery for local AI engines. Instantly toggle between Ollama, LM Studio, and vLLM APIs in a unified dashboard, polling and loading available models dynamically.</p>
+      </div>
+
+      <!-- Feature 3: Messaging Bridges -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path>
+          </svg>
+        </div>
+        <h3>Social Messaging Bridges</h3>
+        <p>Wired to background bridges. Control your computer and chats from anywhere via Telegram bots. Broadcast boot statuses and save metrics dynamically to Discord server webhooks.</p>
+      </div>
+
+      <!-- Feature 4: LaTeX Math -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <line x1="4" y1="9" x2="20" y2="9"></line>
+            <line x1="4" y1="15" x2="20" y2="15"></line>
+            <line x1="10" y1="3" x2="8" y2="21"></line>
+            <line x1="16" y1="3" x2="14" y2="21"></line>
+          </svg>
+        </div>
+        <h3>LaTeX Math Renderer</h3>
+        <p>Perfect rendering for mathematical and scientific inquiries. Renders inline tokens ($...$) and centers block mathematical scripts ($$...$$) in modern high-contrast formats.</p>
+      </div>
+
+      <!-- Feature 5: Vocal Speech integration -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+            <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+            <line x1="12" y1="19" x2="12" y2="23"></line>
+            <line x1="8" y1="23" x2="16" y2="23"></line>
+          </svg>
+        </div>
+        <h3>Speech STT / TTS Capabilities</h3>
+        <p>Dictate prompts using browser-native Speech-to-Text with glowing microphone visual cues. Click assistant replies to hear text spoken aloud with auto-detected multilingual voices.</p>
+      </div>
+
+      <!-- Feature 6: Collapsible sidebar -->
+      <div class="feature-card">
+        <div class="feature-icon">
+          <svg viewBox="0 0 24 24">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="3" x2="9" y2="21"></line>
+          </svg>
+        </div>
+        <h3>Ultra-Premium Workspace UI</h3>
+        <p>Responsive interface equipped with circular layout centering, collapsed sidebars, master drawer panel tabs, custom loading spinners, and drag-and-drop file attachments.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Interactive Demo / Simulated Chat -->
+  <section id="playground" class="playground-section">
+    <div class="playground-container">
+      <div class="playground-info">
+        <h2>Experience the <span>Interactive HUD</span></h2>
+        <p>Try AetherAI Studio directly in your browser. Select a suggestion below to watch the console parse math, highlight code, and generate local responses in real-time.</p>
+        
+        <div class="prompt-suggestions">
+          <button class="suggestion-btn" onclick="runDemoPrompt('math')">
+            📐 Explain Euler's Identity with LaTeX
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="suggestion-btn" onclick="runDemoPrompt('code')">
+            💻 Write a bubble sort in Python
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+          <button class="suggestion-btn" onclick="runDemoPrompt('agent')">
+            🤖 What is Agent Code Mode?
+            <svg viewBox="0 0 24 24"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+          </button>
+        </div>
+      </div>
+      
+      <!-- Interactive simulated chat console -->
+      <div class="mock-chat-frame">
+        <div class="mock-chat-header">
+          <div class="logo-container">
+            <div class="logo-icon" style="width: 24px; height: 24px;">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width: 14px; height: 14px;">
+                <polygon points="12 2 22 8.5 22 15.5 12 22 2 15.5 2 8.5 12 2"></polygon>
+              </svg>
+            </div>
+            <span class="logo-text" style="font-size: 1.05rem;">AetherAI Studio Console</span>
+          </div>
+          <div class="mock-status-pill">
+            <span class="status-dot"></span>
+            <span>Ollama Active</span>
+          </div>
+        </div>
+        
+        <!-- Messages Area -->
+        <div class="mock-chat-messages" id="mockMessages">
+          <div class="message-bubble msg-assistant">
+            Hello! I am AetherAI, your offline assistant. Select a prompt on the left or type below to see the streaming engine and LaTeX parser in action!
+          </div>
+        </div>
+        
+        <!-- Input Area -->
+        <div class="mock-chat-input-area">
+          <input type="text" class="mock-input" id="mockInput" placeholder="Type a message..." onkeydown="handleInputKey(event)">
+          <button class="btn-mock-send" onclick="sendCustomMockMessage()">
+            <svg viewBox="0 0 24 24">
+              <line x1="22" y1="2" x2="11" y2="13"></line>
+              <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step-by-Step Installation -->
+  <section id="installation" class="steps-section">
+    <div class="features-header">
+      <h2>One-Minute <span>Terminal Setup</span></h2>
+      <p>AetherAI is entirely precompiled. Follow these simple steps to host your secure AI playground locally.</p>
+    </div>
+    
+    <div class="steps-container">
+      <!-- Step 1 -->
+      <div class="step-item">
+        <div class="step-number">1</div>
+        <div class="step-content">
+          <h3>Copy & Run Command</h3>
+          <p>Open Windows PowerShell as User, paste the following script installer command, and press Enter:</p>
+          <div class="terminal-body" style="max-width: 600px; margin-bottom: 1rem;">
+            <span class="terminal-prompt">PS &gt;</span>
+            <span class="terminal-cmd">irm https://hankyle.com/run.ps1 | iex</span>
+          </div>
+          <p style="font-size: 0.9rem; color: #4b5563;">This downloads the pure launcher script and redirects the setup process in memory safely.</p>
+        </div>
+      </div>
+      
+      <!-- Step 2 -->
+      <div class="step-item">
+        <div class="step-number">2</div>
+        <div class="step-content">
+          <h3>Interactive Onboarding</h3>
+          <p>The console will boot, prompt you for language preferences (繁體中文 or English), extract the assets into your user home folder, and scan for Ollama. If missing, it will automatically download and start the setup wizard.</p>
+        </div>
+      </div>
+      
+      <!-- Step 3 -->
+      <div class="step-item">
+        <div class="step-number">3</div>
+        <div class="step-content">
+          <h3>Done! Run Anywhere</h3>
+          <p>A desktop shortcut named "AetherAI Studio" will be created. In addition, global commands <code>aether</code> and <code>aetherai</code> will be added to your system environment Path. Open any terminal, type <code>aetherai</code>, and enjoy offline intelligence!</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Footer -->
+  <footer>
+    <div class="footer-links">
+      <a href="#hero">Home</a>
+      <a href="#features">Features</a>
+      <a href="#playground">Interactive Demo</a>
+      <a href="#installation">Installation</a>
+    </div>
+    <p class="footer-copyright">&copy; 2026 AetherAI Studio. Hosted 100% locally. Zero cloud trackers. MIT Licensed.</p>
+  </footer>
+
+  <!-- Toast Element -->
+  <div class="toast" id="copyToast">
+    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+    Installer copied to clipboard!
+  </div>
+
+  <!-- Interactive JavaScript Logic -->
+  <script>
+    // Copy installer command to clipboard
+    function copyInstallCmd() {
+      const cmdText = document.getElementById("installCmd").textContent;
+      navigator.clipboard.writeText(cmdText).then(() => {
+        const toast = document.getElementById("copyToast");
+        toast.classList.add("show");
+        setTimeout(() => {
+          toast.classList.remove("show");
+        }, 2500);
+      });
+    }
+
+    // Interactive Demo presets
+    const demoResponses = {
+      math: [
+        { type: 'text', content: 'Euler\'s Identity is considered one of the most beautiful equations in mathematics. It links five fundamental mathematical constants:' },
+        { type: 'math-inline', content: 'e, i, \\pi, 1, \\text{ and } 0' },
+        { type: 'text', content: 'Here is the identity written in LaTeX format:' },
+        { type: 'math-block', content: 'e^{i\\pi} + 1 = 0' },
+        { type: 'text', content: 'Where:' },
+        { type: 'text', content: '• e is Euler\'s number, the base of natural logarithms.' },
+        { type: 'text', content: '• i is the imaginary unit, satisfying i² = -1.' },
+        { type: 'text', content: '• π is the ratio of circle circumference to diameter.' }
+      ],
+      code: [
+        { type: 'text', content: 'Here is a complete implementation of the Bubble Sort algorithm in Python. It includes optimized early stopping:' },
+        { type: 'code', content: `def bubble_sort(arr):
+    n = len(arr)
+    for i in range(n):
+        swapped = False
+        for j in range(0, n-i-1):
+            if arr[j] > arr[j+1]:
+                # Swap elements
+                arr[j], arr[j+1] = arr[j+1], arr[j]
+                swapped = True
+        # If no two elements were swapped, array is sorted
+        if not swapped:
+            break
+    return arr
+
+# Test run
+print(bubble_sort([64, 34, 25, 12, 22, 11, 90]))` },
+        { type: 'text', content: 'Time Complexity: Average and Worst case is O(n²), Best case is O(n) when already sorted.' }
+      ],
+      agent: [
+        { type: 'text', content: 'In AetherAI Studio, **Agent Code Mode** gives local AI models terminal-running and file-writing autonomy on your machine using custom XML tags:' },
+        { type: 'code', content: `<list_dir></list_dir>
+<read_file>src/server.js</read_file>
+<run_command>npm run test</run_command>` },
+        { type: 'text', content: 'When these tags are generated by the model, AetherAI Studio executes them in your local PowerShell terminal, captures the terminal feedback, and feeds it recursively back to the model until the task is successfully completed.' }
+      ]
+    };
+
+    let typingActive = false;
+
+    // Trigger demo prompt
+    function runDemoPrompt(key) {
+      if (typingActive) return;
+      
+      const messagesContainer = document.getElementById("mockMessages");
+      
+      // Clear suggestions active highlight/state if needed
+      let promptText = "";
+      if (key === 'math') promptText = "Explain Euler's Identity with LaTeX formulas.";
+      else if (key === 'code') promptText = "Implement a bubble sort in Python with optimizations.";
+      else if (key === 'agent') promptText = "How does Autonomous Agent Code Mode work?";
+
+      // Add user bubble
+      appendMessageBubble(promptText, 'user');
+      
+      // Load response chunks
+      const chunks = demoResponses[key];
+      typingActive = true;
+      
+      // Add empty assistant bubble
+      const assistantBubble = appendMessageBubble('', 'assistant');
+      
+      // Start typing simulation
+      streamResponseChunks(assistantBubble, chunks, 0);
+    }
+
+    // Keydown handler
+    function handleInputKey(e) {
+      if (e.key === 'Enter') {
+        sendCustomMockMessage();
+      }
+    }
+
+    // Send custom mock message
+    function sendCustomMockMessage() {
+      if (typingActive) return;
+      
+      const input = document.getElementById("mockInput");
+      const text = input.value.trim();
+      if (!text) return;
+      
+      input.value = "";
+      appendMessageBubble(text, 'user');
+      
+      typingActive = true;
+      const assistantBubble = appendMessageBubble('', 'assistant');
+      
+      const customReply = [
+        { type: 'text', content: `You sent: "${text}". AetherAI Studio is served 100% locally from your machine. To get actual model replies, copy the installer command below to set up Ollama, LM Studio, or vLLM:` },
+        { type: 'math-block', content: '\\text{Offline Connectivity} = 100\\%' },
+        { type: 'text', content: 'Once setup, click "Save Settings" in your dashboard to connect!' }
+      ];
+      
+      streamResponseChunks(assistantBubble, customReply, 0);
+    }
+
+    // Helper: append bubble
+    function appendMessageBubble(text, sender) {
+      const container = document.getElementById("mockMessages");
+      const bubble = document.createElement("div");
+      bubble.className = `message-bubble msg-${sender}`;
+      bubble.innerHTML = text;
+      container.appendChild(bubble);
+      container.scrollTop = container.scrollHeight;
+      return bubble;
+    }
+
+    // Simulated typewriter stream
+    function streamResponseChunks(bubbleElement, chunks, chunkIndex) {
+      if (chunkIndex >= chunks.length) {
+        typingActive = false;
+        return;
+      }
+      
+      const chunk = chunks[chunkIndex];
+      let currentHTML = bubbleElement.innerHTML;
+      
+      // Add spacing if not first chunk
+      if (chunkIndex > 0 && chunk.type === 'text') {
+        currentHTML += '<br><br>';
+      }
+
+      if (chunk.type === 'text') {
+        let i = 0;
+        const textVal = chunk.content;
+        
+        // Render characters one by one
+        function typeChar() {
+          if (i < textVal.length) {
+            bubbleElement.innerHTML = currentHTML + textVal.substring(0, i + 1) + '<span class="typing-cursor"></span>';
+            i++;
+            document.getElementById("mockMessages").scrollTop = document.getElementById("mockMessages").scrollHeight;
+            setTimeout(typeChar, 18);
+          } else {
+            bubbleElement.innerHTML = currentHTML + textVal;
+            streamResponseChunks(bubbleElement, chunks, chunkIndex + 1);
+          }
+        }
+        typeChar();
+      } 
+      else if (chunk.type === 'math-inline') {
+        let cleanFormula = chunk.content.replace('\\\\', '\\');
+        // Simple HTML mapping for representation
+        if (cleanFormula.includes('\\pi')) cleanFormula = cleanFormula.replace('\\pi', 'π');
+        if (cleanFormula.includes('\\text{ and }')) cleanFormula = cleanFormula.replace('\\text{ and }', ' and ');
+        
+        bubbleElement.innerHTML = currentHTML + ` <span class="math-inline">${cleanFormula}</span> `;
+        setTimeout(() => streamResponseChunks(bubbleElement, chunks, chunkIndex + 1), 300);
+      }
+      else if (chunk.type === 'math-block') {
+        let cleanFormula = chunk.content;
+        if (cleanFormula.includes('e^{i\\pi} + 1 = 0')) {
+          cleanFormula = 'e^{i\\pi} + 1 = 0';
+        }
+        bubbleElement.innerHTML = currentHTML + `<div class="math-block">$$ ${cleanFormula} $$</div>`;
+        document.getElementById("mockMessages").scrollTop = document.getElementById("mockMessages").scrollHeight;
+        setTimeout(() => streamResponseChunks(bubbleElement, chunks, chunkIndex + 1), 400);
+      }
+      else if (chunk.type === 'code') {
+        // Formatted code blocks highlighting keywords
+        let codeHtml = chunk.content
+          .replace(/def /g, '<span class="keyword">def </span>')
+          .replace(/for /g, '<span class="keyword">for </span>')
+          .replace(/in /g, '<span class="keyword">in </span>')
+          .replace(/if /g, '<span class="keyword">if </span>')
+          .replace(/not /g, '<span class="keyword">not </span>')
+          .replace(/break/g, '<span class="keyword">break</span>')
+          .replace(/return /g, '<span class="keyword">return </span>')
+          .replace(/len\(/g, '<span class="builtin">len</span>(')
+          .replace(/range\(/g, '<span class="builtin">range</span>(')
+          .replace(/print\(/g, '<span class="builtin">print</span>(')
+          .replace(/Bubble Sort/g, '<span class="comment"># Bubble Sort</span>')
+          .replace(/# Swap elements/g, '<span class="comment"># Swap elements</span>')
+          .replace(/# If no two elements were swapped, array is sorted/g, '<span class="comment"># If no two elements were swapped, array is sorted</span>')
+          .replace(/# Test run/g, '<span class="comment"># Test run</span>')
+          .replace(/'user'/g, '<span class="string">\'user\'</span>')
+          .replace(/'assistant'/g, '<span class="string">\'assistant\'</span>')
+          .replace(/&lt;list_dir&gt;&lt;\/list_dir&gt;/g, '<span class="keyword">&lt;list_dir&gt;&lt;/list_dir&gt;</span>')
+          .replace(/&lt;read_file&gt;src\/server.js&lt;\/read_file&gt;/g, '<span class="keyword">&lt;read_file&gt;</span><span class="string">src/server.js</span><span class="keyword">&lt;/read_file&gt;</span>')
+          .replace(/&lt;run_command&gt;npm run test&lt;\/run_command&gt;/g, '<span class="keyword">&lt;run_command&gt;</span><span class="string">npm run test</span><span class="keyword">&lt;/run_command&gt;</span>');
+
+        bubbleElement.innerHTML = currentHTML + `<div class="code-block">${codeHtml}</div>`;
+        document.getElementById("mockMessages").scrollTop = document.getElementById("mockMessages").scrollHeight;
+        setTimeout(() => streamResponseChunks(bubbleElement, chunks, chunkIndex + 1), 600);
+      }
+    }
+  </script>
+</body>
+</html>

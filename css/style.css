@@ -1,0 +1,174 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=Fira+Code:wght@400;500&display=swap');
+
+/* ==========================================================================
+   AetherAI Studio - Base Style & Design System
+   ========================================================================== */
+
+:root {
+  /* Color Palette - Cyber Nebula */
+  --bg-deep: #05050d;
+  --bg-space: #0a0915;
+  --bg-glass: rgba(13, 12, 28, 0.45);
+  --bg-glass-hover: rgba(18, 17, 38, 0.6);
+  --bg-glass-active: rgba(22, 21, 46, 0.75);
+  --bg-glass-border: rgba(255, 255, 255, 0.06);
+  --bg-glass-border-glow: rgba(0, 242, 254, 0.25);
+  
+  /* Primary Gradients & Accents */
+  --accent-cyan: #00f2fe;
+  --accent-cyan-rgb: 0, 242, 254;
+  --accent-purple: #9b51e0;
+  --accent-purple-rgb: 155, 81, 224;
+  --accent-magenta: #ff007f;
+  --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 30%, #9b51e0 70%, #ff007f 100%);
+  --accent-gradient-glow: linear-gradient(135deg, rgba(0, 242, 254, 0.4) 0%, rgba(155, 81, 224, 0.4) 100%);
+  
+  /* Text Colors */
+  --text-main: #f5f5fa;
+  --text-muted: #8d8c9f;
+  --text-dark: #0a0a0f;
+  --text-highlight: #ffffff;
+  
+  /* Status Colors */
+  --color-success: #00f2fe;
+  --color-warning: #f2994a;
+  --color-error: #eb5757;
+  --color-info: #2f80ed;
+  
+  /* UI Tokens */
+  --border-radius-sm: 8px;
+  --border-radius-md: 16px;
+  --border-radius-lg: 24px;
+  --border-radius-xl: 32px;
+  
+  --shadow-neon: 0 0 20px rgba(0, 242, 254, 0.15);
+  --shadow-neon-purple: 0 0 20px rgba(155, 81, 224, 0.2);
+  --shadow-glass: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+  
+  --transition-fast: 0.15s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-smooth: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  --transition-spring: 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  /* Layout Config */
+  --sidebar-width: 280px;
+  --control-panel-width: 360px;
+}
+
+/* Base Reset & Typography */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+html, body {
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+  color: var(--text-main);
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Outfit', sans-serif;
+  color: var(--text-highlight);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+
+/* Custom Scrollbar System */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  border: 1px solid rgba(255, 255, 255, 0.02);
+  transition: var(--transition-fast);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--accent-gradient-glow);
+  border: 1px solid rgba(0, 242, 254, 0.2);
+}
+
+/* Glassmorphism Panel Container Utility */
+.glass-panel {
+  background: var(--bg-glass);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid var(--bg-glass-border);
+  box-shadow: var(--shadow-glass);
+  border-radius: var(--border-radius-md);
+  transition: border-color var(--transition-smooth), box-shadow var(--transition-smooth);
+}
+
+.glass-panel:hover {
+  border-color: rgba(0, 242, 254, 0.15);
+}
+
+.glass-interactive {
+  cursor: pointer;
+}
+
+.glass-interactive:hover {
+  background: var(--bg-glass-hover);
+  border-color: rgba(155, 81, 224, 0.25);
+  box-shadow: var(--shadow-neon-purple);
+  transform: translateY(-2px);
+}
+
+.glass-interactive:active {
+  background: var(--bg-glass-active);
+  transform: translateY(0);
+}
+
+/* Layout Classes */
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  position: relative;
+  overflow: hidden;
+  background: radial-gradient(circle at 10% 10%, rgba(20, 10, 45, 0.6) 0%, transparent 40%),
+              radial-gradient(circle at 90% 90%, rgba(5, 30, 45, 0.6) 0%, transparent 40%),
+              var(--bg-deep);
+}
+
+/* Canvas neural net overlay */
+#neural-canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  pointer-events: none;
+  opacity: 0.4;
+}
+
+/* Screen Readers / Accessibility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  border: 0;
+}
