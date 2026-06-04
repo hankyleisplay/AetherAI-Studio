@@ -10,11 +10,12 @@ const workspacePath = __dirname;
 const portablePath = path.join(workspacePath, 'AetherAI-Studio-Portable.html');
 const serverPsPath = path.join(workspacePath, 'server.ps1');
 const serverJsPath = path.join(workspacePath, 'server.js');
+const cliJsPath = path.join(workspacePath, 'cli.js');
 const runPsPath = path.join(workspacePath, 'run.ps1');
 const runShPath = path.join(workspacePath, 'run.sh');
 
-if (!fs.existsSync(portablePath) || !fs.existsSync(serverPsPath) || !fs.existsSync(serverJsPath)) {
-  console.error("Required source files not found! Ensure AetherAI-Studio-Portable.html, server.ps1, and server.js exist.");
+if (!fs.existsSync(portablePath) || !fs.existsSync(serverPsPath) || !fs.existsSync(serverJsPath) || !fs.existsSync(cliJsPath)) {
+  console.error("Required source files not found! Ensure AetherAI-Studio-Portable.html, server.ps1, server.js, and cli.js exist.");
   process.exit(1);
 }
 
@@ -22,6 +23,7 @@ console.log("Reading and Base64-encoding source assets...");
 const portableBase64 = fs.readFileSync(portablePath).toString('base64');
 const serverPsBase64 = fs.readFileSync(serverPsPath).toString('base64');
 const serverJsBase64 = fs.readFileSync(serverJsPath).toString('base64');
+const cliJsBase64 = fs.readFileSync(cliJsPath).toString('base64');
 
 // ==========================================================================
 // 1. COMPILE WINDOWS: run.ps1
@@ -755,10 +757,22 @@ process.stdin.on('end', () => {
 ${serverJsBase64}
 EOF
 
+node -e "
+const fs = require('fs');
+let data = '';
+process.stdin.on('data', chunk => data += chunk);
+process.stdin.on('end', () => {
+    fs.writeFileSync('cli.js', Buffer.from(data.trim(), 'base64'));
+});
+" << 'EOF'
+${cliJsBase64}
+EOF
+
 
 if [ $? -eq 0 ]; then
     echo "  ✅ Web UI file 'index.html' extracted successfully."
     echo "  ✅ Web Server file 'server.js' extracted successfully."
+    echo "  ✅ CLI Command file 'cli.js' extracted successfully."
 else
     echo "  ❌ Extraction failed! Please verify write permissions in: $PERM_DIR"
     read -p "Press Enter to exit..."
@@ -784,20 +798,24 @@ elif [ -f "$HOME/.bashrc" ]; then
 fi
 
 if [ -n "$SHELL_PROFILE" ]; then
-    if ! grep -q "alias aetherai=" "$SHELL_PROFILE"; then
-        echo ""
-        echo "[>] Registering global terminal aliases..."
-        echo "alias aetherai=\"node $PERM_DIR/server.js\"" >> "$SHELL_PROFILE"
-        echo "alias aether=\"node $PERM_DIR/server.js\"" >> "$SHELL_PROFILE"
-        echo "  ✅ Terminal commands 'aether' & 'aetherai' successfully added to $SHELL_PROFILE."
-        echo "  (Open a new terminal session or run 'source $SHELL_PROFILE' to use them from anywhere!)"
-    fi
+    echo ""
+    echo "[>] Registering global terminal aliases..."
+    # Clean up legacy definitions to prevent command collisions
+    grep -v "alias aetherai=" "$SHELL_PROFILE" > "$SHELL_PROFILE.tmp" || true
+    mv "$SHELL_PROFILE.tmp" "$SHELL_PROFILE"
+    grep -v "alias aether=" "$SHELL_PROFILE" > "$SHELL_PROFILE.tmp" || true
+    mv "$SHELL_PROFILE.tmp" "$SHELL_PROFILE"
+    
+    echo "alias aetherai='node $PERM_DIR/cli.js'" >> "$SHELL_PROFILE"
+    echo "alias aether='node $PERM_DIR/cli.js'" >> "$SHELL_PROFILE"
+    echo "  ✅ Terminal commands 'aether' & 'aetherai' successfully added to $SHELL_PROFILE."
+    echo "  (Open a new terminal session or run 'source $SHELL_PROFILE' to use them from anywhere!)"
 fi
 
 # Run the local server
 echo ""
 echo "[>] Starting local static server..."
-node server.js
+node cli.js
 `;
 
 fs.writeFileSync(runShPath, shTemplate, { encoding: 'utf8', mode: 0o755 });
