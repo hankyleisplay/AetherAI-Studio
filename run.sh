@@ -81,8 +81,8 @@ if [ -n "$SHELL_PROFILE" ]; then
     if ! grep -q "alias aetherai=" "$SHELL_PROFILE"; then
         echo ""
         echo "[>] Registering global terminal aliases..."
-        echo "alias aetherai="node $PERM_DIR/server.js"" >> "$SHELL_PROFILE"
-        echo "alias aether="node $PERM_DIR/server.js"" >> "$SHELL_PROFILE"
+        echo "alias aetherai='node $PERM_DIR/server.js'" >> "$SHELL_PROFILE"
+        echo "alias aether='node $PERM_DIR/server.js'" >> "$SHELL_PROFILE"
         echo "  ✅ Terminal commands 'aether' & 'aetherai' successfully added to $SHELL_PROFILE."
         echo "  (Open a new terminal session or run 'source $SHELL_PROFILE' to use them from anywhere!)"
     fi
