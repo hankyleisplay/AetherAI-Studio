@@ -1493,7 +1493,6 @@
           <button class="modal-tab-btn active" data-tab="tab-models" data-i18n="tab_models">模型與連線</button>
           <button class="modal-tab-btn" data-tab="tab-advanced" data-i18n="tab_advanced">高級人設與參數</button>
           <button class="modal-tab-btn" data-tab="tab-bridges" data-i18n="tab_bridges">社群軟體串接</button>
-          <button class="modal-tab-btn" data-tab="tab-presets" data-i18n="tab_presets">預設提示詞與監控</button>
         </div>
 
         <div class="modal-scroll-area">
@@ -1594,31 +1593,7 @@
             </section>
           </div>
 
-          <!-- Tab 4: Presets & HUD -->
-          <div class="modal-tab-content" id="tab-presets">
-            <section style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px;">
-              <div style="font-size: 12px; font-weight: 600; color: var(--text-muted); margin-left: 4px;" data-i18n="preset_library_header">載入大師提示詞預設 (Presets)</div>
-              <div class="presets-grid" id="presets-grid"></div>
-            </section>
 
-            <section class="settings-card glass-panel" style="border:none; background:transparent; padding:0; box-shadow:none;">
-              <div class="settings-card-title" data-i18n="monitor_title" style="margin-bottom: 10px;">效能監控器 (HUD Metrics)</div>
-              <div class="monitor-grid">
-                <div class="monitor-stat">
-                  <span class="monitor-stat-lbl" data-i18n="metric_speed">輸出速率 (Speed)</span>
-                  <span class="monitor-stat-val text-glow-cyan" id="metric-tps">0 t/s</span>
-                </div>
-                <div class="monitor-stat">
-                  <span class="monitor-stat-lbl" data-i18n="metric_tokens">總評估 Token</span>
-                  <span class="monitor-stat-val text-glow-purple" id="metric-tokens">0</span>
-                </div>
-                <div class="monitor-stat" style="grid-column: span 2;">
-                  <span class="monitor-stat-lbl" data-i18n="metric_time">總生成時間 (Latency)</span>
-                  <span class="monitor-stat-val" id="metric-time" style="color: var(--color-warning);">0.0s</span>
-                </div>
-              </div>
-            </section>
-          </div>
         </div>
 
         <footer class="modal-footer">
@@ -1677,11 +1652,6 @@
         "tokens_label": "最大 Token 限制 (Max Tokens)",
         "system_prompt_title": "系統設定 (System Prompt)",
         "system_prompt_placeholder": "定義 AI 的人設、背景、專業能力與回應要求...",
-        "preset_library_header": "載入大師提示詞預設 (Presets)",
-        "monitor_title": "效能監控器 (HUD Metrics)",
-        "metric_speed": "輸出速率 (Speed)",
-        "metric_tokens": "總評估 Token",
-        "metric_time": "總生成時間 (Latency)",
         "confirm_del_all": "您確定要永久刪除所有歷史對話記錄嗎？此動作將無法復原。",
         "confirm_del_chat": "確定要永久刪除此對話嗎？",
         "custom_model_label": "自定義模型名稱 (選填)",
@@ -1689,6 +1659,10 @@
         "btn_save_settings": "儲存設定 (Apply Settings)",
         "toast_settings_saved": "設定已成功更新！",
         "bridges_title": "社群軟體串接 (Messaging Bridges)",
+        "settings_title": "AetherAI Studio 設定中心",
+        "tab_models": "模型與連線",
+        "tab_advanced": "高級人設與參數",
+        "tab_bridges": "社群軟體串接",
         "bridge_telegram_title": "Telegram Bot 串接",
         "telegram_token_label": "Telegram Bot Token",
         "telegram_token_placeholder": "輸入由 @BotFather 取得的 Token",
@@ -1735,11 +1709,6 @@
         "tokens_label": "Max Tokens Limit",
         "system_prompt_title": "System Prompt",
         "system_prompt_placeholder": "Define the AI persona, background, skills, and output guidelines...",
-        "preset_library_header": "Load Master Prompt Presets",
-        "monitor_title": "HUD Metrics Monitor",
-        "metric_speed": "Output Speed",
-        "metric_tokens": "Total Eval Tokens",
-        "metric_time": "Generation Latency",
         "confirm_del_all": "Are you absolutely sure you want to permanently delete all conversation history? This cannot be undone.",
         "confirm_del_chat": "Are you sure you want to permanently delete this chat?",
         "custom_model_label": "Custom Model Name (Optional)",
@@ -1747,6 +1716,10 @@
         "btn_save_settings": "Save Settings",
         "toast_settings_saved": "Settings updated successfully!",
         "bridges_title": "Messaging Bridges",
+        "settings_title": "AetherAI Studio Settings",
+        "tab_models": "Models & Connection",
+        "tab_advanced": "Advanced & Tuning",
+        "tab_bridges": "Messaging Bridges",
         "bridge_telegram_title": "Telegram Bot Integration",
         "telegram_token_label": "Telegram Bot Token",
         "telegram_token_placeholder": "Enter Token obtained from @BotFather",
@@ -1793,11 +1766,6 @@
         "tokens_label": "最大トークン制限",
         "system_prompt_title": "システム設定 (System Prompt)",
         "system_prompt_placeholder": "AI のキャラクター、専門知識、応答ガイドラインを定義します...",
-        "preset_library_header": "マスタープロンプトプリセット",
-        "monitor_title": "HUD パフォーマンスモニター",
-        "metric_speed": "出力速度 (Speed)",
-        "metric_tokens": "総評価トークン",
-        "metric_time": "総生成時間 (Latency)",
         "confirm_del_all": "すべての履歴を完全に削除してもよろしいですか？この操作は取り消せません。",
         "confirm_del_chat": "この会話を完全に削除してもよろしいですか？",
         "custom_model_label": "カスタムモデル名 (任意)",
@@ -1805,6 +1773,10 @@
         "btn_save_settings": "設定を保存",
         "toast_settings_saved": "設定が正常に更新されました！",
         "bridges_title": "ソーシャル・ブリッジ (Messaging Bridges)",
+        "settings_title": "AetherAI Studio 設定センター",
+        "tab_models": "モデルと接続",
+        "tab_advanced": "プロンプトとパラメータ",
+        "tab_bridges": "ブリッジ連携",
         "bridge_telegram_title": "Telegram ボット連携",
         "telegram_token_label": "Telegram Bot Token",
         "telegram_token_placeholder": "@BotFather から取得したトークンを入力",
@@ -3186,9 +3158,9 @@ IMPORTANT RULES:
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             if (stats) {
-              elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
-              elements.metricTokens.innerText = stats.evalCount;
-              elements.metricTime.innerText = `${stats.totalDuration}s`;
+              if (elements.metricTps) elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
+              if (elements.metricTokens) elements.metricTokens.innerText = stats.evalCount;
+              if (elements.metricTime) elements.metricTime.innerText = `${stats.totalDuration}s`;
             }
           },
           (err) => {
@@ -3312,9 +3284,9 @@ IMPORTANT RULES:
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             if (stats) {
-              elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
-              elements.metricTokens.innerText = stats.evalCount;
-              elements.metricTime.innerText = `${stats.totalDuration}s`;
+              if (elements.metricTps) elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
+              if (elements.metricTokens) elements.metricTokens.innerText = stats.evalCount;
+              if (elements.metricTime) elements.metricTime.innerText = `${stats.totalDuration}s`;
             }
           },
           (err) => {

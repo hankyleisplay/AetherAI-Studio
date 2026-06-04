@@ -50,14 +50,6 @@ const translations = {
     "system_prompt_title": "系統設定 (System Prompt)",
     "system_prompt_placeholder": "定義 AI 的人設、背景、專業能力與回應要求...",
     
-    "preset_library_header": "載入大師提示詞預設 (Presets)",
-    
-    // HUD Metrics Monitor
-    "monitor_title": "效能監控器 (HUD Metrics)",
-    "metric_speed": "輸出速率 (Speed)",
-    "metric_tokens": "總評估 Token",
-    "metric_time": "總生成時間 (Latency)",
-    
     // Alert Boxes
     "confirm_del_all": "您確定要永久刪除所有歷史對話記錄嗎？此動作將無法復原。",
     "confirm_del_chat": "確定要永久刪除此對話嗎？",
@@ -67,7 +59,6 @@ const translations = {
     "tab_models": "模型與連線",
     "tab_advanced": "高級人設與參數",
     "tab_bridges": "社群軟體串接",
-    "tab_presets": "預設提示詞與監控",
     "bridge_telegram_title": "Telegram Bot 串接",
     "telegram_token_label": "Telegram Bot Token",
     "telegram_token_placeholder": "輸入由 @BotFather 取得的 Token",
@@ -126,14 +117,6 @@ const translations = {
     "system_prompt_title": "System Prompt",
     "system_prompt_placeholder": "Define the AI persona, background, skills, and output guidelines...",
     
-    "preset_library_header": "Load Master Prompt Presets",
-    
-    // HUD Metrics Monitor
-    "monitor_title": "HUD Metrics Monitor",
-    "metric_speed": "Output Speed",
-    "metric_tokens": "Total Eval Tokens",
-    "metric_time": "Generation Latency",
-    
     // Alert Boxes
     "confirm_del_all": "Are you absolutely sure you want to permanently delete all conversation history? This cannot be undone.",
     "confirm_del_chat": "Are you sure you want to permanently delete this chat?",
@@ -143,7 +126,6 @@ const translations = {
     "tab_models": "Models & Connection",
     "tab_advanced": "Advanced & Tuning",
     "tab_bridges": "Messaging Bridges",
-    "tab_presets": "Presets & HUD",
     "bridge_telegram_title": "Telegram Bot Integration",
     "telegram_token_label": "Telegram Bot Token",
     "telegram_token_placeholder": "Enter Bot Token from @BotFather",
@@ -202,14 +184,6 @@ const translations = {
     "system_prompt_title": "システム設定 (System Prompt)",
     "system_prompt_placeholder": "AI のキャラクター、専門知識、応答ガイドラインを定義します...",
     
-    "preset_library_header": "マスタープロンプトプリセット",
-    
-    // HUD Metrics Monitor
-    "monitor_title": "HUD パフォーマンスモニター",
-    "metric_speed": "出力速度 (Speed)",
-    "metric_tokens": "総評価トークン",
-    "metric_time": "総生成時間 (Latency)",
-    
     // Alert Boxes
     "confirm_del_all": "すべての履歴を完全に削除してもよろしいですか？この操作は取り消せません。",
     "confirm_del_chat": "この会話を完全に削除してもよろしいですか？",
@@ -219,7 +193,6 @@ const translations = {
     "tab_models": "モデルと接続",
     "tab_advanced": "プロンプトとパラメータ",
     "tab_bridges": "ブリッジ連携",
-    "tab_presets": "プリセットとモニター",
     "bridge_telegram_title": "Telegram Bot 連携",
     "telegram_token_label": "Telegram Bot トークン",
     "telegram_token_placeholder": "@BotFather から取得したトークンを入力",

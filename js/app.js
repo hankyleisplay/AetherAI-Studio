@@ -677,11 +677,10 @@ async function handleSendMessage() {
         // Auto scroll to bottom
         elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
-        // Update performance indicators
         if (stats) {
-          elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
-          elements.metricTokens.innerText = stats.evalCount;
-          elements.metricTime.innerText = `${stats.totalDuration}s`;
+          if (elements.metricTps) elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
+          if (elements.metricTokens) elements.metricTokens.innerText = stats.evalCount;
+          if (elements.metricTime) elements.metricTime.innerText = `${stats.totalDuration}s`;
         }
       },
       (err) => {
