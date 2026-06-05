@@ -13,6 +13,8 @@ const serverJsPath = path.join(workspacePath, 'server.js');
 const cliJsPath = path.join(workspacePath, 'cli.js');
 const runPsPath = path.join(workspacePath, 'run.ps1');
 const runShPath = path.join(workspacePath, 'run.sh');
+const websiteRunPsPath = path.join(workspacePath, 'website', 'run.ps1');
+const websiteRunShPath = path.join(workspacePath, 'website', 'run.sh');
 
 if (!fs.existsSync(portablePath) || !fs.existsSync(serverPsPath) || !fs.existsSync(serverJsPath) || !fs.existsSync(cliJsPath)) {
   console.error("Required source files not found! Ensure AetherAI-Studio-Portable.html, server.ps1, server.js, and cli.js exist.");
@@ -700,6 +702,7 @@ try {
 const crlfTemplate = psTemplate.replace(/\\n/g, "\\r\\n").replace(/\\r\\r\\n/g, "\\r\\n");
 
 fs.writeFileSync(runPsPath, '\ufeff' + crlfTemplate, { encoding: 'utf8' });
+fs.writeFileSync(websiteRunPsPath, '\ufeff' + crlfTemplate, { encoding: 'utf8' });
 console.log("run.ps1 Compiled Successfully.");
 
 // ==========================================================================
@@ -820,5 +823,6 @@ node cli.js
 `;
 
 fs.writeFileSync(runShPath, shTemplate, { encoding: 'utf8', mode: 0o755 });
+fs.writeFileSync(websiteRunShPath, shTemplate, { encoding: 'utf8', mode: 0o755 });
 console.log("run.sh Compiled Successfully.");
 console.log("Compilation complete!");

@@ -7,6 +7,7 @@ $workspacePath = "c:\Users\hanky\OneDrive\Desktop\project\LocalAI"
 $portablePath = Join-Path $workspacePath "AetherAI-Studio-Portable.html"
 $serverPath = Join-Path $workspacePath "server.ps1"
 $outputPath = Join-Path $workspacePath "run.ps1"
+$websiteOutputPath = Join-Path $workspacePath "website\run.ps1"
 
 if (!(Test-Path $portablePath) -or !(Test-Path $serverPath)) {
     Write-Error "Required source files not found! Make sure AetherAI-Studio-Portable.html and server.ps1 exist."
@@ -700,4 +701,5 @@ try {
 $crlfTemplate = $hybridTemplate.Replace("`n", "`r`n").Replace("`r`r`n", "`r`n")
 
 [System.IO.File]::WriteAllText($outputPath, $crlfTemplate, [System.Text.Encoding]::UTF8)
+[System.IO.File]::WriteAllText($websiteOutputPath, $crlfTemplate, [System.Text.Encoding]::UTF8)
 Write-Host "run.ps1 Compiled Successfully at: $outputPath" -ForegroundColor Green
