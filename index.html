@@ -1328,6 +1328,123 @@
       to { opacity: 1; }
     }
 
+    /* Theme Accent Definitions */
+    :root.theme-cyan-purple {
+      --accent-cyan: #00f2fe;
+      --accent-cyan-rgb: 0, 242, 254;
+      --accent-purple: #9b51e0;
+      --accent-purple-rgb: 155, 81, 224;
+      --accent-magenta: #ff007f;
+      --accent-gradient: linear-gradient(135deg, #00f2fe 0%, #4facfe 30%, #9b51e0 70%, #ff007f 100%);
+      --accent-gradient-glow: linear-gradient(135deg, rgba(0, 242, 254, 0.4) 0%, rgba(155, 81, 224, 0.4) 100%);
+    }
+    :root.theme-cyber-gold {
+      --accent-cyan: #f4c430;
+      --accent-cyan-rgb: 244, 196, 48;
+      --accent-purple: #ff5722;
+      --accent-purple-rgb: 255, 87, 34;
+      --accent-magenta: #e040fb;
+      --accent-gradient: linear-gradient(135deg, #f4c430 0%, #ff9800 30%, #ff5722 70%, #e040fb 100%);
+      --accent-gradient-glow: linear-gradient(135deg, rgba(244, 196, 48, 0.4) 0%, rgba(255, 87, 34, 0.4) 100%);
+    }
+    :root.theme-matrix-green {
+      --accent-cyan: #00ff66;
+      --accent-cyan-rgb: 0, 255, 102;
+      --accent-purple: #008822;
+      --accent-purple-rgb: 0, 136, 34;
+      --accent-magenta: #00ff00;
+      --accent-gradient: linear-gradient(135deg, #00ff66 0%, #00cc44 30%, #008822 70%, #00ff00 100%);
+      --accent-gradient-glow: linear-gradient(135deg, rgba(0, 255, 102, 0.4) 0%, rgba(0, 136, 34, 0.4) 100%);
+    }
+    :root.theme-sapphire-blue {
+      --accent-cyan: #2f80ed;
+      --accent-cyan-rgb: 47, 128, 237;
+      --accent-purple: #8338ec;
+      --accent-purple-rgb: 131, 56, 236;
+      --accent-magenta: #00d2ff;
+      --accent-gradient: linear-gradient(135deg, #2f80ed 0%, #56ccf2 30%, #8338ec 70%, #00d2ff 100%);
+      --accent-gradient-glow: linear-gradient(135deg, rgba(47, 128, 237, 0.4) 0%, rgba(131, 56, 236, 0.4) 100%);
+    }
+
+    /* Floating Performance Stats HUD */
+    .floating-hud {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      background: rgba(13, 12, 28, 0.85);
+      border: 1px solid rgba(0, 242, 254, 0.25);
+      border-radius: 12px;
+      padding: 12px 16px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5), 0 0 15px rgba(0, 242, 254, 0.1);
+      z-index: 99;
+      display: none;
+      font-size: 12px;
+      font-family: 'JetBrains Mono', monospace;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      pointer-events: none;
+      transition: opacity 0.3s ease;
+    }
+    .floating-hud.active {
+      display: block;
+      animation: fadeIn 0.3s ease-out;
+    }
+    .hud-pulse-dot {
+      animation: hudPulse 1.5s infinite;
+    }
+    @keyframes hudPulse {
+      0% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px #00ff66; }
+      50% { transform: scale(1.2); opacity: 0.7; box-shadow: 0 0 14px #00ff66; }
+      100% { transform: scale(1); opacity: 1; box-shadow: 0 0 8px #00ff66; }
+    }
+
+    /* Collapsed sidebar search hiding */
+    .sidebar.collapsed .sidebar-search-wrap {
+      display: none !important;
+    }
+
+    /* Prompt Gallery Modal styles */
+    .gallery-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+      margin-top: 10px;
+    }
+    @media (max-width: 600px) {
+      .gallery-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+    .gallery-card {
+      padding: 12px 16px;
+      background: rgba(255,255,255,0.02);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 10px;
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    .gallery-card:hover {
+      background: rgba(255,255,255,0.05);
+      border-color: var(--accent-cyan);
+      box-shadow: 0 0 10px rgba(0, 242, 254, 0.1);
+      transform: translateY(-2px);
+    }
+    .gallery-card-title {
+      font-weight: 700;
+      color: var(--text-main);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .gallery-card-desc {
+      font-size: 11px;
+      color: var(--text-muted);
+      line-height: 1.4;
+    }
+
     /* Terms Modal Styles */
     .terms-backdrop {
       position: fixed;
@@ -1451,11 +1568,15 @@
         </button>
       </header>
 
-      <section class="sidebar-action">
+      <section class="sidebar-action" style="display: flex; flex-direction: column; gap: 10px;">
         <button class="btn-neon" id="btn-new-chat" style="width: 100%;">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           <span data-i18n="btn_new_chat">開啟新對話</span>
         </button>
+        <div class="sidebar-search-wrap" style="position: relative; width: 100%;">
+          <input type="text" id="sidebar-search-input" placeholder="搜尋歷史對話..." style="width: 100%; padding: 8px 12px 8px 32px; font-size: 12.5px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); background: rgba(0,0,0,0.25); color: var(--text-main); outline: none; transition: border-color 0.2s;" onfocus="this.style.borderColor='var(--accent-cyan)'" onblur="this.style.borderColor='rgba(255,255,255,0.08)'" />
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--text-muted); pointer-events: none;"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+        </div>
       </section>
 
       <nav class="sidebar-scroll-area" id="history-container">
@@ -1652,6 +1773,20 @@
                 <span class="status-dot"></span>
                 <span>正在載入...</span>
               </div>
+
+              <!-- Stable Diffusion Image Generation Settings -->
+              <div class="form-group" style="margin-top: 18px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 14px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                  <span>Stable Diffusion 繪圖設定 (Local Image API)</span>
+                </label>
+                <div style="display: flex; flex-direction: column; gap: 8px;">
+                  <div>
+                    <label class="form-label" style="font-size: 11px;" for="input-sd-url">Stable Diffusion API 位址 (啟用 --api)</label>
+                    <input type="url" class="input-glass" id="input-sd-url" value="http://localhost:7860">
+                  </div>
+                </div>
+              </div>
             </section>
           </div>
 
@@ -1679,9 +1814,54 @@
               <div class="form-group">
                 <div class="settings-card-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
                   <span data-i18n="system_prompt_title">系統設定 (System Prompt)</span>
-                  <span id="active-preset-label" style="font-size:11px; font-weight:600; color:var(--accent-cyan); background:rgba(0,242,254,0.08); padding:2px 8px; border-radius:10px;">Aether AI 助理</span>
+                  <div style="display: flex; align-items: center; gap: 8px;">
+                    <button type="button" onclick="openPromptGallery()" style="background: transparent; border: none; font-size: 11px; font-weight: 600; color: var(--accent-cyan); cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: rgba(0,242,254,0.08);">
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+                      <span>提示詞庫 (Gallery)</span>
+                    </button>
+                    <span id="active-preset-label" style="font-size:11px; font-weight:600; color:var(--accent-cyan); background:rgba(0,242,254,0.08); padding:2px 8px; border-radius:10px;">Aether AI 助理</span>
+                  </div>
                 </div>
                 <textarea class="input-glass" id="textarea-system-prompt" rows="5" style="resize:vertical; min-height:100px; font-size:13px; line-height:1.5;" data-i18n-placeholder="system_prompt_placeholder" placeholder="定義 AI 的人設、背景、專業能力與回應要求..."></textarea>
+              </div>
+
+              <!-- UI Theme Selector -->
+              <div class="form-group" style="margin-top: 18px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 14px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 8px; display: block;">介面主題配色 (UI Theme Accent)</label>
+                <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px;">
+                  <button type="button" class="btn-glass" onclick="setAccentTheme('cyan-purple')" style="padding: 8px 4px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: rgba(0, 242, 254, 0.25);">
+                    <span style="width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #00f2fe, #9b51e0); box-shadow: 0 0 6px rgba(0,242,254,0.4);"></span>
+                    <span>預設青紫</span>
+                  </button>
+                  <button type="button" class="btn-glass" onclick="setAccentTheme('cyber-gold')" style="padding: 8px 4px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: rgba(244, 196, 48, 0.15);">
+                    <span style="width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #f4c430, #ff5722); box-shadow: 0 0 6px rgba(244,196,48,0.2);"></span>
+                    <span>賽博黃金</span>
+                  </button>
+                  <button type="button" class="btn-glass" onclick="setAccentTheme('matrix-green')" style="padding: 8px 4px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: rgba(0, 255, 102, 0.15);">
+                    <span style="width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #00ff66, #008822); box-shadow: 0 0 6px rgba(0,255,102,0.2);"></span>
+                    <span>矩陣綠光</span>
+                  </button>
+                  <button type="button" class="btn-glass" onclick="setAccentTheme('sapphire-blue')" style="padding: 8px 4px; font-size: 11px; display: flex; flex-direction: column; align-items: center; gap: 4px; border-color: rgba(47, 128, 237, 0.15);">
+                    <span style="width: 14px; height: 14px; border-radius: 50%; background: linear-gradient(135deg, #2f80ed, #8338ec); box-shadow: 0 0 6px rgba(47,128,237,0.2);"></span>
+                    <span>藍寶石影</span>
+                  </button>
+                </div>
+              </div>
+
+              <!-- Data Backup & Restore -->
+              <div class="form-group" style="margin-top: 18px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 14px;">
+                <label class="form-label" style="font-weight: 600; margin-bottom: 8px; display: block;">歷史對話資料備份 (Data Backup)</label>
+                <div style="display: flex; gap: 10px;">
+                  <button type="button" class="btn-glass" onclick="exportChatHistory()" style="flex: 1; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                    <span>匯出備份 (Export)</span>
+                  </button>
+                  <button type="button" class="btn-glass" onclick="document.getElementById('import-file-input').click()" style="flex: 1; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    <span>匯入備份 (Import)</span>
+                  </button>
+                  <input type="file" id="import-file-input" accept=".json" style="display: none;" onchange="importChatHistory(event)">
+                </div>
               </div>
             </section>
           </div>
@@ -3022,11 +3202,24 @@
       const container = elements.historyContainer;
       if (!container) return;
       container.innerHTML = '';
-      const chats = chatHistory.getAllChats();
+      let chats = chatHistory.getAllChats();
       const activeId = chatHistory.getActiveChatId();
 
+      // Filter chats based on search query
+      const searchInput = document.getElementById('sidebar-search-input');
+      const searchQuery = searchInput ? searchInput.value.trim().toLowerCase() : '';
+      if (searchQuery) {
+        chats = chats.filter(chat => {
+          const titleMatch = chat.title.toLowerCase().includes(searchQuery);
+          const contentMatch = chat.messages.some(m => m.content.toLowerCase().includes(searchQuery));
+          return titleMatch || contentMatch;
+        });
+      }
+
       if (chats.length === 0) {
-        container.innerHTML = `<div style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;" data-i18n="history_empty">無歷史對話紀錄</div>`;
+        container.innerHTML = searchQuery ?
+          `<div style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;">找不到符合的對話 (No matching chats)</div>` :
+          `<div style="text-align: center; color: var(--text-muted); font-size: 13px; margin-top: 20px;" data-i18n="history_empty">無歷史對話紀錄</div>`;
         return;
       }
 
@@ -3319,6 +3512,7 @@ IMPORTANT RULES:
             fullStreamText += chunk;
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+            updateHudTokenCount(chunk);
             if (stats) {
               if (elements.metricTps) elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
               if (elements.metricTokens) elements.metricTokens.innerText = stats.evalCount;
@@ -3381,6 +3575,94 @@ IMPORTANT RULES:
     async function handleSendMessage() {
       const prompt = elements.chatTextarea.value.trim();
       if (!prompt && attachedFiles.length === 0 || isGenerating) return;
+
+      // Stable Diffusion Local Image Generation Intercept
+      if (prompt.startsWith('/draw ') || prompt.startsWith('/image ')) {
+        const drawPrompt = prompt.replace(/^\/(draw|image)\s+/, '');
+        
+        elements.chatTextarea.value = '';
+        attachedFiles = [];
+        renderAttachmentPreviews();
+        elements.chatWelcome.style.display = 'none';
+
+        let activeId = chatHistory.getActiveChatId();
+        if (!activeId) {
+          const newChat = chatHistory.createChat("Stable Diffusion", elements.systemPromptArea.value);
+          activeId = newChat.id;
+          renderSessionsHistory();
+        }
+
+        chatHistory.appendMessage(activeId, 'user', prompt);
+        appendMessageRowToDOM('user', prompt);
+
+        const assistantRow = appendMessageRowToDOM('assistant', '');
+        const contentDiv = assistantRow.querySelector('.message-content');
+        contentDiv.innerHTML = `<div style="display:flex; align-items:center; gap:8px; color:var(--accent-cyan);">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" style="animation: spin 1s linear infinite;"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
+          <span>繪圖中，請稍候... (Drawing image, please wait...)</span>
+        </div>`;
+        elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+
+        setGeneratingState(true);
+
+        try {
+          const sdUrlVal = document.getElementById('input-sd-url') ? document.getElementById('input-sd-url').value.replace(/\/$/, '') : 'http://localhost:7860';
+          const targetUrl = `${sdUrlVal}/sdapi/v1/txt2img`;
+
+          const response = await fetch('/api/proxy', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'X-Target-URL': targetUrl
+            },
+            body: JSON.stringify({
+              prompt: drawPrompt,
+              negative_prompt: "easynegative, worst quality, low quality",
+              steps: 20,
+              width: 512,
+              height: 512,
+              cfg_scale: 7
+            })
+          });
+
+          if (!response.ok) throw new Error(`HTTP Error: ${response.status}`);
+          const resData = await response.json();
+          
+          if (resData && resData.images && resData.images.length > 0) {
+            const base64Img = resData.images[0];
+            const imgHtml = `
+              <div style="margin-top: 10px; display: flex; flex-direction: column; gap: 8px; max-width: 100%;">
+                <img src="data:image/png;base64,${base64Img}" alt="${drawPrompt}" style="border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); max-width: 100%; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+                <a href="data:image/png;base64,${base64Img}" download="drawing_${Date.now()}.png" class="btn-glass" style="align-self: flex-start; text-decoration: none; padding: 6px 12px; font-size: 11px; display: flex; align-items: center; gap: 6px; border-color: rgba(255,255,255,0.15); color: var(--text-main);">
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                  <span>下載圖片 (Download)</span>
+                </a>
+              </div>
+            `;
+            contentDiv.innerHTML = `🎨 **繪圖成功！** / Drawing success!\nPrompt: *${drawPrompt}*\n${imgHtml}`;
+            chatHistory.appendMessage(activeId, 'assistant', `🎨 **繪圖成功！** / Drawing success!\nPrompt: *${drawPrompt}*\n<img src="data:image/png;base64,${base64Img}">`);
+          } else {
+            throw new Error("Stable Diffusion 未返回圖片資料 (No image data returned)");
+          }
+        } catch (err) {
+          contentDiv.innerHTML = `
+            <div class="status-pill status-alert" style="display: flex; flex-direction: column; align-items: flex-start; padding: 16px; margin-top: 10px; width: 100%; border-radius: var(--border-radius-sm);">
+              <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
+                <span class="status-dot" style="background: var(--color-error)"></span>
+                <span>本機繪圖失敗 (Local Drawing Failed)</span>
+              </div>
+              <div style="font-size: 13px; line-height: 1.5; opacity: 0.8;">
+                請確認您已開啟 Stable Diffusion WebUI 且啟用了 <code>--api</code> 參數，位址設定正確且服務在執行中。<br>
+                錯誤原因 (Reason): ${err.message}
+              </div>
+            </div>
+          `;
+        } finally {
+          setGeneratingState(false);
+          document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
+        }
+        return;
+      }
 
       let finalPrompt = prompt;
       let displayPrompt = prompt;
@@ -3465,6 +3747,7 @@ IMPORTANT RULES:
             fullStreamText += chunk;
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
+            updateHudTokenCount(chunk);
             if (stats) {
               if (elements.metricTps) elements.metricTps.innerText = `${stats.tokensPerSec} t/s`;
               if (elements.metricTokens) elements.metricTokens.innerText = stats.evalCount;
@@ -3558,14 +3841,76 @@ IMPORTANT RULES:
       }
     }
 
+    let hudTimer = null;
+    let hudStartTimestamp = 0;
+    let hudTokenCount = 0;
+
+    function startHudTracking() {
+      const hud = document.getElementById('performance-hud');
+      if (hud) {
+        hud.classList.add('active');
+        document.getElementById('hud-val-speed').innerText = "0.0 t/s";
+        document.getElementById('hud-val-tokens').innerText = "0";
+        document.getElementById('hud-val-time').innerText = "0.0s";
+      }
+      hudStartTimestamp = Date.now();
+      hudTokenCount = 0;
+      
+      if (hudTimer) clearInterval(hudTimer);
+      hudTimer = setInterval(() => {
+        if (hudStartTimestamp > 0) {
+          const elapsed = (Date.now() - hudStartTimestamp) / 1000;
+          const speed = elapsed > 0 ? (hudTokenCount / elapsed).toFixed(1) : "0.0";
+          const speedEl = document.getElementById('hud-val-speed');
+          const tokensEl = document.getElementById('hud-val-tokens');
+          const timeEl = document.getElementById('hud-val-time');
+          if (speedEl) speedEl.innerText = `${speed} t/s`;
+          if (tokensEl) tokensEl.innerText = hudTokenCount;
+          if (timeEl) timeEl.innerText = `${elapsed.toFixed(1)}s`;
+        }
+      }, 100);
+    }
+
+    function updateHudTokenCount(chunkText) {
+      if (chunkText) {
+        let addedTokens = 0;
+        for (let i = 0; i < chunkText.length; i++) {
+          const charCode = chunkText.charCodeAt(i);
+          if (charCode > 255) {
+            addedTokens += 1;
+          }
+        }
+        const englishLength = chunkText.length - addedTokens;
+        if (englishLength > 0) {
+          addedTokens += Math.max(1, Math.round(englishLength / 4));
+        }
+        hudTokenCount += addedTokens;
+      }
+    }
+
+    function stopHudTracking() {
+      if (hudTimer) {
+        clearInterval(hudTimer);
+        hudTimer = null;
+      }
+      setTimeout(() => {
+        if (!hudTimer && !isGenerating) {
+          const hud = document.getElementById('performance-hud');
+          if (hud) hud.classList.remove('active');
+        }
+      }, 5000);
+    }
+
     function setGeneratingState(generating) {
       isGenerating = generating;
       if (generating) {
         elements.btnSend.style.display = 'none'; elements.btnStop.style.display = 'flex';
         elements.btnStop.removeAttribute('disabled');
+        startHudTracking();
       } else {
         elements.btnSend.style.display = 'flex'; elements.btnStop.style.display = 'none';
         elements.btnStop.setAttribute('disabled', 'true');
+        stopHudTracking();
       }
     }
 
@@ -3606,8 +3951,15 @@ IMPORTANT RULES:
       initNeuralBackground();
       setupDrawerCollapsers();
       initSettingsValues();
+      const savedTheme = localStorage.getItem('aether_theme') || 'cyan-purple';
+      setAccentTheme(savedTheme);
       updateLanguage(savedLang);
       updateProviderConnection();
+
+      const searchInput = document.getElementById('sidebar-search-input');
+      if (searchInput) {
+        searchInput.addEventListener('input', () => renderSessionsHistory());
+      }
 
       if (chatHistory.getActiveChatId() && chatHistory.getChatById(chatHistory.getActiveChatId())) {
         switchSession(chatHistory.getActiveChatId());
@@ -3718,6 +4070,9 @@ IMPORTANT RULES:
         const discWebhook = elements.discordWebhookInput ? elements.discordWebhookInput.value : '';
         
         try {
+          const sdUrlInput = document.getElementById('input-sd-url');
+          const sdUrlVal = sdUrlInput ? sdUrlInput.value : '';
+
           await fetch('/api/bridges/save', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -3727,7 +4082,8 @@ IMPORTANT RULES:
               discord_webhook: discWebhook,
               ollama_url: aetherApi.ollamaUrl,
               provider: aetherApi.provider,
-              model_name: aetherApi.modelName
+              model_name: aetherApi.modelName,
+              sd_url: sdUrlVal
             })
           });
         } catch (e) {}
@@ -3774,6 +4130,21 @@ IMPORTANT RULES:
             if (data.telegram_token && elements.telegramTokenInput) elements.telegramTokenInput.value = data.telegram_token;
             if (data.telegram_chat_id && elements.telegramChatIdInput) elements.telegramChatIdInput.value = data.telegram_chat_id;
             if (data.discord_webhook && elements.discordWebhookInput) elements.discordWebhookInput.value = data.discord_webhook;
+            
+            if (data.sd_url) {
+              const sdUrlInput = document.getElementById('input-sd-url');
+              if (sdUrlInput) sdUrlInput.value = data.sd_url;
+            }
+            if (data.provider && elements.providerSelect) {
+              elements.providerSelect.value = data.provider;
+              const event = new Event('change', { bubbles: true });
+              elements.providerSelect.dispatchEvent(event);
+            }
+            if (data.ollama_url && elements.ollamaUrlInput) {
+              elements.ollamaUrlInput.value = data.ollama_url;
+            }
+            
+            updateProviderConnection();
           }
         } catch (e) {}
       }
@@ -3840,6 +4211,143 @@ SOFTWARE.</pre>`;
     }
     window.closeTermsModal = closeTermsModal;
 
+    // Theme Accent Switcher
+    function setAccentTheme(themeName) {
+      document.documentElement.classList.remove('theme-cyan-purple', 'theme-cyber-gold', 'theme-matrix-green', 'theme-sapphire-blue');
+      if (themeName) {
+        document.documentElement.classList.add(`theme-${themeName}`);
+        localStorage.setItem('aether_theme', themeName);
+      }
+      
+      document.querySelectorAll('[onclick^="setAccentTheme"]').forEach(btn => {
+        if (btn.getAttribute('onclick').includes(themeName)) {
+          btn.style.borderColor = 'var(--accent-cyan)';
+          btn.style.background = 'rgba(255,255,255,0.06)';
+        } else {
+          btn.style.borderColor = '';
+          btn.style.background = '';
+        }
+      });
+    }
+    window.setAccentTheme = setAccentTheme;
+
+    // Chat History Export/Import Backup
+    function exportChatHistory() {
+      try {
+        const chats = localStorage.getItem('aether_conversations') || '[]';
+        const blob = new Blob([chats], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `aether_chat_backup_${new Date().toISOString().slice(0, 10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      } catch (e) {
+        alert("匯出備份失敗 (Export failed): " + e.message);
+      }
+    }
+    window.exportChatHistory = exportChatHistory;
+
+    function importChatHistory(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        try {
+          const chats = JSON.parse(e.target.result);
+          if (Array.isArray(chats)) {
+            const valid = chats.every(c => c.id && c.title && Array.isArray(c.messages));
+            if (!valid) throw new Error("資料格式不正確 (Invalid data format)");
+            
+            if (confirm("匯入備份將會合併或覆蓋目前的對話紀錄，是否確定？ (Import will merge/overwrite current history. Proceed?)")) {
+              const currentChatsStr = localStorage.getItem('aether_conversations') || '[]';
+              let currentChats = [];
+              try { currentChats = JSON.parse(currentChatsStr); } catch(ex){}
+              
+              const mergedChats = [...currentChats];
+              chats.forEach(newChat => {
+                const idx = mergedChats.findIndex(c => c.id === newChat.id);
+                if (idx >= 0) {
+                  mergedChats[idx] = newChat;
+                } else {
+                  mergedChats.push(newChat);
+                }
+              });
+              
+              localStorage.setItem('aether_conversations', JSON.stringify(mergedChats));
+              chatHistory.conversations = mergedChats;
+              renderSessionsHistory();
+              
+              alert("對話紀錄匯入成功！ (Chat history imported successfully!)");
+              event.target.value = '';
+            }
+          } else {
+            throw new Error("備份檔案必須是陣列 (Backup file must be a JSON array)");
+          }
+        } catch (ex) {
+          alert("匯入失敗，不合法的 JSON 備份檔案 (Import failed, invalid JSON backup file): " + ex.message);
+        }
+      };
+      reader.readAsText(file);
+    }
+    window.importChatHistory = importChatHistory;
+
+    // Prompt Persona Gallery Modal Controllers
+    function openPromptGallery() {
+      const modal = document.getElementById('promptGalleryModal');
+      const listContainer = document.getElementById('prompt-gallery-list');
+      if (!modal || !listContainer) return;
+      
+      const lang = getActiveLanguage();
+      listContainer.innerHTML = '';
+      
+      PromptLibrary.forEach(preset => {
+        const card = document.createElement('div');
+        card.className = 'gallery-card';
+        card.innerHTML = `
+          <div class="gallery-card-title">
+            ${preset.icon}
+            <span>${preset.name}</span>
+          </div>
+          <div class="gallery-card-desc">${preset.description}</div>
+        `;
+        card.addEventListener('click', () => {
+          const textarea = document.getElementById('textarea-system-prompt');
+          if (textarea) {
+            textarea.value = preset.systemPrompt;
+            const event = new Event('input', { bubbles: true });
+            textarea.dispatchEvent(event);
+            
+            const labelEl = document.getElementById('active-preset-label');
+            if (labelEl) {
+              labelEl.innerText = preset.name;
+            }
+          }
+          closePromptGallery();
+          
+          const toast = document.getElementById('save-toast');
+          if (toast) {
+            const dict = translations[lang] || translations['en'];
+            document.getElementById('toast-text').innerText = "已載入人設提示詞！ (Persona loaded!)";
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 2000);
+          }
+        });
+        listContainer.appendChild(card);
+      });
+      
+      modal.classList.add('active');
+    }
+    window.openPromptGallery = openPromptGallery;
+
+    function closePromptGallery() {
+      const modal = document.getElementById('promptGalleryModal');
+      if (modal) modal.classList.remove('active');
+    }
+    window.closePromptGallery = closePromptGallery;
+
     window.addEventListener('DOMContentLoaded', init);
   </script>
 
@@ -3852,6 +4360,41 @@ SOFTWARE.</pre>`;
       </div>
       <div class="terms-modal-body" id="termsModalBody">
         <!-- Content will inject here -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Floating Performance HUD -->
+  <div class="floating-hud" id="performance-hud">
+    <div style="display: flex; align-items: center; gap: 8px; font-weight: 700; border-bottom: 1px solid rgba(255,255,255,0.08); padding-bottom: 6px; margin-bottom: 6px; color: var(--accent-cyan);">
+      <span class="hud-pulse-dot" style="width: 6px; height: 6px; background: #00ff66; border-radius: 50%; box-shadow: 0 0 8px #00ff66; display: inline-block;"></span>
+      <span>PERFORMANCE HUD</span>
+    </div>
+    <div style="display: grid; grid-template-columns: auto auto; gap: 6px 12px; color: var(--text-main);">
+      <span style="color: var(--text-muted);">Speed:</span>
+      <span id="hud-val-speed" style="text-align: right; font-weight: 600; color: #00ff66;">0.0 t/s</span>
+      <span style="color: var(--text-muted);">Tokens:</span>
+      <span id="hud-val-tokens" style="text-align: right; font-weight: 600;">0</span>
+      <span style="color: var(--text-muted);">Time:</span>
+      <span id="hud-val-time" style="text-align: right; font-weight: 600;">0.0s</span>
+    </div>
+  </div>
+
+  <!-- Prompt Gallery Modal -->
+  <div class="terms-backdrop" id="promptGalleryModal" onclick="closePromptGallery()">
+    <div class="terms-modal-card glass-panel" onclick="event.stopPropagation()" style="background: rgba(13, 12, 28, 0.95); border-color: rgba(0, 242, 254, 0.25);">
+      <div class="terms-modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
+        <h3 style="display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--text-main);">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
+          <span>系統提示詞庫 (System Prompt Gallery)</span>
+        </h3>
+        <button class="terms-close-btn" onclick="closePromptGallery()">✕</button>
+      </div>
+      <div class="terms-modal-body" style="padding: 1.5rem;">
+        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">選擇一個預設人設，將其套用至您目前的系統設定提示詞：</div>
+        <div class="gallery-grid" id="prompt-gallery-list">
+          <!-- Dynamically populated -->
+        </div>
       </div>
     </div>
   </div>

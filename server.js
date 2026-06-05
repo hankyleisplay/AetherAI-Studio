@@ -579,6 +579,7 @@ const server = http.createServer((request, response) => {
           if (newConfig.ollama_url !== undefined) currentConfig.ollama_url = newConfig.ollama_url;
           if (newConfig.provider !== undefined) currentConfig.provider = newConfig.provider;
           if (newConfig.model_name !== undefined) currentConfig.model_name = newConfig.model_name;
+          if (newConfig.sd_url !== undefined) currentConfig.sd_url = newConfig.sd_url;
           
           fs.writeFileSync(configPath, JSON.stringify(currentConfig, null, 2), 'utf8');
           

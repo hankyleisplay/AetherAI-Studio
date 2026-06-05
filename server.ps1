@@ -600,6 +600,7 @@ try {
                 if ($newConfig.ollama_url -ne $null) { $currentConfig.ollama_url = $newConfig.ollama_url }
                 if ($newConfig.provider -ne $null) { $currentConfig.provider = $newConfig.provider }
                 if ($newConfig.model_name -ne $null) { $currentConfig.model_name = $newConfig.model_name }
+                if ($newConfig.sd_url -ne $null) { $currentConfig.sd_url = $newConfig.sd_url }
                 
                 $jsonStr = $currentConfig | ConvertTo-Json -Depth 5
                 [System.IO.File]::WriteAllText($configPath, $jsonStr, [System.Text.Encoding]::UTF8)
