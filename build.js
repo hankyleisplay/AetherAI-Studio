@@ -33,6 +33,7 @@ console.log("Compiling run.ps1 for Windows...");
 const psTemplate = `# ==========================================================================
 # AetherAI Studio - Launcher (Pure PowerShell Edition)
 # ==========================================================================
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
 
 $portableBase64 = "${portableBase64}"
 $serverBase64 = "${serverPsBase64}"

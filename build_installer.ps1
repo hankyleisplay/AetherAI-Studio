@@ -1,4 +1,4 @@
-﻿# ==========================================================================
+# ==========================================================================
 # AetherAI Studio - Installer Compiler Build Script (Pure PowerShell Edition)
 # Compiles AetherAI-Studio-Portable.html and server.ps1 into a single run.ps1
 # ==========================================================================
@@ -27,6 +27,7 @@ $hybridTemplate = @"
 # ==========================================================================
 # AetherAI Studio - Launcher (Pure PowerShell Edition)
 # ==========================================================================
+Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
 
 `$portableBase64 = "$portableBase64"
 `$serverBase64 = "$serverBase64"
