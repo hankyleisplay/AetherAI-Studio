@@ -1,4 +1,4 @@
-# ==========================================================================
+﻿# ==========================================================================
 # AetherAI Studio - Installer Compiler Build Script (Pure PowerShell Edition)
 # Compiles AetherAI-Studio-Portable.html and server.ps1 into a single run.ps1
 # ==========================================================================
@@ -663,7 +663,7 @@ try {
     `$WshShell = New-Object -ComObject WScript.Shell
     `$ShortcutPath = [System.IO.Path]::Combine([Environment]::GetFolderPath("Desktop"), "AetherAI Studio.lnk")
     `$Shortcut = `$WshShell.CreateShortcut(`$ShortcutPath)
-    `$Shortcut.TargetPath = "powershell.exe"
+    `$Shortcut.TargetPath = "pwsh.exe"
     `$Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File ``"`$env:SCRIPT_DIR\run.ps1``""
     `$Shortcut.WorkingDirectory = "`$env:SCRIPT_DIR"
     `$Shortcut.Description = `$m["shortcut_desc"]

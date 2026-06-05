@@ -1,4 +1,4 @@
-// ==========================================================================
+﻿// ==========================================================================
 // AetherAI Studio - Cross-Platform Build Compiler Script
 // Compiles AetherAI-Studio-Portable.html and servers into run.ps1 and run.sh
 // ==========================================================================
@@ -47,8 +47,9 @@ if (-not $isAdmin) {
         Write-Host "Requesting Administrator privileges to run AetherAI Studio..." -ForegroundColor Yellow
         $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
         if ($args) { $argList += $args }
+        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
         try {
-            Start-Process powershell -ArgumentList $argList -Verb RunAs
+            Start-Process $shellName -ArgumentList $argList -Verb RunAs
             exit
         } catch {
             Write-Host "❌ Error: Administrator privileges are required to run this script." -ForegroundColor Red
@@ -103,8 +104,9 @@ if ($isTemp) {
         Write-Host "Requesting Administrator privileges to complete installation..." -ForegroundColor Yellow
         $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $targetScriptPath)
         if ($args) { $argList += $args }
+        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
         try {
-            Start-Process powershell -ArgumentList $argList -Verb RunAs
+            Start-Process $shellName -ArgumentList $argList -Verb RunAs
             exit
         } catch {
             Write-Host "❌ Error: Administrator privileges are required to complete the installation." -ForegroundColor Red
@@ -664,7 +666,7 @@ try {
     $WshShell = New-Object -ComObject WScript.Shell
     $ShortcutPath = [System.IO.Path]::Combine([Environment]::GetFolderPath("Desktop"), "AetherAI Studio.lnk")
     $Shortcut = $WshShell.CreateShortcut($ShortcutPath)
-    $Shortcut.TargetPath = "powershell.exe"
+    $Shortcut.TargetPath = "pwsh.exe"
     $Shortcut.Arguments = "-NoProfile -ExecutionPolicy Bypass -File \`"$env:SCRIPT_DIR\\run.ps1\`""
     $Shortcut.WorkingDirectory = "$env:SCRIPT_DIR"
     $Shortcut.Description = $m["shortcut_desc"]

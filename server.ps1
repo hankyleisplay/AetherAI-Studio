@@ -6,6 +6,7 @@
 $port = 8080
 $listener = $null
 $started = $false
+$currentShell = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
 
 while (!$started -and $port -lt 8100) {
     try {
@@ -185,7 +186,7 @@ When the user asks you to do something, use these tags to run actions on their m
                                             $hasAction = $true
                                             Send-TelegramMessage("⚙️ _Agent Executing CMD:_ ``$cmd``")
                                             try {
-                                                $proc = Start-Process powershell -ArgumentList "-NoProfile -Command `"$cmd`"" -PassThru -NoNewWindow -RedirectStandardOutput stdout.txt -RedirectStandardError stderr.txt -Wait
+                                                $proc = Start-Process $currentShell -ArgumentList "-NoProfile -Command `"$cmd`"" -PassThru -NoNewWindow -RedirectStandardOutput stdout.txt -RedirectStandardError stderr.txt -Wait
                                                 $stdout = [System.IO.File]::ReadAllText("stdout.txt")
                                                 $stderr = [System.IO.File]::ReadAllText("stderr.txt")
                                                 $actionResult = "STDOUT:`n$stdout`nSTDERR:`n$stderr"
@@ -535,7 +536,7 @@ try {
                 $cmd = $reader.ReadToEnd()
                 $reader.Close()
                 
-                $cmdResult = powershell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $cmd 2>&1 | Out-String
+                $cmdResult = &$currentShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $cmd 2>&1 | Out-String
                 if (!$cmdResult) { $cmdResult = "Command executed with no output." }
                 $response.ContentType = "text/plain; charset=utf-8"
                 $bytes = [System.Text.Encoding]::UTF8.GetBytes($cmdResult)

@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>AetherAI Studio | Official Website & Portal</title>
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2306b6d4'/><stop offset='100%' stop-color='%23a855f7'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='%23020617' stroke='url(%23g)' stroke-width='4'/><path d='M32,72 L50,28 L68,72 M40,54 L60,54' stroke='url(%23g)' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='28' r='6' fill='%2306b6d4'/></svg>">
   
   <!-- Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -192,11 +193,13 @@
 
     /* Home View Elements */
     .hero-section {
-      padding: 3rem 5% 5rem 5%;
-      display: grid;
-      grid-template-columns: 1.15fr 0.85fr;
-      gap: 5rem;
+      padding: 5rem 5% 6rem 5%;
+      display: flex;
+      flex-direction: column;
       align-items: center;
+      text-align: center;
+      max-width: 960px;
+      margin: 0 auto;
     }
 
     .hero-info h1 {
@@ -226,7 +229,9 @@
       border-radius: 12px;
       box-shadow: 0 15px 40px rgba(0, 0, 0, 0.6);
       overflow: hidden;
-      margin-bottom: 2.5rem;
+      margin: 0 auto 2.5rem auto;
+      width: 100%;
+      max-width: 680px;
     }
 
     .terminal-titlebar {
@@ -1073,6 +1078,102 @@
         font-size: 3rem;
       }
     }
+
+    /* Terms Modal Styles */
+    .terms-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(2, 6, 23, 0.75);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 11000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .terms-backdrop.active {
+      display: flex;
+      opacity: 1;
+    }
+    
+    .terms-modal-card {
+      width: 90%;
+      max-width: 640px;
+      max-height: 80vh;
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      box-shadow: 0 25px 50px rgba(0, 0, 0, 0.7), 0 0 30px rgba(6, 182, 212, 0.1);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+    
+    .terms-backdrop.active .terms-modal-card {
+      transform: scale(1);
+    }
+    
+    .terms-modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid var(--border-color);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .terms-modal-header h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    
+    .terms-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    
+    .terms-close-btn:hover {
+      color: #ef4444;
+    }
+    
+    .terms-modal-body {
+      padding: 2rem;
+      overflow-y: auto;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    
+    .terms-modal-body h4 {
+      color: var(--text-main);
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .terms-modal-body pre {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid var(--border-color);
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
   </style>
 </head>
 <body>
@@ -1144,12 +1245,6 @@
               <!-- Logs will stream here dynamically on Test Run click -->
             </div>
           </div>
-        </div>
-      </div>
-      
-      <div class="hero-graphic">
-        <div class="graphic-card">
-          <img src="aetherai_hero.png" alt="AetherAI Studio visual preview" class="graphic-img">
         </div>
       </div>
     </section>
@@ -1456,6 +1551,21 @@
 
       <div class="faq-item" onclick="toggleFaq(this)">
         <div class="faq-question">
+          What should I do if Windows blocks running the installer script (Execution Policy Error)?
+          <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+        </div>
+        <div class="faq-answer">
+          By default, Windows restricts script execution for security. If you receive an execution policy error, you can easily solve it:
+          <br><strong>Option 1 (Quick Process Bypass):</strong> Run the script with an explicit bypass flag:
+          <pre style="margin:8px 0; background:#020205; border:1px solid rgba(255,255,255,0.06); padding:8px 12px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#38bdf8;">powershell -ExecutionPolicy Bypass -File .\run.ps1</pre>
+          <strong>Option 2 (Enable System-wide Execution):</strong> Open a standard PowerShell window and run:
+          <pre style="margin:8px 0; background:#020205; border:1px solid rgba(255,255,255,0.06); padding:8px 12px; border-radius:6px; font-family:'JetBrains Mono',monospace; font-size:12px; color:#38bdf8;">Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force</pre>
+          This registers execution permissions securely for your active user account, allowing AetherAI Studio to install and run smoothly.
+        </div>
+      </div>
+
+      <div class="faq-item" onclick="toggleFaq(this)">
+        <div class="faq-question">
           How do I set up Cloudflare WAF Bypass if Cloudflare blocks `irm`?
           <svg class="faq-icon" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
@@ -1499,8 +1609,33 @@
       <button onclick="switchTab('cli')">CLI References</button>
       <button onclick="switchTab('faq')">FAQs</button>
     </div>
-    <p class="footer-copyright">&copy; 2026 AetherAI Studio. MIT Licensed. Completely Open-Source & Private.</p>
+    <div class="footer-legal-links" style="margin-top: 1rem; display: flex; justify-content: center; gap: 1.5rem; flex-wrap: wrap; font-size: 0.9rem;">
+      <a href="https://github.com/hankyleisplay/AetherAI-Studio" target="_blank" style="color: var(--text-muted); text-decoration: none; display: flex; align-items: center; gap: 6px; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">
+        <svg width="14" height="14" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"/></svg>
+        GitHub
+      </a>
+      <span style="color: rgba(255,255,255,0.15)">|</span>
+      <button onclick="showTermsModal('license')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">MIT License</button>
+      <span style="color: rgba(255,255,255,0.15)">|</span>
+      <button onclick="showTermsModal('privacy')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">Privacy Policy</button>
+      <span style="color: rgba(255,255,255,0.15)">|</span>
+      <button onclick="showTermsModal('terms')" style="background: transparent; border: none; color: var(--text-muted); cursor: pointer; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">Terms of Use</button>
+    </div>
+    <p class="footer-copyright" style="margin-top: 1.5rem; color: #4b5563; font-size: 0.85rem;">&copy; 2026 AetherAI Studio. Completely Open-Source & Private.</p>
   </footer>
+
+  <!-- Terms, Privacy & License Modal -->
+  <div class="terms-backdrop" id="termsModal" onclick="closeTermsModal()">
+    <div class="terms-modal-card glass-panel" onclick="event.stopPropagation()">
+      <div class="terms-modal-header">
+        <h3 id="termsModalTitle">MIT License</h3>
+        <button class="terms-close-btn" onclick="closeTermsModal()">✕</button>
+      </div>
+      <div class="terms-modal-body" id="termsModalBody">
+        <!-- Content will inject here -->
+      </div>
+    </div>
+  </div>
 
   <!-- Toast Notifier -->
   <div class="copy-toast" id="clipToast">
@@ -1510,6 +1645,64 @@
 
   <!-- SPA Router & Interactive Scripts -->
   <script>
+    // Terms & Privacy Modal Controller
+    function showTermsModal(type) {
+      const modal = document.getElementById('termsModal');
+      const title = document.getElementById('termsModalTitle');
+      const body = document.getElementById('termsModalBody');
+      
+      let html = '';
+      if (type === 'license') {
+        title.innerText = 'MIT License';
+        html = `<pre>MIT License
+
+Copyright (c) 2026 AetherAI Studio
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>`;
+      } else if (type === 'privacy') {
+        title.innerText = 'Privacy Policy';
+        html = `<h4>100% Offline & Private AI</h4>
+        <p>AetherAI Studio is designed with a strict privacy-first architecture. Since the application runs completely on your local machine, your data privacy is natively protected:</p>
+        <h4>1. Zero Telemetry & Tracking</h4>
+        <p>We do not collect, store, or transmit any telemetry logs, analytics data, tracking metrics, or usage habits. There are no background reporters or cloud endpoints registered for surveillance.</p>
+        <h4>2. Data Security & Storage</h4>
+        <p>All of your chat logs, prompts, API keys, and server configurations are stored exclusively in your local browser's <code>localStorage</code> or local sandboxed config files (<code>config.json</code>). No data ever leaves your computer unless you explicitly configure a cloud API.</p>
+        <h4>3. Local Model execution</h4>
+        <p>Conversations processed under Ollama, LM Studio, or vLLM run entirely offline on your GPU or CPU. We encourage users to verify their network logs to confirm AetherAI's absolute local compliance.</p>`;
+      } else if (type === 'terms') {
+        title.innerText = 'Terms of Use';
+        html = `<h4>1. Terms of Open-Source Use</h4>
+        <p>AetherAI Studio is provided as open-source software under the permissive MIT License. By using the software, you agree to comply with standard licensing rules.</p>
+        <h4>2. No Warranty & Liability</h4>
+        <p>The software is provided "as is" without warranty of any kind. The authors and copyright holders shall not be liable for any claims, damages, or liabilities arising from the use or execution of this software.</p>
+        <h4>3. Execution of Shell Commands (Agent Mode)</h4>
+        <p>When using the "Agent Code" feature, local LLMs generate scripts and shell commands that execute directly on your machine via PowerShell. Users are fully responsible for granting UAC privileges, monitoring the command outputs, and ensuring that the executed commands do not cause accidental data loss or script injection issues.</p>`;
+      }
+      
+      body.innerHTML = html;
+      modal.classList.add('active');
+    }
+    
+    function closeTermsModal() {
+      document.getElementById('termsModal').classList.remove('active');
+    }
+
     // Tab Router Switcher
     function switchTab(tabId) {
       document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));

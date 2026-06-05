@@ -6,7 +6,7 @@
   <title>AetherAI Studio - 免安裝單一網頁版 (Local AI Client)</title>
   <meta name="description" content="AetherAI Studio 是一款免安裝、開箱即用的單一網頁版 Local AI 用戶端。下載後直接雙擊開啟，即可連線本機 Ollama 服務或 Google Gemini API，數據 100% 儲存於本機瀏覽器。">
   
-  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><circle cx=%2250%22 cy=%2250%22 r=%2240%22 fill=%22url(%23g)%22/><defs><linearGradient id=%22g%22 x1=%220%25%22 y1=%220%25%22 x2=%22100%25%22 y2=%22100%25%22><stop offset=%220%25%22 stop-color=%22%2300f2fe%22/><stop offset=%22100%25%22 stop-color=%22%23ff007f%22/></linearGradient></defs></svg>">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><defs><linearGradient id='g' x1='0%' y1='0%' x2='100%' y2='100%'><stop offset='0%' stop-color='%2306b6d4'/><stop offset='100%' stop-color='%23a855f7'/></linearGradient></defs><rect width='100' height='100' rx='22' fill='%23020617' stroke='url(%23g)' stroke-width='4'/><path d='M32,72 L50,28 L68,72 M40,54 L60,54' stroke='url(%23g)' stroke-width='8' stroke-linecap='round' stroke-linejoin='round' fill='none'/><circle cx='50' cy='28' r='6' fill='%2306b6d4'/></svg>">
 
   <!-- ==========================================================================
      STYLESHEETS: Combined and Embedded CSS Design System
@@ -1327,6 +1327,106 @@
       from { opacity: 0; }
       to { opacity: 1; }
     }
+
+    /* Terms Modal Styles */
+    .terms-backdrop {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      background: rgba(5, 5, 13, 0.7);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 11000;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    
+    .terms-backdrop.active {
+      display: flex;
+      opacity: 1;
+    }
+    
+    .terms-modal-card {
+      width: 90%;
+      max-width: 640px;
+      max-height: 80vh;
+      background: rgba(13, 12, 28, 0.95);
+      border: 1px solid rgba(0, 242, 254, 0.2);
+      border-radius: var(--border-radius-md);
+      box-shadow: 0 0 35px rgba(0, 242, 254, 0.18);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transform: scale(0.95);
+      transition: transform 0.3s ease;
+    }
+    
+    .terms-backdrop.active .terms-modal-card {
+      transform: scale(1);
+    }
+    
+    .terms-modal-header {
+      padding: 1.5rem;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    
+    .terms-modal-header h3 {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--text-main);
+    }
+    
+    .terms-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-size: 1.25rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    
+    .terms-close-btn:hover {
+      color: #ef4444;
+    }
+    
+    .terms-modal-body {
+      padding: 2rem;
+      overflow-y: auto;
+      font-size: 0.95rem;
+      color: var(--text-muted);
+      line-height: 1.6;
+    }
+    
+    .terms-modal-body h4 {
+      color: var(--text-main);
+      margin-top: 1.5rem;
+      margin-bottom: 0.5rem;
+      font-weight: 600;
+    }
+    
+    .terms-modal-body pre {
+      background: rgba(0, 0, 0, 0.4);
+      border: 1px solid rgba(255, 255, 255, 0.05);
+      padding: 1rem;
+      border-radius: 8px;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.85rem;
+      color: #38bdf8;
+      white-space: pre-wrap;
+      word-break: break-all;
+    }
+    
+    .sidebar.collapsed .sidebar-legal-links {
+      display: none !important;
+    }
   </style>
 </head>
 <body>
@@ -1367,6 +1467,15 @@
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
           <span data-i18n="btn_clear_all">清除所有歷史</span>
         </button>
+        <div class="sidebar-legal-links" style="margin-top: 10px; display: flex; justify-content: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text-muted);">
+          <a href="https://github.com/hankyleisplay/AetherAI-Studio" target="_blank" style="color: var(--text-muted); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">GitHub</a>
+          <span style="opacity: 0.3">|</span>
+          <a href="#" onclick="event.preventDefault(); showTermsModal('license')" style="color: var(--text-muted); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">License</a>
+          <span style="opacity: 0.3">|</span>
+          <a href="#" onclick="event.preventDefault(); showTermsModal('privacy')" style="color: var(--text-muted); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">Privacy</a>
+          <span style="opacity: 0.3">|</span>
+          <a href="#" onclick="event.preventDefault(); showTermsModal('terms')" style="color: var(--text-muted); text-decoration: none; transition: color 0.2s;" onmouseover="this.style.color='var(--accent-cyan)'" onmouseout="this.style.color='var(--text-muted)'">Terms</a>
+        </div>
       </footer>
     </aside>
 
@@ -3671,8 +3780,81 @@ IMPORTANT RULES:
       loadBridgesSettings();
     }
 
+    // Terms & Privacy Modal Controller
+    function showTermsModal(type) {
+      const modal = document.getElementById('termsModal');
+      const title = document.getElementById('termsModalTitle');
+      const body = document.getElementById('termsModalBody');
+      
+      let html = '';
+      if (type === 'license') {
+        title.innerText = 'MIT License';
+        html = `<pre>MIT License
+
+Copyright (c) 2026 AetherAI Studio
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.</pre>`;
+      } else if (type === 'privacy') {
+        title.innerText = 'Privacy Policy';
+        html = `<h4>100% Offline & Private AI</h4>
+        <p>AetherAI Studio is designed with a strict privacy-first architecture. Since the application runs completely on your local machine, your data privacy is natively protected:</p>
+        <h4>1. Zero Telemetry & Tracking</h4>
+        <p>We do not collect, store, or transmit any telemetry logs, analytics data, tracking metrics, or usage habits. There are no background reporters or cloud endpoints registered for surveillance.</p>
+        <h4>2. Data Security & Storage</h4>
+        <p>All of your chat logs, prompts, API keys, and server configurations are stored exclusively in your local browser's <code>localStorage</code> or local sandboxed config files (<code>config.json</code>). No data ever leaves your computer unless you explicitly configure a cloud API.</p>
+        <h4>3. Local Model execution</h4>
+        <p>Conversations processed under Ollama, LM Studio, or vLLM run entirely offline on your GPU or CPU. We encourage users to verify their network logs to confirm AetherAI's absolute local compliance.</p>`;
+      } else if (type === 'terms') {
+        title.innerText = 'Terms of Use';
+        html = `<h4>1. Terms of Open-Source Use</h4>
+        <p>AetherAI Studio is provided as open-source software under the permissive MIT License. By using the software, you agree to comply with standard licensing rules.</p>
+        <h4>2. No Warranty & Liability</h4>
+        <p>The software is provided "as is" without warranty of any kind. The authors and copyright holders shall not be liable for any claims, damages, or liabilities arising from the use or execution of this software.</p>
+        <h4>3. Execution of Shell Commands (Agent Mode)</h4>
+        <p>When using the "Agent Code" feature, local LLMs generate scripts and shell commands that execute directly on your machine via PowerShell. Users are fully responsible for granting UAC privileges, monitoring the command outputs, and ensuring that the executed commands do not cause accidental data loss or script injection issues.</p>`;
+      }
+      
+      body.innerHTML = html;
+      modal.classList.add('active');
+    }
+    window.showTermsModal = showTermsModal;
+    
+    function closeTermsModal() {
+      document.getElementById('termsModal').classList.remove('active');
+    }
+    window.closeTermsModal = closeTermsModal;
+
     window.addEventListener('DOMContentLoaded', init);
   </script>
+
+  <!-- Terms, Privacy & License Modal -->
+  <div class="terms-backdrop" id="termsModal" onclick="closeTermsModal()">
+    <div class="terms-modal-card" onclick="event.stopPropagation()">
+      <div class="terms-modal-header">
+        <h3 id="termsModalTitle">MIT License</h3>
+        <button class="terms-close-btn" onclick="closeTermsModal()">✕</button>
+      </div>
+      <div class="terms-modal-body" id="termsModalBody">
+        <!-- Content will inject here -->
+      </div>
+    </div>
+  </div>
 
   <!-- Glowing high-tech Toast Notification -->
   <div class="aether-toast" id="save-toast">
