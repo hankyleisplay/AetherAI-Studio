@@ -1003,6 +1003,25 @@
       animation: pulseNeonRed 1.5s infinite ease-in-out !important;
     }
 
+    @keyframes textFadeInOut {
+      0%, 100% {
+        opacity: 0.3;
+        transform: scale(0.98);
+      }
+      50% {
+        opacity: 1;
+        transform: scale(1.02);
+      }
+    }
+    .assistant-waiting-text {
+      font-style: italic;
+      color: var(--accent-cyan);
+      text-shadow: 0 0 5px rgba(0, 242, 254, 0.4);
+      animation: textFadeInOut 1.5s infinite ease-in-out;
+      display: inline-block;
+      margin-right: 4px;
+    }
+
     @keyframes typistBlink {
       0%, 100% { opacity: 0; }
       50% { opacity: 1; }
@@ -1894,6 +1913,33 @@
 
     const PromptLibrary = [];
     function getActiveLanguage() { return localStorage.getItem('aether_lang') || 'en'; }
+
+    function startWaitingState(contentDiv) {
+      const lang = getActiveLanguage();
+      const phrases = {
+        "zh-TW": ["請稍等...", "等一下下...", "思考中..."],
+        "en": ["Please wait...", "Just one click...", "Thinking..."],
+        "ja": ["お待ちください...", "ちょっと待ってください...", "思考中..."]
+      };
+      const activePhrases = phrases[lang] || phrases["en"];
+      let index = 0;
+      contentDiv.innerHTML = `
+        <div class="assistant-waiting-container" style="display: inline-flex; align-items: center; gap: 4px;">
+          <span class="assistant-waiting-text">${activePhrases[0]}</span>
+          <span class="typing-cursor"></span>
+        </div>
+      `;
+      const intervalId = setInterval(() => {
+        const textEl = contentDiv.querySelector('.assistant-waiting-text');
+        if (textEl) {
+          index = (index + 1) % activePhrases.length;
+          textEl.innerText = activePhrases[index];
+        } else {
+          clearInterval(intervalId);
+        }
+      }, 2000);
+      return intervalId;
+    }
 
     function updatePromptLibraryLanguage(lang) {
       PromptLibrary.length = 0;
@@ -3138,7 +3184,10 @@ IMPORTANT RULES:
       const chatLogs = chatHistory.getChatById(activeId).messages;
       const assistantRow = appendMessageRowToDOM('assistant', '');
       const contentDiv = assistantRow.querySelector('.message-content');
-      contentDiv.innerHTML = '<span class="typing-cursor"></span>';
+      
+      // Start waiting state text cycle animation
+      let waitingIntervalId = startWaitingState(contentDiv);
+      
       elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
       document.querySelector('.chat-model-avatar').classList.add('ai-core-active');
@@ -3154,6 +3203,10 @@ IMPORTANT RULES:
           chatLogs,
           { temperature: temp, maxTokens, systemPrompt },
           (chunk, stats) => {
+            if (waitingIntervalId) {
+              clearInterval(waitingIntervalId);
+              waitingIntervalId = null;
+            }
             fullStreamText += chunk;
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
@@ -3164,6 +3217,10 @@ IMPORTANT RULES:
             }
           },
           (err) => {
+            if (waitingIntervalId) {
+              clearInterval(waitingIntervalId);
+              waitingIntervalId = null;
+            }
             contentDiv.innerHTML = `
               <div class="status-pill status-alert" style="display: flex; flex-direction: column; align-items: flex-start; padding: 16px; margin-top: 10px; width: 100%; border-radius: var(--border-radius-sm);">
                 <div style="font-weight: 700; margin-bottom: 6px; display: flex; align-items: center; gap: 8px;">
@@ -3178,6 +3235,11 @@ IMPORTANT RULES:
           },
           currentAbortController
         );
+
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
 
         const cursor = contentDiv.querySelector('.typing-cursor');
         if (cursor) cursor.remove();
@@ -3198,6 +3260,10 @@ IMPORTANT RULES:
           document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
         }
       } catch (e) {
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
         setGeneratingState(false);
         document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
       }
@@ -3261,7 +3327,10 @@ IMPORTANT RULES:
 
       const assistantRow = appendMessageRowToDOM('assistant', '');
       const contentDiv = assistantRow.querySelector('.message-content');
-      contentDiv.innerHTML = '<span class="typing-cursor"></span>';
+      
+      // Start waiting state text cycle animation
+      let waitingIntervalId = startWaitingState(contentDiv);
+      
       elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
       setGeneratingState(true);
@@ -3280,6 +3349,10 @@ IMPORTANT RULES:
           chatLogs,
           { temperature: temp, maxTokens, systemPrompt, images: attachedImages },
           (chunk, stats) => {
+            if (waitingIntervalId) {
+              clearInterval(waitingIntervalId);
+              waitingIntervalId = null;
+            }
             fullStreamText += chunk;
             contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
@@ -3290,6 +3363,10 @@ IMPORTANT RULES:
             }
           },
           (err) => {
+            if (waitingIntervalId) {
+              clearInterval(waitingIntervalId);
+              waitingIntervalId = null;
+            }
             const prov = elements.providerSelect.value;
             const lang = getActiveLanguage();
             let provName = 'Ollama';
@@ -3346,6 +3423,11 @@ IMPORTANT RULES:
           currentAbortController
         );
 
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
+
         const cursor = contentDiv.querySelector('.typing-cursor');
         if (cursor) cursor.remove();
         if (fullStreamText.trim()) {
@@ -3353,7 +3435,15 @@ IMPORTANT RULES:
           renderSessionsHistory();
         }
       } catch (e) {
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
       } finally {
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
         setGeneratingState(false);
         document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
       }

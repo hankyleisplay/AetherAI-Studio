@@ -137,3 +137,24 @@
 .ai-core-active {
   animation: corePulse 2s infinite ease-in-out;
 }
+
+/* Waiting State Text Animation */
+@keyframes textFadeInOut {
+  0%, 100% {
+    opacity: 0.3;
+    transform: scale(0.98);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.02);
+  }
+}
+
+.assistant-waiting-text {
+  font-style: italic;
+  color: var(--accent-cyan);
+  text-shadow: 0 0 5px rgba(0, 242, 254, 0.4);
+  animation: textFadeInOut 1.5s infinite ease-in-out;
+  display: inline-block;
+  margin-right: 4px;
+}

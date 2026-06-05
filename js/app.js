@@ -56,6 +56,33 @@ const elements = {
   metricTime: document.getElementById('metric-time')
 };
 
+function startWaitingState(contentDiv) {
+  const lang = localStorage.getItem('aether_lang') || 'en';
+  const phrases = {
+    "zh-TW": ["請稍等...", "等一下下...", "思考中..."],
+    "en": ["Please wait...", "Just one click...", "Thinking..."],
+    "ja": ["お待ちください...", "ちょっと待ってください...", "思考中..."]
+  };
+  const activePhrases = phrases[lang] || phrases["en"];
+  let index = 0;
+  contentDiv.innerHTML = `
+    <div class="assistant-waiting-container" style="display: inline-flex; align-items: center; gap: 4px;">
+      <span class="assistant-waiting-text">${activePhrases[0]}</span>
+      <span class="typing-cursor"></span>
+    </div>
+  `;
+  const intervalId = setInterval(() => {
+    const textEl = contentDiv.querySelector('.assistant-waiting-text');
+    if (textEl) {
+      index = (index + 1) % activePhrases.length;
+      textEl.innerText = activePhrases[index];
+    } else {
+      clearInterval(intervalId);
+    }
+  }, 2000);
+  return intervalId;
+}
+
 /* ==========================================================================
    Language Translation & i18n Engine
    ========================================================================== */
@@ -644,7 +671,9 @@ async function handleSendMessage() {
   // 3. Create Assistant bubble with typing placeholder inside DOM
   const assistantRow = appendMessageRowToDOM('assistant', '');
   const contentDiv = assistantRow.querySelector('.message-content');
-  contentDiv.innerHTML = '<span class="typing-cursor"></span>';
+  
+  // Start waiting state text cycle animation
+  let waitingIntervalId = startWaitingState(contentDiv);
   
   elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
 
@@ -670,6 +699,10 @@ async function handleSendMessage() {
       chatLogs,
       { temperature: temp, maxTokens, systemPrompt },
       (chunkText, stats) => {
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
         // Stream chunk success callback
         fullStreamText += chunkText;
         contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
@@ -684,6 +717,10 @@ async function handleSendMessage() {
         }
       },
       (err) => {
+        if (waitingIntervalId) {
+          clearInterval(waitingIntervalId);
+          waitingIntervalId = null;
+        }
         // API stream failure error callback
         console.error('API Stream Exception:', err);
         const errAlert = `
@@ -709,6 +746,11 @@ async function handleSendMessage() {
       currentAbortController
     );
 
+    if (waitingIntervalId) {
+      clearInterval(waitingIntervalId);
+      waitingIntervalId = null;
+    }
+
     // Stream finished successfully. Remove typing cursor indicator
     const cursor = contentDiv.querySelector('.typing-cursor');
     if (cursor) cursor.remove();
@@ -720,8 +762,16 @@ async function handleSendMessage() {
     }
 
   } catch (e) {
+    if (waitingIntervalId) {
+      clearInterval(waitingIntervalId);
+      waitingIntervalId = null;
+    }
     console.warn('Chat execution exception:', e);
   } finally {
+    if (waitingIntervalId) {
+      clearInterval(waitingIntervalId);
+      waitingIntervalId = null;
+    }
     setGeneratingState(false);
     document.querySelector('.chat-model-avatar').classList.remove('ai-core-active');
   }
