@@ -30,6 +30,29 @@ $hybridTemplate = @"
 # ==========================================================================
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
 
+# ==========================================================================
+# ADMINISTRATOR PRIVILEGE ELEVATION CHECK
+# ==========================================================================
+`$isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-not `$isAdmin) {
+    `$scriptPath = `$MyInvocation.MyCommand.Path
+    if (`$scriptPath -and (Test-Path `$scriptPath)) {
+        Write-Host "Requesting Administrator privileges to run AetherAI Studio..." -ForegroundColor Yellow
+        `$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$scriptPath)
+        if (`$args) { `$argList += `$args }
+        try {
+            Start-Process powershell -ArgumentList `$argList -Verb RunAs
+            exit
+        } catch {
+            Write-Host "❌ Error: Administrator privileges are required to run this script." -ForegroundColor Red
+            Write-Host "Please approve the UAC prompt or run PowerShell as Administrator." -ForegroundColor Yellow
+            Write-Host "Press any key to exit..." -ForegroundColor Gray
+            try { [void][System.Console]::ReadKey(`$true) } catch {}
+            exit
+        }
+    }
+}
+
 `$portableBase64 = "$portableBase64"
 `$serverBase64 = "$serverBase64"
 
@@ -69,6 +92,23 @@ if (`$isTemp) {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-RestMethod -Uri "https://hankyle.com/run.ps1" -OutFile `$targetScriptPath -ErrorAction SilentlyContinue
         } catch {}
+    }
+    
+    # Relaunch as administrator if not already admin
+    if (-not `$isAdmin) {
+        Write-Host "Requesting Administrator privileges to complete installation..." -ForegroundColor Yellow
+        `$argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$targetScriptPath)
+        if (`$args) { `$argList += `$args }
+        try {
+            Start-Process powershell -ArgumentList `$argList -Verb RunAs
+            exit
+        } catch {
+            Write-Host "❌ Error: Administrator privileges are required to complete the installation." -ForegroundColor Red
+            Write-Host "Please approve the UAC prompt or run PowerShell as Administrator." -ForegroundColor Yellow
+            Write-Host "Press any key to exit..." -ForegroundColor Gray
+            try { [void][System.Console]::ReadKey(`$true) } catch {}
+            exit
+        }
     }
     
     Set-Location -Path `$permanentDir
