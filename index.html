@@ -665,6 +665,58 @@
       color: var(--text-highlight);
     }
 
+    /* Collapsible Reasoning Block (Thinking process) */
+    .reasoning-block {
+      border: 1px solid rgba(0, 242, 254, 0.15);
+      background: rgba(5, 5, 15, 0.4);
+      border-radius: 8px;
+      margin: 12px 0;
+      overflow: hidden;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      transition: border-color var(--transition-fast);
+    }
+    .reasoning-block:hover {
+      border-color: rgba(0, 242, 254, 0.3);
+    }
+    .reasoning-header {
+      padding: 10px 14px;
+      background: rgba(0, 242, 254, 0.05);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      cursor: pointer;
+      font-size: 12.5px;
+      color: var(--accent-cyan);
+      font-weight: 600;
+      user-select: none;
+      transition: background var(--transition-fast);
+    }
+    .reasoning-header:hover {
+      background: rgba(0, 242, 254, 0.08);
+    }
+    .reasoning-toggle-icon {
+      font-size: 10px;
+      color: var(--text-muted);
+      transition: transform var(--transition-smooth);
+    }
+    .reasoning-block.collapsed .reasoning-toggle-icon {
+      transform: rotate(-90deg);
+    }
+    .reasoning-body {
+      padding: 14px;
+      border-top: 1px solid rgba(0, 242, 254, 0.1);
+      font-size: 13px;
+      line-height: 1.6;
+      color: var(--text-muted);
+      font-style: italic;
+      white-space: pre-wrap;
+      max-height: 300px;
+      overflow-y: auto;
+    }
+    .reasoning-block.collapsed .reasoning-body {
+      display: none;
+    }
+
     /* Input box area */
     .chat-input-area {
       padding: 24px;
@@ -1925,6 +1977,7 @@
     const translations = {
       "zh-TW": {
         "brand_title": "AetherAI Studio",
+        "thinking_process": "思考過程",
         "btn_new_chat": "開啟新對話",
         "btn_clear_all": "清除所有歷史",
         "history_empty": "無歷史對話紀錄",
@@ -1982,6 +2035,7 @@
       },
       "en": {
         "brand_title": "AetherAI Studio",
+        "thinking_process": "Thinking Process",
         "btn_new_chat": "New Chat",
         "btn_clear_all": "Clear History",
         "history_empty": "No Chat History",
@@ -2039,6 +2093,7 @@
       },
       "ja": {
         "brand_title": "AetherAI Studio",
+        "thinking_process": "思考プロセス",
         "btn_new_chat": "新規対話",
         "btn_clear_all": "履歴クリア",
         "history_empty": "会話履歴なし",
@@ -2548,9 +2603,52 @@
       return rendered.trim();
     }
 
-    function compileMarkdown(markdownText) {
+    function compileMarkdown(markdownText, isGenerating = false) {
       if (!markdownText) return '';
-      let html = markdownText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+      let thinkingHtml = '';
+      let contentToCompile = markdownText;
+      let isStreamingThink = false;
+
+      const thinkStartIdx = markdownText.toLowerCase().indexOf('<think>');
+      if (thinkStartIdx !== -1) {
+        const thinkEndIdx = markdownText.toLowerCase().indexOf('</think>', thinkStartIdx + 7);
+        let thinkContent = '';
+
+        if (thinkEndIdx !== -1) {
+          thinkContent = markdownText.substring(thinkStartIdx + 7, thinkEndIdx).trim();
+          contentToCompile = markdownText.substring(0, thinkStartIdx) + markdownText.substring(thinkEndIdx + 8);
+        } else {
+          thinkContent = markdownText.substring(thinkStartIdx + 7).trim();
+          contentToCompile = markdownText.substring(0, thinkStartIdx);
+          isStreamingThink = true;
+        }
+
+        if (thinkContent || isStreamingThink) {
+          let compiledThink = compileMarkdown(thinkContent, false);
+          if (isStreamingThink && isGenerating) {
+            compiledThink += '<span class="typing-cursor"></span>';
+          }
+
+          const lang = getActiveLanguage();
+          const dict = translations[lang] || translations['en'];
+          const headerText = dict.thinking_process || 'Thinking Process';
+
+          thinkingHtml = `
+            <div class="reasoning-block${!isStreamingThink ? ' collapsed' : ''}">
+              <div class="reasoning-header" onclick="toggleReasoning(this)">
+                <span style="display:flex; align-items:center; gap:6px;">🧠 ${headerText}</span>
+                <span class="reasoning-toggle-icon">▼</span>
+              </div>
+              <div class="reasoning-body">${compiledThink}</div>
+            </div>
+          `.trim();
+        }
+      }
+
+      const compileMainWithCursor = isGenerating && !isStreamingThink;
+
+      let html = contentToCompile.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
       html = html.replace(/^&gt;\s+(.*)$/gm, '<blockquote>$1</blockquote>');
 
       const codeBlocks = [];
@@ -2665,8 +2763,23 @@
         </div>
       `);
 
+      if (compileMainWithCursor) {
+        html += '<span class="typing-cursor"></span>';
+      }
+
+      if (thinkingHtml) {
+        html = thinkingHtml + '\n' + html;
+      }
+
       return html;
     }
+
+    window.toggleReasoning = function(header) {
+      const block = header.closest('.reasoning-block');
+      if (block) {
+        block.classList.toggle('collapsed');
+      }
+    };
 
     window.copyCodeSnippet = function(button) {
       const plainText = button.closest('pre').querySelector('code').textContent;
@@ -3510,7 +3623,7 @@ IMPORTANT RULES:
               waitingIntervalId = null;
             }
             fullStreamText += chunk;
-            contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
+            contentDiv.innerHTML = compileMarkdown(fullStreamText, true);
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             updateHudTokenCount(chunk);
             if (stats) {
@@ -3745,7 +3858,7 @@ IMPORTANT RULES:
               waitingIntervalId = null;
             }
             fullStreamText += chunk;
-            contentDiv.innerHTML = compileMarkdown(fullStreamText) + '<span class="typing-cursor"></span>';
+            contentDiv.innerHTML = compileMarkdown(fullStreamText, true);
             elements.chatMessages.scrollTop = elements.chatMessages.scrollHeight;
             updateHudTokenCount(chunk);
             if (stats) {
