@@ -47,8 +47,9 @@ Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $request = [System.Net.WebRequest]::Create("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+    $request = [System.Net.WebRequest]::Create("https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
     $request.Timeout = 3000
+    $request.UserAgent = "Mozilla/5.0"
     $request.Method = "GET"
     $response = $request.GetResponse()
     $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
@@ -56,14 +57,16 @@ try {
     $reader.Close()
     $response.Close()
     
-    if ($jsonStr -match '"version":\s*"([^"]+)"') {
-        $remoteVersion = $Matches[1]
+    if ($jsonStr -match '"tag_name":\\s*"([^"]+)"') {
+        $remoteTag = $Matches[1]
+        $remoteVersion = if ($remoteTag -match '^v?([0-9.]+.*)$') { $Matches[1] } else { $remoteTag }
+        
         if ($remoteVersion -ne $localVersion) {
             Write-Host "New version $remoteVersion available! (Current local: $localVersion)" -ForegroundColor Green
             $scriptPath = $MyInvocation.MyCommand.Path
             if ($scriptPath -and (Test-Path $scriptPath) -and ($scriptPath -notlike "*temp*")) {
-                Write-Host "Downloading update from GitHub..." -ForegroundColor Yellow
-                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1"
+                Write-Host "Downloading update from GitHub Releases ($remoteTag)..." -ForegroundColor Yellow
+                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/$remoteTag/run.ps1"
                 try {
                     $webClient = New-Object System.Net.WebClient
                     $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
@@ -87,7 +90,7 @@ try {
         }
     }
 } catch {
-    Write-Host "⚠️ Unable to check for updates (offline or raw.githubusercontent.com unreachable)." -ForegroundColor Yellow
+    Write-Host "⚠️ Unable to check for updates (offline or GitHub Releases API unreachable)." -ForegroundColor Yellow
 }
 
 # ==========================================================================
@@ -814,15 +817,16 @@ const shTemplate = `#!/bin/bash
 # ==========================================================================
 LOCAL_VERSION="${version}"
 echo "Checking for AetherAI Studio updates..."
-REMOTE_JSON=\$(curl -s --max-time 3 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+REMOTE_JSON=\$(curl -s --max-time 3 "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
 if [ \$? -eq 0 ] && [ "\$REMOTE_JSON" != "" ]; then
-    REMOTE_VERSION=\$(echo "\$REMOTE_JSON" | grep -o '"version": "[^"]*' | grep -o '[^"]*\$')
+    REMOTE_TAG=\$(echo "\$REMOTE_JSON" | grep -o '"tag_name":\\s*"[^"]*' | sed 's/.*"tag_name":\\s*"//')
+    REMOTE_VERSION=\$(echo "\$REMOTE_TAG" | sed 's/^v//')
     if [ "\$REMOTE_VERSION" != "" ] && [ "\$REMOTE_VERSION" != "\$LOCAL_VERSION" ]; then
         echo "New version \$REMOTE_VERSION available! (Current local: \$LOCAL_VERSION)"
         SCRIPT_PATH="\$0"
         if [ -f "\$SCRIPT_PATH" ] && [ -w "\$SCRIPT_PATH" ] && [[ "\$SCRIPT_PATH" != *temp* ]]; then
-            echo "Downloading update from GitHub..."
-            curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.sh" -o "\$SCRIPT_PATH"
+            echo "Downloading update from GitHub Releases (\$REMOTE_TAG)..."
+            curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/\$REMOTE_TAG/run.sh" -o "\$SCRIPT_PATH"
             echo "Update installed successfully! Restarting launcher..."
             exec bash "\$SCRIPT_PATH" "\$@"
             exit 0

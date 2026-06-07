@@ -11,8 +11,9 @@ Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $request = [System.Net.WebRequest]::Create("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+    $request = [System.Net.WebRequest]::Create("https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
     $request.Timeout = 3000
+    $request.UserAgent = "Mozilla/5.0"
     $request.Method = "GET"
     $response = $request.GetResponse()
     $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
@@ -20,14 +21,16 @@ try {
     $reader.Close()
     $response.Close()
     
-    if ($jsonStr -match '"version":s*"([^"]+)"') {
-        $remoteVersion = $Matches[1]
+    if ($jsonStr -match '"tag_name":\s*"([^"]+)"') {
+        $remoteTag = $Matches[1]
+        $remoteVersion = if ($remoteTag -match '^v?([0-9.]+.*)$') { $Matches[1] } else { $remoteTag }
+        
         if ($remoteVersion -ne $localVersion) {
             Write-Host "New version $remoteVersion available! (Current local: $localVersion)" -ForegroundColor Green
             $scriptPath = $MyInvocation.MyCommand.Path
             if ($scriptPath -and (Test-Path $scriptPath) -and ($scriptPath -notlike "*temp*")) {
-                Write-Host "Downloading update from GitHub..." -ForegroundColor Yellow
-                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1"
+                Write-Host "Downloading update from GitHub Releases ($remoteTag)..." -ForegroundColor Yellow
+                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/$remoteTag/run.ps1"
                 try {
                     $webClient = New-Object System.Net.WebClient
                     $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
@@ -51,7 +54,7 @@ try {
         }
     }
 } catch {
-    Write-Host "⚠️ Unable to check for updates (offline or raw.githubusercontent.com unreachable)." -ForegroundColor Yellow
+    Write-Host "⚠️ Unable to check for updates (offline or GitHub Releases API unreachable)." -ForegroundColor Yellow
 }
 
 # ==========================================================================
@@ -64,9 +67,8 @@ if (-not $isAdmin) {
         Write-Host "Requesting Administrator privileges to run AetherAI Studio..." -ForegroundColor Yellow
         $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
         if ($args) { $argList += $args }
-        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
         try {
-            Start-Process $shellName -ArgumentList $argList -Verb RunAs
+            Start-Process powershell -ArgumentList $argList -Verb RunAs
             exit
         } catch {
             Write-Host "❌ Error: Administrator privileges are required to run this script." -ForegroundColor Red
@@ -111,19 +113,21 @@ if ($isTemp) {
     if ($scriptPath -and (Test-Path $scriptPath)) {
         Copy-Item -Path $scriptPath -Destination $targetScriptPath -Force -ErrorAction SilentlyContinue | Out-Null
     } else {
+        # Running in-memory (e.g., irm https://hankyle.com/run.ps1 | iex)
+        # Download the script to its permanent location
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             Invoke-RestMethod -Uri "https://hankyle.com/run.ps1" -OutFile $targetScriptPath -ErrorAction SilentlyContinue
         } catch {}
     }
     
+    # Relaunch as administrator if not already admin
     if (-not $isAdmin) {
         Write-Host "Requesting Administrator privileges to complete installation..." -ForegroundColor Yellow
         $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $targetScriptPath)
         if ($args) { $argList += $args }
-        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
         try {
-            Start-Process $shellName -ArgumentList $argList -Verb RunAs
+            Start-Process powershell -ArgumentList $argList -Verb RunAs
             exit
         } catch {
             Write-Host "❌ Error: Administrator privileges are required to complete the installation." -ForegroundColor Red
@@ -379,6 +383,7 @@ if ($key -eq '1') {
 } elseif ($key -eq '2') {
     $lang = "en"
 } else {
+    # Fallback to system UI culture if invalid key pressed
     $sysLang = [System.Globalization.CultureInfo]::CurrentUICulture.Name
     if ($sysLang -like "zh*") {
         $lang = "zh-TW"
@@ -439,7 +444,7 @@ $dict = @{
         "guide_s1" = "  3. 桌面捷徑：";
         "guide_s2" = "     - 您的桌面已建立「AetherAI Studio」捷徑，未來雙擊該捷徑即可直接啟動！";
         "guide_close" = "  4. 關閉軟體：直接關閉本命令提示字元 (CMD) 視窗，即可安全關閉本機伺服器。";
-        "guide_cli" = '  5. 更多 CLI 指令：您可在終端機執行 ``aetherai --help`` 查看所有維護/診斷選項（例如修復 CORS、解除安裝等）。';
+        "guide_cli" = '  5. 更多 CLI 指令：您可在終端機執行 `aetherai --help` 查看所有維護/診斷選項（例如修復 CORS、解除安裝等）。';
         "ollama_prompt_title" = "  請選擇您的 AI 模型供應商 / Preferred AI Provider:";
         "ollama_opt_1" = "   [1] 下載並安裝 Ollama 本機服務 (推薦，全自動下載)";
         "ollama_opt_2" = "   [2] 使用 LM Studio (請自行下載並在連接埠 1234 啟動 API 伺服器)";
@@ -499,7 +504,7 @@ $dict = @{
         "guide_s1" = "  3. Desktop Shortcut:";
         "guide_s2" = "     - A shortcut named 'AetherAI Studio' has been created on your Windows Desktop for quick launch.";
         "guide_close" = "  4. Shutdown: Simply close this CMD window to safely shut down the local server.";
-        "guide_cli" = '  5. Extra CLI Options: Run ``aetherai --help`` to access diagnostic/maintenance flags (like fixing CORS, clean uninstall, etc.).';
+        "guide_cli" = '  5. Extra CLI Options: Run `aetherai --help` to access diagnostic/maintenance flags (like fixing CORS, clean uninstall, etc.).';
         "ollama_prompt_title" = "  Please select your AI provider / 請選擇您的 AI 供應商:";
         "ollama_opt_1" = "   [1] Download & Install Ollama local service (Recommended, fully automatic)";
         "ollama_opt_2" = "   [2] Use LM Studio (Download yourself and run API server on port 1234)";
@@ -585,6 +590,7 @@ if ($ollamaCmd) {
         try {
             [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
             
+            # Real-time HTTP Downloader with High-Tech Progress Bar
             $request = [System.Net.HttpWebRequest]::Create("https://ollama.com/download/OllamaSetup.exe")
             $request.Timeout = 300000
             $response = $request.GetResponse()
@@ -631,6 +637,7 @@ if ($ollamaCmd) {
             $targetStream.Close()
             $response.Close()
             
+            # Newline after download complete
             Write-Host ""
             Write-Host $m["download_success"] -ForegroundColor Green
             
@@ -712,6 +719,7 @@ try {
         $newPath = $userPath + ";" + $cleanScriptDir
         [Environment]::SetEnvironmentVariable("Path", $newPath, [EnvironmentVariableTarget]::User)
         
+        # Also temporarily update current process PATH so they can run it immediately in this session if started from outside
         $env:Path += ";" + $cleanScriptDir
     }
     Write-Host $m["register_success"] -ForegroundColor Green

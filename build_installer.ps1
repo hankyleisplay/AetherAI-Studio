@@ -43,8 +43,9 @@ Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
 
 try {
     [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    `$request = [System.Net.WebRequest]::Create("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+    `$request = [System.Net.WebRequest]::Create("https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
     `$request.Timeout = 3000
+    `$request.UserAgent = "Mozilla/5.0"
     `$request.Method = "GET"
     `$response = `$request.GetResponse()
     `$reader = New-Object System.IO.StreamReader(`$response.GetResponseStream())
@@ -52,14 +53,16 @@ try {
     `$reader.Close()
     `$response.Close()
     
-    if (`$jsonStr -match '"version":\s*"([^"]+)"') {
-        `$remoteVersion = `$Matches[1]
+    if (`$jsonStr -match '"tag_name":\s*"([^"]+)"') {
+        `$remoteTag = `$Matches[1]
+        `$remoteVersion = if (`$remoteTag -match '^v?([0-9.]+.*)$') { `$Matches[1] } else { `$remoteTag }
+        
         if (`$remoteVersion -ne `$localVersion) {
             Write-Host "New version `$remoteVersion available! (Current local: `$localVersion)" -ForegroundColor Green
             `$scriptPath = `$MyInvocation.MyCommand.Path
             if (`$scriptPath -and (Test-Path `$scriptPath) -and (`$scriptPath -notlike "*temp*")) {
-                Write-Host "Downloading update from GitHub..." -ForegroundColor Yellow
-                `$updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1"
+                Write-Host "Downloading update from GitHub Releases (`$remoteTag)..." -ForegroundColor Yellow
+                `$updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/`$remoteTag/run.ps1"
                 try {
                     `$webClient = New-Object System.Net.WebClient
                     `$webClient.Headers.Add("User-Agent", "Mozilla/5.0")
@@ -83,7 +86,7 @@ try {
         }
     }
 } catch {
-    Write-Host "⚠️ Unable to check for updates (offline or raw.githubusercontent.com unreachable)." -ForegroundColor Yellow
+    Write-Host "⚠️ Unable to check for updates (offline or GitHub Releases API unreachable)." -ForegroundColor Yellow
 }
 
 # ==========================================================================
