@@ -2327,7 +2327,7 @@
       async fetchModels() {
         if (this.provider === 'ollama' || this.provider === 'agent') {
           try {
-            const response = await fetch(`${this.ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(2000) });
+            const response = await fetch(`${this.ollamaUrl}/api/tags`, { signal: AbortSignal.timeout(8000) });
             if (!response.ok) throw new Error('Ollama error');
             const data = await response.json();
             return data.models.map(m => ({
@@ -2339,7 +2339,7 @@
           }
         } else if (this.provider === 'lmstudio' || this.provider === 'vllm') {
           try {
-            const response = await fetch(`${this.ollamaUrl}/v1/models`, { signal: AbortSignal.timeout(2000) });
+            const response = await fetch(`${this.ollamaUrl}/v1/models`, { signal: AbortSignal.timeout(8000) });
             if (!response.ok) throw new Error(`${this.provider.toUpperCase()} error`);
             const data = await response.json();
             if (data && Array.isArray(data.data)) {

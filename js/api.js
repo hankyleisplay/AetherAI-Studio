@@ -28,7 +28,7 @@ class AetherAPI {
     if (this.provider === 'ollama') {
       try {
         const response = await fetch(`${this.ollamaUrl}/api/tags`, {
-          signal: AbortSignal.timeout(2000) // Fast timeout for responsiveness
+          signal: AbortSignal.timeout(8000) // 8s timeout to prevent premature disconnection
         });
         if (!response.ok) throw new Error('Ollama connection error');
         const data = await response.json();
