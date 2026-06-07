@@ -1,11 +1,18 @@
 {
-  "name": "aetherai-studio",
+  "name": "@hankyleisplay/aetherai-studio",
   "version": "1.0.0",
   "description": "Private Local AI Playground and Chat Console with Agent Code Mode",
   "main": "server.js",
   "bin": {
     "aetherai": "./cli.js",
     "aether": "./cli.js"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hankyleisplay/AetherAI-Studio.git"
   },
   "scripts": {
     "start": "node cli.js",
