@@ -68,7 +68,9 @@ const translations = {
     "discord_webhook_label": "Discord Webhook URL",
     "discord_webhook_placeholder": "輸入 Discord 頻道之 Webhook 網址",
     "btn_save_settings": "儲存並套用設定",
-    "toast_settings_saved": "設定已儲存並套用！"
+    "toast_settings_saved": "設定已儲存並套用！",
+    "tab_modelhub": "模型商店 (Hub)",
+    "modelhub_title": "Ollama 模型商店 (Model Hub)"
   },
   "en": {
     // Brand & Sidebar
@@ -135,7 +137,9 @@ const translations = {
     "discord_webhook_label": "Discord Webhook URL",
     "discord_webhook_placeholder": "Enter Discord Channel Webhook URL",
     "btn_save_settings": "Save & Apply Settings",
-    "toast_settings_saved": "Settings updated successfully!"
+    "toast_settings_saved": "Settings updated successfully!",
+    "tab_modelhub": "Model Hub",
+    "modelhub_title": "Ollama Model Hub"
   },
   "ja": {
     // Brand & Sidebar
@@ -202,7 +206,9 @@ const translations = {
     "discord_webhook_label": "Discord Webhook URL",
     "discord_webhook_placeholder": "Discord チャンネルの Webhook URL を入力",
     "btn_save_settings": "設定を保存して適用",
-    "toast_settings_saved": "設定を保存して適用しました！"
+    "toast_settings_saved": "設定を保存して適用しました！",
+    "tab_modelhub": "モデルハブ (Hub)",
+    "modelhub_title": "Ollama モデルストア (Model Hub)"
   }
 };
 

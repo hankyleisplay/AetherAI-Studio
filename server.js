@@ -598,6 +598,63 @@ const server = http.createServer((request, response) => {
     }
     
     // ----------------------------------------------------
+    // API Route: Ollama Model Pull Proxy
+    // ----------------------------------------------------
+    if (urlPath === '/api/ollama/pull') {
+      let body = '';
+      request.on('data', chunk => { body += chunk; });
+      request.on('end', () => {
+        try {
+          const payload = JSON.parse(body);
+          const modelName = payload.model;
+          if (!modelName) {
+            response.statusCode = 400;
+            response.end("Missing model parameter");
+            return;
+          }
+
+          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          const ollamaUrl = config.ollama_url || "http://localhost:11434";
+          
+          const targetUrl = new URL(`${ollamaUrl}/api/pull`);
+          const isHttps = targetUrl.protocol === 'https:';
+          const lib = isHttps ? require('https') : require('http');
+
+          const options = {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 600000 // 10 minutes timeout for model download
+          };
+
+          response.statusCode = 200;
+          response.setHeader('Content-Type', 'application/json; charset=utf-8');
+
+          const pullReq = lib.request(targetUrl, options, (pullRes) => {
+            pullRes.on('data', (chunk) => {
+              response.write(chunk);
+            });
+            pullRes.on('end', () => {
+              response.end();
+            });
+          });
+
+          pullReq.on('error', (err) => {
+            console.error("Ollama pull proxy error:", err);
+            response.write(JSON.stringify({ error: err.message }));
+            response.end();
+          });
+
+          pullReq.write(JSON.stringify({ name: modelName }));
+          pullReq.end();
+        } catch (e) {
+          response.statusCode = 500;
+          response.end(`Error: ${e.message}`);
+        }
+      });
+      return;
+    }
+    
+    // ----------------------------------------------------
     // STATIC FILE SERVING
     // ----------------------------------------------------
     if (urlPath === '/') { urlPath = '/index.html'; }

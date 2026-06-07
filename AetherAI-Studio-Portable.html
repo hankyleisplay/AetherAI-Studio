@@ -1794,6 +1794,7 @@
           <button class="modal-tab-btn active" data-tab="tab-models" data-i18n="tab_models">模型與連線</button>
           <button class="modal-tab-btn" data-tab="tab-advanced" data-i18n="tab_advanced">高級人設與參數</button>
           <button class="modal-tab-btn" data-tab="tab-bridges" data-i18n="tab_bridges">社群軟體串接</button>
+          <button class="modal-tab-btn" data-tab="tab-modelhub" data-i18n="tab_modelhub">模型商店 (Hub)</button>
         </div>
 
         <div class="modal-scroll-area">
@@ -1952,7 +1953,85 @@
               </div>
             </section>
           </div>
+          
+          <!-- Tab 4: Model Hub -->
+          <div class="modal-tab-content" id="tab-modelhub">
+            <section class="settings-card glass-panel" style="border:none; background:transparent; padding:0; box-shadow:none;">
+              <div class="form-group" style="margin-bottom: 14px;">
+                <label class="form-label" style="font-weight: 600; display: flex; align-items: center; gap: 6px;">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
+                  <span data-i18n="modelhub_title">Ollama 模型商店 (Model Hub)</span>
+                </label>
+                <div style="font-size: 12px; color: var(--text-light); opacity: 0.8; margin-bottom: 12px; line-height: 1.4;">
+                  在這裡您可以直接下載並安裝 Ollama 本地模型，下載過程無需開啟終端機。
+                </div>
+                
+                <div class="modelhub-grid" style="display: flex; flex-direction: column; gap: 8px; max-height: 250px; overflow-y: auto; padding-right: 4px; margin-bottom: 14px; border: 1px solid rgba(255,255,255,0.06); padding: 8px; border-radius: 8px; background: rgba(0,0,0,0.15);">
+                  
+                  <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; color: var(--accent-cyan);">DeepSeek-R1 (1.5B)</div>
+                      <div style="font-size: 11px; opacity: 0.7;">超輕量推理模型 · 1.1 GB</div>
+                    </div>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:1.5b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                  </div>
 
+                  <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; color: var(--accent-cyan);">DeepSeek-R1 (7B)</div>
+                      <div style="font-size: 11px; opacity: 0.7;">主流中階推理模型 · 4.7 GB</div>
+                    </div>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:7b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                  </div>
+
+                  <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; color: #fff;">Llama-3.1 (8B)</div>
+                      <div style="font-size: 11px; opacity: 0.7;">Meta 全功能通用模型 · 4.7 GB</div>
+                    </div>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('llama3.1')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                  </div>
+
+                  <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; color: #fff;">Qwen-2.5-Coder (7B)</div>
+                      <div style="font-size: 11px; opacity: 0.7;">阿里最強程式寫作模型 · 4.7 GB</div>
+                    </div>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('qwen2.5-coder:7b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                  </div>
+
+                  <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
+                    <div>
+                      <div style="font-weight: bold; font-size: 13px; color: #fff;">Gemma-2 (2B)</div>
+                      <div style="font-size: 11px; opacity: 0.7;">Google 高效能迷你模型 · 1.6 GB</div>
+                    </div>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('gemma2:2b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                  </div>
+
+                </div>
+
+                <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px;">
+                  <input type="text" class="input-glass" id="input-custom-pull" placeholder="輸入其它 Ollama 模型名稱 (如 phi4)" style="flex: 1; font-size: 12px; height: 32px; padding: 0 10px;">
+                  <button type="button" class="btn-glass" onclick="pullCustomOllamaModel()" style="height: 32px; font-size: 12px; padding: 0 14px; white-space: nowrap;">下載其它</button>
+                </div>
+
+                <div id="modelhub-progress-container" style="display: none; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 14px; margin-top: 10px;">
+                  <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
+                    <span id="modelhub-progress-status" style="font-weight: bold; color: var(--accent-cyan);">正在下載: -</span>
+                    <span id="modelhub-progress-percent">0%</span>
+                  </div>
+                  <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.02);">
+                    <div id="modelhub-progress-bar" style="width: 0%; height: 100%; background: linear-gradient(90deg, var(--accent-cyan), #9b51e0); transition: width 0.3s; box-shadow: 0 0 8px var(--glow-cyan);"></div>
+                  </div>
+                  <div style="display: flex; justify-content: space-between; font-size: 11px; opacity: 0.7;">
+                    <span id="modelhub-progress-speed">- MB/s</span>
+                    <span id="modelhub-progress-bytes">- / -</span>
+                  </div>
+                </div>
+
+              </div>
+            </section>
+          </div>
 
         </div>
 
@@ -2031,7 +2110,9 @@
         "telegram_chat_id_placeholder": "輸入您的 Chat ID (可向 @userinfobot 查詢)",
         "bridge_discord_title": "Discord 廣播串接",
         "discord_webhook_label": "Discord Webhook 網址",
-        "discord_webhook_placeholder": "輸入 Discord 頻道之 Webhook 網址"
+        "discord_webhook_placeholder": "輸入 Discord 頻道之 Webhook 網址",
+        "tab_modelhub": "模型商店 (Hub)",
+        "modelhub_title": "Ollama 模型商店 (Model Hub)"
       },
       "en": {
         "brand_title": "AetherAI Studio",
@@ -2089,7 +2170,9 @@
         "telegram_chat_id_placeholder": "Enter Chat ID (query @userinfobot)",
         "bridge_discord_title": "Discord Broadcast Bridge",
         "discord_webhook_label": "Discord Webhook URL",
-        "discord_webhook_placeholder": "Enter Discord channel Webhook URL"
+        "discord_webhook_placeholder": "Enter Discord channel Webhook URL",
+        "tab_modelhub": "Model Hub",
+        "modelhub_title": "Ollama Model Hub"
       },
       "ja": {
         "brand_title": "AetherAI Studio",
@@ -2147,7 +2230,9 @@
         "telegram_chat_id_placeholder": "チャットIDを入力 (@userinfobot で確認)",
         "bridge_discord_title": "Discord 配信連携",
         "discord_webhook_label": "Discord Webhook URL",
-        "discord_webhook_placeholder": "Discord チャンネルの Webhook URL を入力"
+        "discord_webhook_placeholder": "Discord チャンネルの Webhook URL を入力",
+        "tab_modelhub": "モデルハブ (Hub)",
+        "modelhub_title": "Ollama モデルストア (Model Hub)"
       }
     };
 
@@ -3663,6 +3748,11 @@ IMPORTANT RULES:
         if (fullStreamText.trim()) {
           chatHistory.appendMessage(activeId, 'assistant', fullStreamText);
           renderSessionsHistory();
+          
+          const currentChat = chatHistory.getChatById(activeId);
+          if (currentChat && currentChat.messages.length === 2) {
+            triggerSmartTitleNaming(activeId, currentChat.messages[0].content);
+          }
 
           const action = parseAgentTags(fullStreamText);
           if (action) {
@@ -3938,6 +4028,11 @@ IMPORTANT RULES:
         if (fullStreamText.trim()) {
           chatHistory.appendMessage(activeId, 'assistant', fullStreamText);
           renderSessionsHistory();
+          
+          const currentChat = chatHistory.getChatById(activeId);
+          if (currentChat && currentChat.messages.length === 2) {
+            triggerSmartTitleNaming(activeId, currentChat.messages[0].content);
+          }
         }
       } catch (e) {
         if (waitingIntervalId) {
@@ -4460,6 +4555,183 @@ SOFTWARE.</pre>`;
       if (modal) modal.classList.remove('active');
     }
     window.closePromptGallery = closePromptGallery;
+
+    // ==========================================================================
+    // Ollama Model Hub - Pull Model Streaming Logic
+    // ==========================================================================
+    async function pullOllamaModel(modelName) {
+      const statusText = document.getElementById('modelhub-progress-status');
+      const percentText = document.getElementById('modelhub-progress-percent');
+      const speedText = document.getElementById('modelhub-progress-speed');
+      const bytesText = document.getElementById('modelhub-progress-bytes');
+      const progressBar = document.getElementById('modelhub-progress-bar');
+      const progressContainer = document.getElementById('modelhub-progress-container');
+
+      if (!statusText || !percentText || !speedText || !bytesText || !progressBar || !progressContainer) return;
+
+      progressContainer.style.display = 'block';
+      statusText.innerText = `正在初始化: ${modelName}`;
+      percentText.innerText = '0%';
+      progressBar.style.width = '0%';
+      speedText.innerText = '- MB/s';
+      bytesText.innerText = '0 / -';
+
+      try {
+        const response = await fetch('/api/ollama/pull', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ model: modelName })
+        });
+
+        if (!response.ok) throw new Error(`HTTP 錯誤: ${response.status}`);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder('utf-8');
+        let buffer = '';
+        let lastTime = performance.now();
+        let lastCompleted = 0;
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+
+          for (const line of lines) {
+            if (!line.trim()) continue;
+            try {
+              const parsed = JSON.parse(line);
+              
+              if (parsed.status) {
+                statusText.innerText = `${parsed.status}: ${modelName}`;
+              }
+              
+              if (parsed.completed && parsed.total) {
+                const percent = Math.round((parsed.completed / parsed.total) * 100);
+                percentText.innerText = `${percent}%`;
+                progressBar.style.width = `${percent}%`;
+
+                const completedMB = (parsed.completed / (1024 * 1024)).toFixed(1);
+                const totalMB = (parsed.total / (1024 * 1024)).toFixed(1);
+                bytesText.innerText = `${completedMB} MB / ${totalMB} MB`;
+
+                const now = performance.now();
+                const elapsedSec = (now - lastTime) / 1000;
+                if (elapsedSec >= 1.0) {
+                  const bytesDiff = parsed.completed - lastCompleted;
+                  const speedMB = (bytesDiff / (1024 * 1024) / elapsedSec).toFixed(1);
+                  speedText.innerText = `${speedMB} MB/s`;
+                  lastTime = now;
+                  lastCompleted = parsed.completed;
+                }
+              }
+
+              if (parsed.status === 'success' || parsed.error) {
+                if (parsed.error) {
+                  throw new Error(parsed.error);
+                }
+                statusText.innerText = `下載完成: ${modelName}`;
+                percentText.innerText = '100%';
+                progressBar.style.width = '100%';
+                
+                if (typeof window.updateProviderConnection === 'function') {
+                  window.updateProviderConnection();
+                }
+              }
+            } catch (e) {
+            }
+          }
+        }
+      } catch (err) {
+        console.error("Model pull failed:", err);
+        statusText.innerText = `下載失敗: ${err.message}`;
+        statusText.style.color = '#ff4a4a';
+      }
+    }
+    window.pullOllamaModel = pullOllamaModel;
+
+    function pullCustomOllamaModel() {
+      const input = document.getElementById('input-custom-pull');
+      if (input && input.value.trim()) {
+        pullOllamaModel(input.value.trim());
+      } else {
+        alert("請輸入有效的模型名稱！");
+      }
+    }
+    window.pullCustomOllamaModel = pullCustomOllamaModel;
+
+    // ==========================================================================
+    // AI Chat Smart Title Auto-Naming
+    // ==========================================================================
+    async function triggerSmartTitleNaming(chatId, userPrompt) {
+      try {
+        const provider = aetherApi.provider;
+        const activeModel = aetherApi.modelName;
+        if (!activeModel || provider === 'simulator') return;
+
+        const systemInstruction = "你是一個主題標題生成器。請根據使用者的輸入，生成一個非常簡短的對話主題標題。要求：不超過6個字，不要任何標點符號，不要包含引號，不要有多餘的說明文字，直接輸出標題。與輸入語言一致。";
+        
+        let titleText = "";
+        
+        if (provider === 'ollama' || provider === 'agent') {
+          const payload = {
+            model: activeModel,
+            messages: [
+              { role: 'system', content: systemInstruction },
+              { role: 'user', content: userPrompt }
+            ],
+            stream: false,
+            options: { temperature: 0.3 }
+          };
+          const response = await fetch(`${aetherApi.ollamaUrl}/api/chat`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (response.ok) {
+            const data = await response.json();
+            titleText = data.message?.content?.trim();
+          }
+        } else if (provider === 'lmstudio' || provider === 'vllm') {
+          const payload = {
+            model: activeModel,
+            messages: [
+              { role: 'system', content: systemInstruction },
+              { role: 'user', content: userPrompt }
+            ],
+            stream: false,
+            temperature: 0.3
+          };
+          const response = await fetch(`${aetherApi.ollamaUrl}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+          });
+          if (response.ok) {
+            const data = await response.json();
+            titleText = data.choices?.[0]?.message?.content?.trim();
+          }
+        }
+
+        if (titleText) {
+          titleText = titleText.replace(/["'「」『』]/g, '').trim();
+          if (titleText.length > 15) titleText = titleText.slice(0, 15);
+          
+          const chat = chatHistory.getChatById(chatId);
+          if (chat) {
+            chat.title = titleText;
+            localStorage.setItem('aether_conversations', JSON.stringify(chatHistory.conversations));
+            renderSessionsHistory();
+          }
+        }
+      } catch (err) {
+        console.warn("Smart title auto-naming failed, bypassing silently.", err);
+      }
+    }
+    window.triggerSmartTitleNaming = triggerSmartTitleNaming;
+    window.updateProviderConnection = updateProviderConnection;
 
     window.addEventListener('DOMContentLoaded', init);
   </script>
