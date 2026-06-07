@@ -1,10 +1,12 @@
-﻿// ==========================================================================
+// ==========================================================================
 // AetherAI Studio - Cross-Platform Build Compiler Script
 // Compiles AetherAI-Studio-Portable.html and servers into run.ps1 and run.sh
 // ==========================================================================
 
 const fs = require('fs');
 const path = require('path');
+const pkg = require('./package.json');
+const version = pkg.version;
 
 const workspacePath = __dirname;
 const portablePath = path.join(workspacePath, 'AetherAI-Studio-Portable.html');
@@ -36,6 +38,57 @@ const psTemplate = `# ==========================================================
 # AetherAI Studio - Launcher (Pure PowerShell Edition)
 # ==========================================================================
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
+
+# ==========================================================================
+# AUTOMATIC UPDATE CHECK
+# ==========================================================================
+$localVersion = "${version}"
+Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
+
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    $request = [System.Net.WebRequest]::Create("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+    $request.Timeout = 3000
+    $request.Method = "GET"
+    $response = $request.GetResponse()
+    $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+    $jsonStr = $reader.ReadToEnd()
+    $reader.Close()
+    $response.Close()
+    
+    if ($jsonStr -match '"version":\s*"([^"]+)"') {
+        $remoteVersion = $Matches[1]
+        if ($remoteVersion -ne $localVersion) {
+            Write-Host "New version $remoteVersion available! (Current local: $localVersion)" -ForegroundColor Green
+            $scriptPath = $MyInvocation.MyCommand.Path
+            if ($scriptPath -and (Test-Path $scriptPath) -and ($scriptPath -notlike "*temp*")) {
+                Write-Host "Downloading update from GitHub..." -ForegroundColor Yellow
+                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1"
+                try {
+                    $webClient = New-Object System.Net.WebClient
+                    $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
+                    $webClient.DownloadFile($updateUrl, $scriptPath)
+                    Write-Host "Update installed successfully! Restarting launcher..." -ForegroundColor Green
+                    
+                    $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
+                    $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
+                    if ($args) { $arguments += $args }
+                    
+                    Start-Process $shellName -ArgumentList $arguments
+                    exit
+                } catch {
+                    Write-Host "⚠️ Failed to save update: $_" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "Running in-memory or temp execution. Bypassing script file overwrite." -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "AetherAI Studio is up to date (Version $localVersion)." -ForegroundColor Green
+        }
+    }
+} catch {
+    Write-Host "⚠️ Unable to check for updates (offline or raw.githubusercontent.com unreachable)." -ForegroundColor Yellow
+}
 
 # ==========================================================================
 # ADMINISTRATOR PRIVILEGE ELEVATION CHECK
@@ -755,6 +808,29 @@ const shTemplate = `#!/bin/bash
 # ==========================================================================
 # AetherAI Studio - Launcher (macOS/Linux Shell Edition)
 # ==========================================================================
+
+# ==========================================================================
+# AUTOMATIC UPDATE CHECK
+# ==========================================================================
+LOCAL_VERSION="${version}"
+echo "Checking for AetherAI Studio updates..."
+REMOTE_JSON=\$(curl -s --max-time 3 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+if [ \$? -eq 0 ] && [ "\$REMOTE_JSON" != "" ]; then
+    REMOTE_VERSION=\$(echo "\$REMOTE_JSON" | grep -o '"version": "[^"]*' | grep -o '[^"]*\$')
+    if [ "\$REMOTE_VERSION" != "" ] && [ "\$REMOTE_VERSION" != "\$LOCAL_VERSION" ]; then
+        echo "New version \$REMOTE_VERSION available! (Current local: \$LOCAL_VERSION)"
+        SCRIPT_PATH="\$0"
+        if [ -f "\$SCRIPT_PATH" ] && [ -w "\$SCRIPT_PATH" ] && [[ "\$SCRIPT_PATH" != *temp* ]]; then
+            echo "Downloading update from GitHub..."
+            curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.sh" -o "\$SCRIPT_PATH"
+            echo "Update installed successfully! Restarting launcher..."
+            exec bash "\$SCRIPT_PATH" "\$@"
+            exit 0
+        fi
+    else
+        echo "AetherAI Studio is up to date (Version \$LOCAL_VERSION)."
+    fi
+fi
 
 PERM_DIR="$HOME/AetherAI-Studio"
 

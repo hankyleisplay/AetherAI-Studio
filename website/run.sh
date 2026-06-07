@@ -3,6 +3,29 @@
 # AetherAI Studio - Launcher (macOS/Linux Shell Edition)
 # ==========================================================================
 
+# ==========================================================================
+# AUTOMATIC UPDATE CHECK
+# ==========================================================================
+LOCAL_VERSION="1.0.0"
+echo "Checking for AetherAI Studio updates..."
+REMOTE_JSON=$(curl -s --max-time 3 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+if [ $? -eq 0 ] && [ "$REMOTE_JSON" != "" ]; then
+    REMOTE_VERSION=$(echo "$REMOTE_JSON" | grep -o '"version": "[^"]*' | grep -o '[^"]*$')
+    if [ "$REMOTE_VERSION" != "" ] && [ "$REMOTE_VERSION" != "$LOCAL_VERSION" ]; then
+        echo "New version $REMOTE_VERSION available! (Current local: $LOCAL_VERSION)"
+        SCRIPT_PATH="$0"
+        if [ -f "$SCRIPT_PATH" ] && [ -w "$SCRIPT_PATH" ] && [[ "$SCRIPT_PATH" != *temp* ]]; then
+            echo "Downloading update from GitHub..."
+            curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.sh" -o "$SCRIPT_PATH"
+            echo "Update installed successfully! Restarting launcher..."
+            exec bash "$SCRIPT_PATH" "$@"
+            exit 0
+        fi
+    else
+        echo "AetherAI Studio is up to date (Version $LOCAL_VERSION)."
+    fi
+fi
+
 PERM_DIR="$HOME/AetherAI-Studio"
 
 echo "===================================================================="

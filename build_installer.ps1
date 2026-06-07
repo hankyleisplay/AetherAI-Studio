@@ -9,6 +9,11 @@ $serverPath = Join-Path $workspacePath "server.ps1"
 $outputPath = Join-Path $workspacePath "run.ps1"
 $websiteOutputPath = Join-Path $workspacePath "website\run.ps1"
 
+# Load version from package.json
+$pkgPath = Join-Path $workspacePath "package.json"
+$pkg = Get-Content -Path $pkgPath -Raw | ConvertFrom-Json
+$version = $pkg.version
+
 if (!(Test-Path $portablePath) -or !(Test-Path $serverPath)) {
     Write-Error "Required source files not found! Make sure AetherAI-Studio-Portable.html and server.ps1 exist."
     exit 1
@@ -29,6 +34,57 @@ $hybridTemplate = @"
 # AetherAI Studio - Launcher (Pure PowerShell Edition)
 # ==========================================================================
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
+
+# ==========================================================================
+# AUTOMATIC UPDATE CHECK
+# ==========================================================================
+`$localVersion = "$version"
+Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
+
+try {
+    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+    `$request = [System.Net.WebRequest]::Create("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/package.json")
+    `$request.Timeout = 3000
+    `$request.Method = "GET"
+    `$response = `$request.GetResponse()
+    `$reader = New-Object System.IO.StreamReader(`$response.GetResponseStream())
+    `$jsonStr = `$reader.ReadToEnd()
+    `$reader.Close()
+    `$response.Close()
+    
+    if (`$jsonStr -match '"version":\s*"([^"]+)"') {
+        `$remoteVersion = `$Matches[1]
+        if (`$remoteVersion -ne `$localVersion) {
+            Write-Host "New version `$remoteVersion available! (Current local: `$localVersion)" -ForegroundColor Green
+            `$scriptPath = `$MyInvocation.MyCommand.Path
+            if (`$scriptPath -and (Test-Path `$scriptPath) -and (`$scriptPath -notlike "*temp*")) {
+                Write-Host "Downloading update from GitHub..." -ForegroundColor Yellow
+                `$updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1"
+                try {
+                    `$webClient = New-Object System.Net.WebClient
+                    `$webClient.Headers.Add("User-Agent", "Mozilla/5.0")
+                    `$webClient.DownloadFile(`$updateUrl, `$scriptPath)
+                    Write-Host "Update installed successfully! Restarting launcher..." -ForegroundColor Green
+                    
+                    `$shellName = if (`$PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
+                    `$arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", `$scriptPath)
+                    if (`$args) { `$arguments += `$args }
+                    
+                    Start-Process `$shellName -ArgumentList `$arguments
+                    exit
+                } catch {
+                    Write-Host "⚠️ Failed to save update: `$_" -ForegroundColor Yellow
+                }
+            } else {
+                Write-Host "Running in-memory or temp execution. Bypassing script file overwrite." -ForegroundColor Gray
+            }
+        } else {
+            Write-Host "AetherAI Studio is up to date (Version `$localVersion)." -ForegroundColor Green
+        }
+    }
+} catch {
+    Write-Host "⚠️ Unable to check for updates (offline or raw.githubusercontent.com unreachable)." -ForegroundColor Yellow
+}
 
 # ==========================================================================
 # ADMINISTRATOR PRIVILEGE ELEVATION CHECK
@@ -740,6 +796,7 @@ try {
 # Enforce strict Windows CRLF line endings
 $crlfTemplate = $hybridTemplate.Replace("`n", "`r`n").Replace("`r`r`n", "`r`n")
 
-[System.IO.File]::WriteAllText($outputPath, $crlfTemplate, [System.Text.Encoding]::UTF8)
-[System.IO.File]::WriteAllText($websiteOutputPath, $crlfTemplate, [System.Text.Encoding]::UTF8)
+$utf8BOM = New-Object System.Text.UTF8Encoding($true)
+[System.IO.File]::WriteAllText($outputPath, $crlfTemplate, $utf8BOM)
+[System.IO.File]::WriteAllText($websiteOutputPath, $crlfTemplate, $utf8BOM)
 Write-Host "run.ps1 Compiled Successfully at: $outputPath" -ForegroundColor Green
