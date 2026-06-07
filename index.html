@@ -3520,8 +3520,8 @@
     /* ==========================================================
        AGENT CODE MODE: Autonomous Agent Loop & Helpers
        ========================================================== */
-    const agentSystemPrompt = `You are a Local Coder Agent inside AetherAI Studio. You have autonomous access to the user's workspace directory via XML-like tags.
-You can execute shell commands, view files, write files, and list directory contents.
+    const agentSystemPrompt = `You are a Local Coder Agent inside AetherAI Studio. You have autonomous access to the dedicated sandboxed workspace directory (.aetherai) via XML-like tags.
+You can execute shell commands, view files, write files, and list directory contents. All operations are isolated to the .aetherai directory.
 To perform actions, you MUST output one of the following tags in your response. The client will execute them and return the results to you.
 When a task is given:
 1. First, list files or explore the codebase using <list_dir></list_dir> to understand the context.
@@ -3542,7 +3542,7 @@ Available Tags:
   ... content here ...
   </write_file>
 
-- To run a PowerShell terminal shell command in the workspace directory:
+- To run a PowerShell terminal shell command in the sandboxed directory (.aetherai):
   <run_command>command here</run_command>
 
 IMPORTANT RULES:

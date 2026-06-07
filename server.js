@@ -11,6 +11,12 @@ const { exec } = require('child_process');
 let port = 8080;
 const workspacePath = process.cwd();
 const configPath = path.join(workspacePath, 'config.json');
+const agentWorkspacePath = path.join(workspacePath, '.aetherai');
+
+// Ensure agent sandboxed workspace folder exists
+if (!fs.existsSync(agentWorkspacePath)) {
+  fs.mkdirSync(agentWorkspacePath, { recursive: true });
+}
 
 // Ensure config.json exists
 if (!fs.existsSync(configPath)) {
@@ -23,6 +29,18 @@ if (!fs.existsSync(configPath)) {
     model_name: ""
   };
   fs.writeFileSync(configPath, JSON.stringify(defaultConfig, null, 2), 'utf8');
+}
+
+function readConfig() {
+  try {
+    let content = fs.readFileSync(configPath, 'utf8');
+    if (content.charCodeAt(0) === 0xFEFF) {
+      content = content.slice(1);
+    }
+    return JSON.parse(content);
+  } catch (e) {
+    return {};
+  }
 }
 
 // Telegram Bridge polling interval holder
@@ -48,7 +66,7 @@ function getMimeType(filePath) {
 // Discord Webhook Broadcaster
 async function sendDiscordBroadcast(title, description, colorHex = "00f2fe") {
   try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const config = readConfig();
     if (!config.discord_webhook) return;
     
     const colorInt = parseInt(colorHex, 16);
@@ -132,26 +150,26 @@ function runAgentAction(tag, content, filePathAttr = "") {
               if (stat.isDirectory()) {
                 walk(fullPath);
               } else {
-                const rel = path.relative(workspacePath, fullPath).replace(/\\/g, '/');
+                const rel = path.relative(agentWorkspacePath, fullPath).replace(/\\/g, '/');
                 files.push({ path: rel, size: stat.size });
               }
             } catch (e) {}
           });
         };
-        walk(workspacePath);
+        walk(agentWorkspacePath);
         resolve(JSON.stringify(files));
       } 
       else if (tag === 'read_file') {
-        const targetFile = path.resolve(workspacePath, content.trim().replace(/\//g, path.sep));
-        if (targetFile.startsWith(workspacePath) && fs.existsSync(targetFile)) {
+        const targetFile = path.resolve(agentWorkspacePath, content.trim().replace(/\//g, path.sep));
+        if (targetFile.startsWith(agentWorkspacePath) && fs.existsSync(targetFile)) {
           resolve(fs.readFileSync(targetFile, 'utf8'));
         } else {
           resolve("Error: Access denied or file not found.");
         }
       } 
       else if (tag === 'write_file') {
-        const targetFile = path.resolve(workspacePath, filePathAttr.trim().replace(/\//g, path.sep));
-        if (targetFile.startsWith(workspacePath)) {
+        const targetFile = path.resolve(agentWorkspacePath, filePathAttr.trim().replace(/\//g, path.sep));
+        if (targetFile.startsWith(agentWorkspacePath)) {
           const parentDir = path.dirname(targetFile);
           if (!fs.existsSync(parentDir)) {
             fs.mkdirSync(parentDir, { recursive: true });
@@ -168,7 +186,7 @@ function runAgentAction(tag, content, filePathAttr = "") {
           ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${content.trim().replace(/"/g, '\\"')}"`
           : content.trim();
         
-        exec(shellCmd, { cwd: workspacePath, timeout: 30000 }, (error, stdout, stderr) => {
+        exec(shellCmd, { cwd: agentWorkspacePath, timeout: 30000 }, (error, stdout, stderr) => {
           resolve((stdout || "") + (stderr || "") + (error ? `\n[Command error: ${error.message}]` : ""));
         });
       } else {
@@ -185,7 +203,7 @@ function startTelegramBridge() {
   stopTelegramBridge();
   
   try {
-    const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+    const config = readConfig();
     const token = config.telegram_token;
     const chatId = config.telegram_chat_id;
     
@@ -213,7 +231,7 @@ function startTelegramBridge() {
                 await makeRequest(`https://api.telegram.org/bot${token}/sendChatAction`, 'POST', { 'Content-Type': 'application/json' }, JSON.stringify({ chat_id: chatId, action: 'typing' }));
                 
                 // Get active model settings
-                const systemPrompt = "You are AetherAI, an offline command assistant. You can execute local actions by wrapping commands in xml tool tags.";
+                const systemPrompt = "You are AetherAI, an offline command assistant. You can execute local actions in the sandboxed workspace directory (.aetherai) by wrapping commands in xml tool tags.";
                 const ollamaUrl = config.ollama_url || "http://localhost:11434";
                 const provider = config.provider || "ollama";
                 const activeModel = config.model_name || "llama3";
@@ -424,13 +442,13 @@ const server = http.createServer((request, response) => {
               if (stat.isDirectory()) {
                 walk(fullPath);
               } else {
-                const rel = path.relative(workspacePath, fullPath).replace(/\\/g, '/');
+                const rel = path.relative(agentWorkspacePath, fullPath).replace(/\\/g, '/');
                 files.push({ path: rel, size: stat.size });
               }
             } catch (e) {}
           });
         };
-        walk(workspacePath);
+        walk(agentWorkspacePath);
         
         response.statusCode = 200;
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -455,9 +473,9 @@ const server = http.createServer((request, response) => {
       }
       
       const cleanPath = relPath.replace(/\//g, path.sep);
-      const fullPath = path.resolve(workspacePath, cleanPath);
+      const fullPath = path.resolve(agentWorkspacePath, cleanPath);
       
-      if (fullPath.startsWith(workspacePath) && fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
+      if (fullPath.startsWith(agentWorkspacePath) && fs.existsSync(fullPath) && fs.statSync(fullPath).isFile()) {
         try {
           const content = fs.readFileSync(fullPath, 'utf8');
           response.statusCode = 200;
@@ -486,9 +504,9 @@ const server = http.createServer((request, response) => {
       }
       
       const cleanPath = relPath.replace(/\//g, path.sep);
-      const fullPath = path.resolve(workspacePath, cleanPath);
+      const fullPath = path.resolve(agentWorkspacePath, cleanPath);
       
-      if (fullPath.startsWith(workspacePath)) {
+      if (fullPath.startsWith(agentWorkspacePath)) {
         let body = '';
         request.on('data', chunk => { body += chunk; });
         request.on('end', () => {
@@ -532,7 +550,7 @@ const server = http.createServer((request, response) => {
             ? `powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "${payload.command.trim().replace(/"/g, '\\"')}"`
             : payload.command.trim();
           
-          exec(shellCmd, { cwd: workspacePath, timeout: 45000 }, (error, stdout, stderr) => {
+          exec(shellCmd, { cwd: agentWorkspacePath, timeout: 45000 }, (error, stdout, stderr) => {
             const output = (stdout || "") + (stderr || "") + (error ? `\n[Command error: ${error.message}]` : "");
             response.statusCode = 200;
             response.setHeader('Content-Type', 'text/plain; charset=utf-8');
@@ -551,7 +569,7 @@ const server = http.createServer((request, response) => {
     // ----------------------------------------------------
     if (urlPath === '/api/bridges/settings') {
       try {
-        const config = fs.readFileSync(configPath, 'utf8');
+        const config = JSON.stringify(readConfig());
         response.statusCode = 200;
         response.setHeader('Content-Type', 'application/json; charset=utf-8');
         response.end(config);
@@ -571,7 +589,7 @@ const server = http.createServer((request, response) => {
       request.on('end', () => {
         try {
           const newConfig = JSON.parse(body);
-          const currentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          const currentConfig = readConfig();
           
           if (newConfig.telegram_token !== undefined) currentConfig.telegram_token = newConfig.telegram_token;
           if (newConfig.telegram_chat_id !== undefined) currentConfig.telegram_chat_id = newConfig.telegram_chat_id;
@@ -613,7 +631,7 @@ const server = http.createServer((request, response) => {
             return;
           }
 
-          const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+          const config = readConfig();
           const ollamaUrl = config.ollama_url || "http://localhost:11434";
           
           const targetUrl = new URL(`${ollamaUrl}/api/pull`);

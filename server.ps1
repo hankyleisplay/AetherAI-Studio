@@ -30,6 +30,12 @@ if (!$started) {
 
 $workspacePath = Get-Location
 $configPath = [System.IO.Path]::Combine($workspacePath, "config.json")
+$agentWorkspacePath = Join-Path $workspacePath ".aetherai"
+
+# Ensure agent sandboxed workspace folder exists
+if (!(Test-Path $agentWorkspacePath)) {
+    New-Item -ItemType Directory -Path $agentWorkspacePath -Force | Out-Null
+}
 
 # Ensure config.json exists
 if (!(Test-Path $configPath)) {
@@ -132,7 +138,7 @@ function Start-TelegramBridge {
                                     }
                                     if (!$activeModel) { $activeModel = "llama3" }
                                     
-                                    $systemPrompt = 'You are AetherAI, an autonomous agent running in the user''s local Windows workspace.
+                                    $systemPrompt = 'You are AetherAI, an autonomous agent running in the user''s sandboxed workspace directory (.aetherai).
 You can execute terminal commands, list directories, read files, and write files using special XML tags:
 - To run a command: <run_command>your terminal command</run_command>
 - To list workspace directory: <list_dir></list_dir>
@@ -186,11 +192,13 @@ When the user asks you to do something, use these tags to run actions on their m
                                             $hasAction = $true
                                             Send-TelegramMessage("⚙️ _Agent Executing CMD:_ ``$cmd``")
                                             try {
-                                                $proc = Start-Process $currentShell -ArgumentList "-NoProfile -Command `"$cmd`"" -PassThru -NoNewWindow -RedirectStandardOutput stdout.txt -RedirectStandardError stderr.txt -Wait
-                                                $stdout = [System.IO.File]::ReadAllText("stdout.txt")
-                                                $stderr = [System.IO.File]::ReadAllText("stderr.txt")
+                                                $stdoutPath = Join-Path $workspacePath "stdout.txt"
+                                                $stderrPath = Join-Path $workspacePath "stderr.txt"
+                                                $proc = Start-Process $currentShell -ArgumentList "-NoProfile -Command `"$cmd`"" -PassThru -NoNewWindow -RedirectStandardOutput $stdoutPath -RedirectStandardError $stderrPath -WorkingDirectory $workspacePath -Wait
+                                                $stdout = [System.IO.File]::ReadAllText($stdoutPath)
+                                                $stderr = [System.IO.File]::ReadAllText($stderrPath)
                                                 $actionResult = "STDOUT:`n$stdout`nSTDERR:`n$stderr"
-                                                Remove-Item stdout.txt, stderr.txt -ErrorAction SilentlyContinue
+                                                Remove-Item $stdoutPath, $stderrPath -ErrorAction SilentlyContinue
                                             } catch {
                                                 $actionResult = "Error: " + $_.Exception.Message
                                             }
@@ -251,7 +259,7 @@ When the user asks you to do something, use these tags to run actions on their m
                 }
             }
             
-            Start-Job -Name "TelegramBridge" -ScriptBlock $telegramScript -ArgumentList @($workspacePath, $token, $chatId, $config.ollama_url, $config.provider, $config.model_name) | Out-Null
+            Start-Job -Name "TelegramBridge" -ScriptBlock $telegramScript -ArgumentList @($agentWorkspacePath, $token, $chatId, $config.ollama_url, $config.provider, $config.model_name) | Out-Null
         }
     }
 }
@@ -426,9 +434,9 @@ try {
                 continue
             }
             try {
-                $files = Get-ChildItem -Path $workspacePath -Recurse -File | 
+                $files = Get-ChildItem -Path $agentWorkspacePath -Recurse -File | 
                     Where-Object { $_.FullName -notlike "*\.*" -and $_.FullName -notlike "*\node_modules\*" -and $_.FullName -notlike "*\OllamaSetup.exe" } |
-                    Select-Object @{Name="path";Expression={$_.FullName.Replace($workspacePath, "").TrimStart("\").Replace("\", "/")}}, @{Name="size";Expression={$_.Length}}
+                    Select-Object @{Name="path";Expression={$_.FullName.Replace($agentWorkspacePath, "").TrimStart("\").Replace("\", "/")}}, @{Name="size";Expression={$_.Length}}
                 $jsonFiles = $files | ConvertTo-Json -Compress
                 if (!$jsonFiles) { $jsonFiles = "[]" }
                 $response.ContentType = "application/json; charset=utf-8"
@@ -456,9 +464,9 @@ try {
             }
             $filePathParam = $request.QueryString["path"]
             if ($filePathParam) { $filePathParam = $filePathParam.Replace("/", "\") }
-            $fullPath = [System.IO.Path]::Combine($workspacePath, $filePathParam)
+            $fullPath = [System.IO.Path]::Combine($agentWorkspacePath, $filePathParam)
             
-            if ($fullPath.StartsWith($workspacePath) -and (Test-Path $fullPath -PathType Leaf)) {
+            if ($fullPath.StartsWith($agentWorkspacePath) -and (Test-Path $fullPath -PathType Leaf)) {
                 try {
                     $content = [System.IO.File]::ReadAllText($fullPath)
                     $response.ContentType = "text/plain; charset=utf-8"
@@ -489,9 +497,9 @@ try {
             }
             $filePathParam = $request.QueryString["path"]
             if ($filePathParam) { $filePathParam = $filePathParam.Replace("/", "\") }
-            $fullPath = [System.IO.Path]::Combine($workspacePath, $filePathParam)
+            $fullPath = [System.IO.Path]::Combine($agentWorkspacePath, $filePathParam)
             
-            if ($fullPath.StartsWith($workspacePath)) {
+            if ($fullPath.StartsWith($agentWorkspacePath)) {
                 try {
                     $reqStream = $request.InputStream
                     $reader = New-Object System.IO.StreamReader($reqStream, [System.Text.Encoding]::UTF8)
@@ -536,7 +544,7 @@ try {
                 $cmd = $reader.ReadToEnd()
                 $reader.Close()
                 
-                $cmdResult = &$currentShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command $cmd 2>&1 | Out-String
+                $cmdResult = &$currentShell -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command "Set-Location '$agentWorkspacePath'; $cmd" 2>&1 | Out-String
                 if (!$cmdResult) { $cmdResult = "Command executed with no output." }
                 $response.ContentType = "text/plain; charset=utf-8"
                 $bytes = [System.Text.Encoding]::UTF8.GetBytes($cmdResult)
