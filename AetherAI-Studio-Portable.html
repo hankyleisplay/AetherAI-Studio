@@ -1706,50 +1706,12 @@
             極致奢華的 Local AI 遊樂場。連接您的 Ollama 本機服務，或透過智慧離線仿真進行參數調試與創作。
           </p>
           
-          <div class="cognitive-preset-grid animate-slide-in">
-            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-general">
-              <div class="preset-card-title">
-                <span class="text-glow-cyan" style="display:flex;align-items:center;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-                </span>
-                <span data-i18n="preset_general_title">全能助理</span>
-              </div>
-              <div class="preset-card-desc" data-i18n="preset_general_desc">邏輯思維與企劃寫作</div>
-            </div>
-            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-coder">
-              <div class="preset-card-title">
-                <span class="text-glow-purple" style="display:flex;align-items:center;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
-                </span>
-                <span data-i18n="preset_coder_title">代碼架構師</span>
-              </div>
-              <div class="preset-card-desc" data-i18n="preset_coder_desc">程式碼撰寫與重構分析</div>
-            </div>
-            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-uiux">
-              <div class="preset-card-title">
-                <span style="color:var(--accent-magenta); display:flex;align-items:center;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><line x1="9" y1="3" x2="9" y2="21"/><line x1="3" y1="9" x2="21" y2="9"/></svg>
-                </span>
-                <span data-i18n="preset_uiux_title">UI/UX 評委</span>
-              </div>
-              <div class="preset-card-desc" data-i18n="preset_uiux_desc">嚴苛的體驗與美學點評</div>
-            </div>
-            <div class="preset-card glass-panel glass-interactive" id="preset-welcome-english">
-              <div class="preset-card-title">
-                <span style="color:var(--color-warning); display:flex;align-items:center;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg>
-                </span>
-                <span data-i18n="preset_english_title">語系學習教練</span>
-              </div>
-              <div class="preset-card-desc" data-i18n="preset_english_desc">糾錯與道地英語口語</div>
-            </div>
-          </div>
         </div>
       </section>
 
       <footer class="chat-input-area">
         <div class="chat-input-wrapper">
-          <div class="prompt-suggestions" id="suggestions-container"></div>
+          <div class="prompt-suggestions" id="suggestions-container" style="display:none;"></div>
           <div class="chat-input-card glass-panel pulse-neon">
             <div id="attachment-preview-container" style="display: none; gap: 4px; flex-wrap: wrap; padding: 6px 8px; border-bottom: 1px solid rgba(255,255,255,0.05); background: rgba(0,0,0,0.15); border-top-left-radius: inherit; border-top-right-radius: inherit;"></div>
             <textarea class="chat-textarea" id="chat-textarea" data-i18n-placeholder="chat_placeholder" placeholder="輸入訊息與 AetherAI 對話... (Enter 發送，Shift+Enter 換行)"></textarea>
@@ -1864,19 +1826,8 @@
                   <input type="range" class="slider-glass" id="slider-tokens" min="128" max="8192" step="128" value="2048">
                 </div>
               </div>
-              <div class="form-group">
-                <div class="settings-card-title" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 6px;">
-                  <span data-i18n="system_prompt_title">系統設定 (System Prompt)</span>
-                  <div style="display: flex; align-items: center; gap: 8px;">
-                    <button type="button" onclick="openPromptGallery()" style="background: transparent; border: none; font-size: 11px; font-weight: 600; color: var(--accent-cyan); cursor: pointer; display: flex; align-items: center; gap: 4px; padding: 2px 6px; border-radius: 4px; background: rgba(0,242,254,0.08);">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-                      <span>提示詞庫 (Gallery)</span>
-                    </button>
-                    <span id="active-preset-label" style="font-size:11px; font-weight:600; color:var(--accent-cyan); background:rgba(0,242,254,0.08); padding:2px 8px; border-radius:10px;">Aether AI 助理</span>
-                  </div>
-                </div>
-                <textarea class="input-glass" id="textarea-system-prompt" rows="5" style="resize:vertical; min-height:100px; font-size:13px; line-height:1.5;" data-i18n-placeholder="system_prompt_placeholder" placeholder="定義 AI 的人設、背景、專業能力與回應要求..."></textarea>
-              </div>
+              <textarea id="textarea-system-prompt" style="display:none;"></textarea>
+              <span id="active-preset-label" style="display:none;"></span>
 
               <!-- UI Theme Selector -->
               <div class="form-group" style="margin-top: 18px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 14px;">
@@ -1940,17 +1891,6 @@
                 </div>
               </div>
 
-              <!-- Discord Integration -->
-              <div class="form-group">
-                <label class="form-label" style="color: #5865F2; font-weight: bold; display: flex; align-items: center; gap: 6px;">
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19.27 4.73A9.012 9.012 0 0 0 13.67 3c-.1 0-.17.07-.19.16-.43 1.54-.89 3.15-1.48 4.84-1.2-.15-2.4-.15-3.6 0-.59-1.69-1.05-3.3-1.48-4.84-.02-.09-.09-.16-.19-.16a9.012 9.012 0 0 0-5.6 1.73.08.08 0 0 0-.03.07C.3 10.74-.7 16.58.5 20.91a.068.068 0 0 0 .03.05c2.62 1.94 5.16 3.13 7.6 3.88a.09.09 0 0 0 .1-.04c.58-.79 1.1-1.63 1.55-2.52a.08.08 0 0 0-.04-.11c-.8-.3-1.57-.69-2.3-1.15a.08.08 0 0 1-.01-.13c.16-.12.32-.24.48-.36a.08.08 0 0 1 .08-.01c4.86 2.22 10.14 2.22 15 0a.08.08 0 0 1 .08.01c.16.12.32.24.48.36a.08.08 0 0 1-.01.13c-.73.46-1.5 1.15-2.3 1.15a.08.08 0 0 0-.04.11c.45.89.97 1.73 1.55 2.52a.09.09 0 0 0 .1.04c2.44-.75 4.98-1.94 7.6-3.88a.07.07 0 0 0 .03-.05c1.37-4.78.37-10.62-.73-16.11a.072.072 0 0 0-.03-.07zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.9 2.12s-.84 2.12-1.9 2.12zm6.96 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.9 2.12s-.84 2.12-1.9 2.12z"/></svg>
-                  <span data-i18n="bridge_discord_title">Discord 廣播串接</span>
-                </label>
-                <div style="margin-top: 6px;">
-                  <label class="form-label" style="font-size: 11px;" for="input-discord-webhook" data-i18n="discord_webhook_label">Discord Webhook URL</label>
-                  <input type="url" class="input-glass" id="input-discord-webhook" data-i18n-placeholder="discord_webhook_placeholder" placeholder="輸入 Discord 頻道之 Webhook 網址">
-                </div>
-              </div>
             </section>
           </div>
           
@@ -1962,7 +1902,7 @@
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/></svg>
                   <span data-i18n="modelhub_title">Ollama 模型商店 (Model Hub)</span>
                 </label>
-                <div style="font-size: 12px; color: var(--text-light); opacity: 0.8; margin-bottom: 12px; line-height: 1.4;">
+                <div style="font-size: 12px; color: var(--text-light); opacity: 0.8; margin-bottom: 12px; line-height: 1.4;" data-i18n="modelhub_desc">
                   在這裡您可以直接下載並安裝 Ollama 本地模型，下載過程無需開啟終端機。
                 </div>
                 
@@ -1971,53 +1911,53 @@
                   <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
                     <div>
                       <div style="font-weight: bold; font-size: 13px; color: var(--accent-cyan);">DeepSeek-R1 (1.5B)</div>
-                      <div style="font-size: 11px; opacity: 0.7;">超輕量推理模型 · 1.1 GB</div>
+                      <div style="font-size: 11px; opacity: 0.7;" data-i18n="modelhub_desc_deepseek_1_5b">超輕量推理模型 · 1.1 GB</div>
                     </div>
-                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:1.5b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:1.5b')" style="padding: 4px 10px; font-size: 11px;" data-i18n="modelhub_btn_pull">下載 (Pull)</button>
                   </div>
 
                   <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
                     <div>
                       <div style="font-weight: bold; font-size: 13px; color: var(--accent-cyan);">DeepSeek-R1 (7B)</div>
-                      <div style="font-size: 11px; opacity: 0.7;">主流中階推理模型 · 4.7 GB</div>
+                      <div style="font-size: 11px; opacity: 0.7;" data-i18n="modelhub_desc_deepseek_7b">主流中階推理模型 · 4.7 GB</div>
                     </div>
-                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:7b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('deepseek-r1:7b')" style="padding: 4px 10px; font-size: 11px;" data-i18n="modelhub_btn_pull">下載 (Pull)</button>
                   </div>
 
                   <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
                     <div>
                       <div style="font-weight: bold; font-size: 13px; color: #fff;">Llama-3.1 (8B)</div>
-                      <div style="font-size: 11px; opacity: 0.7;">Meta 全功能通用模型 · 4.7 GB</div>
+                      <div style="font-size: 11px; opacity: 0.7;" data-i18n="modelhub_desc_llama_3_1">Meta 全功能通用模型 · 4.7 GB</div>
                     </div>
-                    <button type="button" class="btn-glass" onclick="pullOllamaModel('llama3.1')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('llama3.1')" style="padding: 4px 10px; font-size: 11px;" data-i18n="modelhub_btn_pull">下載 (Pull)</button>
                   </div>
 
                   <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
                     <div>
                       <div style="font-weight: bold; font-size: 13px; color: #fff;">Qwen-2.5-Coder (7B)</div>
-                      <div style="font-size: 11px; opacity: 0.7;">阿里最強程式寫作模型 · 4.7 GB</div>
+                      <div style="font-size: 11px; opacity: 0.7;" data-i18n="modelhub_desc_qwen_coder">阿里最強程式寫作模型 · 4.7 GB</div>
                     </div>
-                    <button type="button" class="btn-glass" onclick="pullOllamaModel('qwen2.5-coder:7b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('qwen2.5-coder:7b')" style="padding: 4px 10px; font-size: 11px;" data-i18n="modelhub_btn_pull">下載 (Pull)</button>
                   </div>
 
                   <div class="modelhub-item" style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-radius: 6px; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04);">
                     <div>
                       <div style="font-weight: bold; font-size: 13px; color: #fff;">Gemma-2 (2B)</div>
-                      <div style="font-size: 11px; opacity: 0.7;">Google 高效能迷你模型 · 1.6 GB</div>
+                      <div style="font-size: 11px; opacity: 0.7;" data-i18n="modelhub_desc_gemma_2">Google 高效能迷你模型 · 1.6 GB</div>
                     </div>
-                    <button type="button" class="btn-glass" onclick="pullOllamaModel('gemma2:2b')" style="padding: 4px 10px; font-size: 11px;">下載 (Pull)</button>
+                    <button type="button" class="btn-glass" onclick="pullOllamaModel('gemma2:2b')" style="padding: 4px 10px; font-size: 11px;" data-i18n="modelhub_btn_pull">下載 (Pull)</button>
                   </div>
 
                 </div>
 
                 <div style="display: flex; gap: 8px; align-items: center; margin-bottom: 14px;">
-                  <input type="text" class="input-glass" id="input-custom-pull" placeholder="輸入其它 Ollama 模型名稱 (如 phi4)" style="flex: 1; font-size: 12px; height: 32px; padding: 0 10px;">
-                  <button type="button" class="btn-glass" onclick="pullCustomOllamaModel()" style="height: 32px; font-size: 12px; padding: 0 14px; white-space: nowrap;">下載其它</button>
+                  <input type="text" class="input-glass" id="input-custom-pull" data-i18n-placeholder="modelhub_input_placeholder" placeholder="輸入其它 Ollama 模型名稱 (如 phi4)" style="flex: 1; font-size: 12px; height: 32px; padding: 0 10px;">
+                  <button type="button" class="btn-glass" onclick="pullCustomOllamaModel()" style="height: 32px; font-size: 12px; padding: 0 14px; white-space: nowrap;" data-i18n="modelhub_btn_pull_custom">下載其它</button>
                 </div>
 
                 <div id="modelhub-progress-container" style="display: none; border-top: 1px dashed rgba(255,255,255,0.08); padding-top: 14px; margin-top: 10px;">
                   <div style="display: flex; justify-content: space-between; font-size: 12px; margin-bottom: 6px;">
-                    <span id="modelhub-progress-status" style="font-weight: bold; color: var(--accent-cyan);">正在下載: -</span>
+                    <span id="modelhub-progress-status" style="font-weight: bold; color: var(--accent-cyan);">-</span>
                     <span id="modelhub-progress-percent">0%</span>
                   </div>
                   <div style="width: 100%; height: 6px; background: rgba(255,255,255,0.05); border-radius: 3px; overflow: hidden; margin-bottom: 6px; border: 1px solid rgba(255,255,255,0.02);">
@@ -2108,9 +2048,6 @@
         "telegram_token_placeholder": "輸入由 @BotFather 取得的 Token",
         "telegram_chat_id_label": "Telegram Chat ID (使用者/群組)",
         "telegram_chat_id_placeholder": "輸入您的 Chat ID (可向 @userinfobot 查詢)",
-        "bridge_discord_title": "Discord 廣播串接",
-        "discord_webhook_label": "Discord Webhook 網址",
-        "discord_webhook_placeholder": "輸入 Discord 頻道之 Webhook 網址",
         "tab_modelhub": "模型商店 (Hub)",
         "modelhub_title": "Ollama 模型商店 (Model Hub)"
       },
@@ -2168,9 +2105,6 @@
         "telegram_token_placeholder": "Enter Token obtained from @BotFather",
         "telegram_chat_id_label": "Telegram Chat ID (User/Group)",
         "telegram_chat_id_placeholder": "Enter Chat ID (query @userinfobot)",
-        "bridge_discord_title": "Discord Broadcast Bridge",
-        "discord_webhook_label": "Discord Webhook URL",
-        "discord_webhook_placeholder": "Enter Discord channel Webhook URL",
         "tab_modelhub": "Model Hub",
         "modelhub_title": "Ollama Model Hub"
       },
@@ -2228,9 +2162,6 @@
         "telegram_token_placeholder": "@BotFather から取得したトークンを入力",
         "telegram_chat_id_label": "Telegram チャット ID",
         "telegram_chat_id_placeholder": "チャットIDを入力 (@userinfobot で確認)",
-        "bridge_discord_title": "Discord 配信連携",
-        "discord_webhook_label": "Discord Webhook URL",
-        "discord_webhook_placeholder": "Discord チャンネルの Webhook URL を入力",
         "tab_modelhub": "モデルハブ (Hub)",
         "modelhub_title": "Ollama モデルストア (Model Hub)"
       }
@@ -2370,26 +2301,28 @@
       return intervalId;
     }
 
-    function updatePromptLibraryLanguage(lang) {
-      PromptLibrary.length = 0;
-      PromptLibraryRaw.forEach(base => {
-        const localizedData = base[lang] || base["en"];
-        PromptLibrary.push({
-          id: base.id,
-          icon: base.icon,
-          name: localizedData.name,
-          category: localizedData.category,
-          description: localizedData.description,
-          systemPrompt: localizedData.systemPrompt,
-          suggestions: localizedData.suggestions
-        });
-      });
+    function getDefaultSystemPrompt(lang) {
+      const prompts = {
+        "zh-TW": "你是一個名為 AetherAI 的智慧 AI 助理。請以親切、專業且條理分明的態度回答使用者的問題，並儘可能給出具體且實用的回答。",
+        "en": "You are an intelligent AI assistant named AetherAI. Please reply in a warm, professional, and well-structured manner.",
+        "ja": "あなたはAetherAIという名前のインテリジェントなAIアシスタントです。親切、プロフェッショナル、そして構造化された方法で返答してください。"
+      };
+      return prompts[lang] || prompts["en"];
     }
 
+    function updatePromptLibraryLanguage(lang) {}
+
+    let currentPresetId = 'general';
     function getPresetById(id) {
-      return PromptLibrary.find(p => p.id === id) || PromptLibrary[0];
+      const lang = getActiveLanguage();
+      const defaultPrompt = getDefaultSystemPrompt(lang);
+      return {
+        id: "general",
+        name: lang === 'zh-TW' ? '全能助理' : (lang === 'ja' ? 'アシスタント' : 'Assistant'),
+        systemPrompt: defaultPrompt,
+        suggestions: []
+      };
     }
-    updatePromptLibraryLanguage(getActiveLanguage());
 
     /* 3. API Connection Engine */
     class AetherAPI {
@@ -3051,14 +2984,14 @@
       tokensSlider: document.getElementById('slider-tokens'),
       tokensValue: document.getElementById('val-tokens'),
       systemPromptArea: document.getElementById('textarea-system-prompt'),
-      presetsGrid: document.getElementById('presets-grid'),
+      presetsGrid: null,
       activePresetLabelDisplay: document.getElementById('active-preset-label'),
       metricTps: document.getElementById('metric-tps'),
       metricTokens: document.getElementById('metric-tokens'),
       metricTime: document.getElementById('metric-time'),
       telegramTokenInput: document.getElementById('input-telegram-token'),
       telegramChatIdInput: document.getElementById('input-telegram-chat-id'),
-      discordWebhookInput: document.getElementById('input-discord-webhook')
+      discordWebhookInput: null
     };
 
     let currentAbortController = null;
@@ -3095,12 +3028,9 @@
       
       const activeChatId = chatHistory.getActiveChatId();
       if (!activeChatId) {
-        const selectedIdx = document.querySelector('.preset-card[style*="border-color"]') ? 
-          Array.from(document.querySelectorAll('.preset-card')).findIndex(c => c.style.borderColor !== '') : 0;
-        injectPreset(PromptLibrary[selectedIdx >= 0 ? selectedIdx : 0]?.id || 'general');
-      } else {
-        const chat = chatHistory.getChatById(activeChatId);
-        if (chat && chat.presetId) injectPreset(chat.presetId);
+        if (elements.systemPromptArea) {
+          elements.systemPromptArea.value = getDefaultSystemPrompt(lang);
+        }
       }
       
       // Dynamic endpoint label override based on active provider
@@ -3362,39 +3292,9 @@
       elements.activeModelProviderDisplay.innerText = aetherApi.provider.toUpperCase();
     }
 
-    function initPresetsGrid() {
-      const container = elements.presetsGrid;
-      if (!container) return;
-      container.innerHTML = '';
-      PromptLibrary.forEach(preset => {
-        const card = document.createElement('div');
-        card.className = 'preset-card glass-panel glass-interactive animate-slide-in';
-        card.innerHTML = `<div class="preset-card-title">${preset.icon}<span>${preset.name}</span></div><div class="preset-card-desc">${preset.description}</div>`;
-        card.addEventListener('click', () => {
-          injectPreset(preset.id);
-          document.querySelectorAll('.preset-card').forEach(c => c.style.borderColor = '');
-          card.style.borderColor = 'var(--accent-purple)';
-        });
-        container.appendChild(card);
-      });
-    }
+    function initPresetsGrid() {}
 
-    function injectPreset(presetId) {
-      const preset = getPresetById(presetId);
-      elements.systemPromptArea.value = preset.systemPrompt;
-      elements.activePresetLabelDisplay.innerText = preset.name;
-      
-      const chips = elements.suggestionsContainer;
-      chips.innerHTML = '';
-      preset.suggestions.forEach(s => {
-        const chip = document.createElement('div');
-        chip.className = 'suggestion-chip'; chip.innerText = s;
-        chip.addEventListener('click', () => {
-          elements.chatTextarea.value = s; elements.chatTextarea.focus();
-        });
-        chips.appendChild(chip);
-      });
-    }
+    function injectPreset(presetId, loadPromptIntoTextarea = true) {}
 
     function renderSessionsHistory() {
       const container = elements.historyContainer;
@@ -3459,7 +3359,11 @@
 
       elements.chatWelcome.style.display = 'none';
       elements.chatMessages.innerHTML = '';
-      if (chat.presetId) injectPreset(chat.presetId);
+      
+      // Load stored system prompt first
+      elements.systemPromptArea.value = chat.systemPrompt || '';
+      // Inject preset without overwriting prompt
+      injectPreset(chat.presetId || 'general', false);
 
       chat.messages.forEach(m => appendMessageRowToDOM(m.role, m.content));
       elements.btnExport.removeAttribute('disabled');
@@ -3790,7 +3694,7 @@ IMPORTANT RULES:
 
         let activeId = chatHistory.getActiveChatId();
         if (!activeId) {
-          const newChat = chatHistory.createChat("Stable Diffusion", elements.systemPromptArea.value);
+          const newChat = chatHistory.createChat("Stable Diffusion", elements.systemPromptArea.value, currentPresetId);
           activeId = newChat.id;
           renderSessionsHistory();
         }
@@ -3904,7 +3808,7 @@ IMPORTANT RULES:
 
       let activeId = chatHistory.getActiveChatId();
       if (!activeId) {
-        const newChat = chatHistory.createChat(aetherApi.modelName, elements.systemPromptArea.value);
+        const newChat = chatHistory.createChat(aetherApi.modelName, elements.systemPromptArea.value, currentPresetId);
         activeId = newChat.id;
         renderSessionsHistory();
       }
@@ -4179,6 +4083,23 @@ IMPORTANT RULES:
         this.style.height = 'auto'; this.style.height = this.scrollHeight + 'px';
       });
 
+      elements.systemPromptArea?.addEventListener('input', () => {
+        currentPresetId = 'custom';
+        const lang = getActiveLanguage();
+        const customTitle = lang === 'zh-TW' ? '自訂人設' : (lang === 'ja' ? 'カスタム' : 'Custom');
+        elements.activePresetLabelDisplay.innerText = customTitle;
+        
+        const activeId = chatHistory.getActiveChatId();
+        if (activeId) {
+          const chat = chatHistory.getChatById(activeId);
+          if (chat) {
+            chat.presetId = 'custom';
+            chat.systemPrompt = elements.systemPromptArea.value;
+            chatHistory._saveToStorage();
+          }
+        }
+      });
+
       elements.btnSend?.addEventListener('click', handleSendMessage);
       elements.chatTextarea?.addEventListener('keydown', e => {
         if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSendMessage(); }
@@ -4275,7 +4196,6 @@ IMPORTANT RULES:
         // Save Bridges settings to local server
         const tgToken = elements.telegramTokenInput ? elements.telegramTokenInput.value : '';
         const tgChatId = elements.telegramChatIdInput ? elements.telegramChatIdInput.value : '';
-        const discWebhook = elements.discordWebhookInput ? elements.discordWebhookInput.value : '';
         
         try {
           const sdUrlInput = document.getElementById('input-sd-url');
@@ -4287,7 +4207,6 @@ IMPORTANT RULES:
             body: JSON.stringify({
               telegram_token: tgToken,
               telegram_chat_id: tgChatId,
-              discord_webhook: discWebhook,
               ollama_url: aetherApi.ollamaUrl,
               provider: aetherApi.provider,
               model_name: aetherApi.modelName,
@@ -4323,11 +4242,6 @@ IMPORTANT RULES:
           }
         });
       }
-      
-      document.getElementById('preset-welcome-general').addEventListener('click', () => injectPreset('general'));
-      document.getElementById('preset-welcome-coder').addEventListener('click', () => injectPreset('coder'));
-      document.getElementById('preset-welcome-uiux').addEventListener('click', () => injectPreset('uiux'));
-      document.getElementById('preset-welcome-english').addEventListener('click', () => injectPreset('english'));
 
       // Load Bridges settings from local server
       async function loadBridgesSettings() {
@@ -4337,7 +4251,6 @@ IMPORTANT RULES:
             const data = await res.json();
             if (data.telegram_token && elements.telegramTokenInput) elements.telegramTokenInput.value = data.telegram_token;
             if (data.telegram_chat_id && elements.telegramChatIdInput) elements.telegramChatIdInput.value = data.telegram_chat_id;
-            if (data.discord_webhook && elements.discordWebhookInput) elements.discordWebhookInput.value = data.discord_webhook;
             
             if (data.sd_url) {
               const sdUrlInput = document.getElementById('input-sd-url');
@@ -4502,63 +4415,51 @@ SOFTWARE.</pre>`;
     }
     window.importChatHistory = importChatHistory;
 
-    // Prompt Persona Gallery Modal Controllers
-    function openPromptGallery() {
-      const modal = document.getElementById('promptGalleryModal');
-      const listContainer = document.getElementById('prompt-gallery-list');
-      if (!modal || !listContainer) return;
-      
-      const lang = getActiveLanguage();
-      listContainer.innerHTML = '';
-      
-      PromptLibrary.forEach(preset => {
-        const card = document.createElement('div');
-        card.className = 'gallery-card';
-        card.innerHTML = `
-          <div class="gallery-card-title">
-            ${preset.icon}
-            <span>${preset.name}</span>
-          </div>
-          <div class="gallery-card-desc">${preset.description}</div>
-        `;
-        card.addEventListener('click', () => {
-          const textarea = document.getElementById('textarea-system-prompt');
-          if (textarea) {
-            textarea.value = preset.systemPrompt;
-            const event = new Event('input', { bubbles: true });
-            textarea.dispatchEvent(event);
-            
-            const labelEl = document.getElementById('active-preset-label');
-            if (labelEl) {
-              labelEl.innerText = preset.name;
-            }
-          }
-          closePromptGallery();
-          
-          const toast = document.getElementById('save-toast');
-          if (toast) {
-            const dict = translations[lang] || translations['en'];
-            document.getElementById('toast-text').innerText = "已載入人設提示詞！ (Persona loaded!)";
-            toast.classList.add('show');
-            setTimeout(() => toast.classList.remove('show'), 2000);
-          }
-        });
-        listContainer.appendChild(card);
-      });
-      
-      modal.classList.add('active');
-    }
+    // Prompt Persona Gallery Modal Controllers (Stubbed)
+    function openPromptGallery() {}
     window.openPromptGallery = openPromptGallery;
 
-    function closePromptGallery() {
-      const modal = document.getElementById('promptGalleryModal');
-      if (modal) modal.classList.remove('active');
-    }
+    function closePromptGallery() {}
     window.closePromptGallery = closePromptGallery;
 
     // ==========================================================================
     // Ollama Model Hub - Pull Model Streaming Logic
     // ==========================================================================
+    function translateOllamaStatus(status, lang) {
+      const dict = {
+        "zh-TW": {
+          "pulling manifest": "正在獲取清單 (Pulling manifest)",
+          "downloading": "正在下載 (Downloading)",
+          "verifying sha256": "正在驗證校驗碼 (Verifying checksum)",
+          "writing manifest": "正在寫入配置 (Writing manifest)",
+          "success": "下載完成 (Success)",
+          "init": "正在初始化",
+          "fail": "下載失敗"
+        },
+        "en": {
+          "pulling manifest": "Pulling manifest",
+          "downloading": "Downloading",
+          "verifying sha256": "Verifying checksum",
+          "writing manifest": "Writing manifest",
+          "success": "Download complete",
+          "init": "Initializing",
+          "fail": "Download failed"
+        },
+        "ja": {
+          "pulling manifest": "マニフェストを取得中 (Pulling manifest)",
+          "downloading": "ダウンロード中 (Downloading)",
+          "verifying sha256": "SHA256を検証中 (Verifying checksum)",
+          "writing manifest": "設定を書き込み中 (Writing manifest)",
+          "success": "ダウンロード完了 (Success)",
+          "init": "初期化中",
+          "fail": "ダウンロード失敗"
+        }
+      };
+      const langDict = dict[lang] || dict["en"];
+      const key = status ? status.toLowerCase() : "";
+      return langDict[key] || status;
+    }
+
     async function pullOllamaModel(modelName) {
       const statusText = document.getElementById('modelhub-progress-status');
       const percentText = document.getElementById('modelhub-progress-percent');
@@ -4569,8 +4470,11 @@ SOFTWARE.</pre>`;
 
       if (!statusText || !percentText || !speedText || !bytesText || !progressBar || !progressContainer) return;
 
+      const lang = getActiveLanguage();
+      statusText.style.color = ''; // reset color
+
       progressContainer.style.display = 'block';
-      statusText.innerText = `正在初始化: ${modelName}`;
+      statusText.innerText = `${translateOllamaStatus('init', lang)}: ${modelName}`;
       percentText.innerText = '0%';
       progressBar.style.width = '0%';
       speedText.innerText = '- MB/s';
@@ -4605,7 +4509,7 @@ SOFTWARE.</pre>`;
               const parsed = JSON.parse(line);
               
               if (parsed.status) {
-                statusText.innerText = `${parsed.status}: ${modelName}`;
+                statusText.innerText = `${translateOllamaStatus(parsed.status, lang)}: ${modelName}`;
               }
               
               if (parsed.completed && parsed.total) {
@@ -4632,7 +4536,7 @@ SOFTWARE.</pre>`;
                 if (parsed.error) {
                   throw new Error(parsed.error);
                 }
-                statusText.innerText = `下載完成: ${modelName}`;
+                statusText.innerText = `${translateOllamaStatus('success', lang)}: ${modelName}`;
                 percentText.innerText = '100%';
                 progressBar.style.width = '100%';
                 
@@ -4646,7 +4550,7 @@ SOFTWARE.</pre>`;
         }
       } catch (err) {
         console.error("Model pull failed:", err);
-        statusText.innerText = `下載失敗: ${err.message}`;
+        statusText.innerText = `${translateOllamaStatus('fail', lang)}: ${err.message}`;
         statusText.style.color = '#ff4a4a';
       }
     }
@@ -4654,10 +4558,13 @@ SOFTWARE.</pre>`;
 
     function pullCustomOllamaModel() {
       const input = document.getElementById('input-custom-pull');
+      const lang = getActiveLanguage();
       if (input && input.value.trim()) {
         pullOllamaModel(input.value.trim());
       } else {
-        alert("請輸入有效的模型名稱！");
+        const dict = translations[lang] || translations['en'];
+        const alertMsg = dict['modelhub_alert_empty_name'] || "請輸入有效的模型名稱！";
+        alert(alertMsg);
       }
     }
     window.pullCustomOllamaModel = pullCustomOllamaModel;
@@ -4765,24 +4672,7 @@ SOFTWARE.</pre>`;
     </div>
   </div>
 
-  <!-- Prompt Gallery Modal -->
-  <div class="terms-backdrop" id="promptGalleryModal" onclick="closePromptGallery()">
-    <div class="terms-modal-card glass-panel" onclick="event.stopPropagation()" style="background: rgba(13, 12, 28, 0.95); border-color: rgba(0, 242, 254, 0.25);">
-      <div class="terms-modal-header" style="border-bottom: 1px solid rgba(255,255,255,0.08);">
-        <h3 style="display: flex; align-items: center; gap: 8px; font-size: 16px; font-weight: 700; color: var(--text-main);">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
-          <span>系統提示詞庫 (System Prompt Gallery)</span>
-        </h3>
-        <button class="terms-close-btn" onclick="closePromptGallery()">✕</button>
-      </div>
-      <div class="terms-modal-body" style="padding: 1.5rem;">
-        <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;">選擇一個預設人設，將其套用至您目前的系統設定提示詞：</div>
-        <div class="gallery-grid" id="prompt-gallery-list">
-          <!-- Dynamically populated -->
-        </div>
-      </div>
-    </div>
-  </div>
+
 
   <!-- Glowing high-tech Toast Notification -->
   <div class="aether-toast" id="save-toast">

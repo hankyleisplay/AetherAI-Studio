@@ -204,25 +204,243 @@ if (flag === '--uninstall') {
 // ----------------------------------------------------
 // DEFAULT RUN: Start Server & Launch Browser
 // ----------------------------------------------------
-console.log("Booting AetherAI Studio local server...");
+const readline = require('readline');
+const http = require('http');
 
-// Load server.js programmatically
-require('./server.js');
+function startTerminalChat() {
+  console.clear();
+  console.log("\x1b[36m==========================================================\x1b[0m");
+  console.log("\x1b[36m         AetherAI Studio - Terminal Chat\x1b[0m");
+  console.log("\x1b[36m==========================================================\x1b[0m");
+  console.log("\x1b[90mType 'exit' or 'quit' to exit. / 輸入 'exit' 或 'quit' 退出對話。\x1b[0m");
+  console.log("");
 
-// Give the server 800ms to bind, then launch default browser
-setTimeout(() => {
-  const launchUrl = "http://localhost:8080";
-  const startCmd = process.platform === 'win32'
-    ? `start ${launchUrl}`
-    : process.platform === 'darwin'
-      ? `open ${launchUrl}`
-      : `xdg-open ${launchUrl}`;
-      
-  exec(startCmd, (err) => {
-    if (err) {
-      console.log(`Failed to open browser automatically. Please open: ${launchUrl}`);
-    } else {
-      console.log("🌐 Browser opened successfully.");
-    }
+  let provider = 'ollama';
+  let url = 'http://localhost:11434';
+  let model = '';
+
+  if (fs.existsSync(configPath)) {
+    try {
+      const config = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      if (config.provider) provider = config.provider;
+      if (config.ollama_url) url = config.ollama_url;
+      if (config.model_name) model = config.model_name;
+    } catch (e) {}
+  }
+
+  if (!model) {
+    model = 'llama3';
+  }
+
+  console.log(`Active Provider: \x1b[33m${provider}\x1b[0m`);
+  console.log(`Active Model: \x1b[33m${model}\x1b[0m`);
+  console.log(`API Endpoint: \x1b[33m${url}\x1b[0m`);
+  console.log("\x1b[90m----------------------------------------------------------\x1b[0m");
+
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout
   });
-}, 800);
+
+  const sysPrompt = "You are a helpful assistant named AetherAI.";
+
+  function askQuestion() {
+    rl.question('\n\x1b[32mYou > \x1b[0m', (input) => {
+      if (input.trim().toLowerCase() === 'exit' || input.trim().toLowerCase() === 'quit') {
+        rl.close();
+        process.exit(0);
+      }
+
+      if (input.trim().toLowerCase() === '/model') {
+        process.stdout.write('\x1b[90mFetching available models...\x1b[0m\n');
+        const parsedUrl = new URL(url);
+        const isOllama = provider === 'ollama';
+        const pathStr = isOllama ? '/api/tags' : '/v1/models';
+        
+        const options = {
+          hostname: parsedUrl.hostname,
+          port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+          path: pathStr,
+          method: 'GET',
+          timeout: 5000
+        };
+
+        const clientReq = http.request(options, (res) => {
+          let rawData = '';
+          res.on('data', (chunk) => { rawData += chunk; });
+          res.on('end', () => {
+            try {
+              const parsed = JSON.parse(rawData);
+              let modelsList = [];
+              if (isOllama) {
+                modelsList = parsed.models ? parsed.models.map(m => m.name) : [];
+              } else {
+                modelsList = parsed.data ? parsed.data.map(m => m.id) : [];
+              }
+
+              if (modelsList.length > 0) {
+                console.log('\n\x1b[1mAvailable Models:\x1b[0m');
+                modelsList.forEach((m, idx) => {
+                  console.log(`   [${idx + 1}] ${m}`);
+                });
+                
+                rl.question(`\n\x1b[33mSelect model number (1-${modelsList.length}): \x1b[0m`, (num) => {
+                  const idx = parseInt(num) - 1;
+                  if (idx >= 0 && idx < modelsList.length) {
+                    model = modelsList[idx];
+                    console.log(`\x1b[32mSwitched to model: ${model}\x1b[0m`);
+                    // Save to config.json
+                    try {
+                      let currentConfig = {};
+                      if (fs.existsSync(configPath)) {
+                        currentConfig = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+                      }
+                      currentConfig.model_name = model;
+                      fs.writeFileSync(configPath, JSON.stringify(currentConfig, null, 2), 'utf8');
+                    } catch (e) {}
+                  } else {
+                    console.log('\x1b[31mInvalid selection.\x1b[0m');
+                  }
+                  askQuestion();
+                });
+              } else {
+                console.log('\x1b[33mNo models found.\x1b[0m');
+                askQuestion();
+              }
+            } catch (e) {
+              console.log(`\x1b[31mError parsing models API response.\x1b[0m`);
+              askQuestion();
+            }
+          });
+        });
+
+        clientReq.on('error', (e) => {
+          console.log(`\x1b[31m❌ API Connection Error: ${e.message}\x1b[0m`);
+          askQuestion();
+        });
+
+        clientReq.end();
+        return;
+      }
+
+      process.stdout.write('\x1b[90mThinking...\x1b[0m');
+
+      const parsedUrl = new URL(url);
+      const isOllama = provider === 'ollama';
+      const pathStr = isOllama ? '/api/chat' : '/v1/chat/completions';
+      
+      const payload = isOllama ? {
+        model: model,
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: input }
+        ],
+        stream: false
+      } : {
+        model: model,
+        messages: [
+          { role: 'system', content: sysPrompt },
+          { role: 'user', content: input }
+        ],
+        stream: false
+      };
+
+      const bodyData = JSON.stringify(payload);
+      
+      const options = {
+        hostname: parsedUrl.hostname,
+        port: parsedUrl.port || (parsedUrl.protocol === 'https:' ? 443 : 80),
+        path: pathStr,
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(bodyData)
+        }
+      };
+
+      const clientReq = http.request(options, (res) => {
+        let rawData = '';
+        res.on('data', (chunk) => { rawData += chunk; });
+        res.on('end', () => {
+          // Clear "Thinking..."
+          readline.clearLine(process.stdout, 0);
+          readline.cursorTo(process.stdout, 0);
+          process.stdout.write('\x1b[36mAetherAI > \x1b[0m');
+
+          try {
+            const parsed = JSON.parse(rawData);
+            let reply = '';
+            if (isOllama) {
+              reply = parsed.message ? parsed.message.content : '';
+            } else {
+              reply = (parsed.choices && parsed.choices[0]) ? parsed.choices[0].message.content : '';
+            }
+            console.log(reply);
+          } catch (e) {
+            console.log(`\n\x1b[31mError parsing API response.\x1b[0m Raw response: ${rawData}`);
+          }
+          askQuestion();
+        });
+      });
+
+      clientReq.on('error', (e) => {
+        readline.clearLine(process.stdout, 0);
+        readline.cursorTo(process.stdout, 0);
+        console.log(`\n\x1b[31m❌ API Connection Error: ${e.message}\x1b[0m`);
+        askQuestion();
+      });
+
+      clientReq.write(bodyData);
+      clientReq.end();
+    });
+  }
+
+  askQuestion();
+}
+
+function bootWebServer() {
+  console.log("Booting AetherAI Studio local server...");
+  require('./server.js');
+
+  setTimeout(() => {
+    const launchUrl = "http://localhost:8080";
+    const startCmd = process.platform === 'win32'
+      ? `start ${launchUrl}`
+      : process.platform === 'darwin'
+        ? `open ${launchUrl}`
+        : `xdg-open ${launchUrl}`;
+        
+    exec(startCmd, (err) => {
+      if (err) {
+        console.log(`Failed to open browser automatically. Please open: ${launchUrl}`);
+      } else {
+        console.log("🌐 Browser opened successfully.");
+      }
+    });
+  }, 800);
+}
+
+// Interactive menu selection at boot
+const rlMenu = readline.createInterface({
+  input: process.stdin,
+  output: process.stdout
+});
+
+console.clear();
+console.log("\x1b[36m==========================================================\x1b[0m");
+console.log("\x1b[36m         Please select your launch mode / 請選擇啟動模式:\x1b[0m");
+console.log("   [1] Chat directly in Terminal (終端機與 AI 對話)");
+console.log("   [2] Start Local Web Server & Open Web UI (啟動本地網頁伺服器)");
+console.log("   [3] Exit / 結束離開");
+console.log("\x1b[36m==========================================================\x1b[0m");
+
+rlMenu.question('  Please press 1, 2 or 3: ', (answer) => {
+  rlMenu.close();
+  if (answer.trim() === '1') {
+    startTerminalChat();
+  } else if (answer.trim() === '2') {
+    bootWebServer();
+  } else {
+    process.exit(0);
+  }
+});

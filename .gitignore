@@ -14,3 +14,5 @@ OllamaSetup.exe
 .vscode/
 Thumbs.db
 Desktop.ini
+.aetherai/
+gateway.cmd

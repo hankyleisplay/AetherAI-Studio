@@ -30,7 +30,7 @@ if (!$started) {
 
 $workspacePath = Get-Location
 $configPath = [System.IO.Path]::Combine($workspacePath, "config.json")
-$agentWorkspacePath = Join-Path $workspacePath ".aetherai"
+$agentWorkspacePath = Join-Path $workspacePath "workspace"
 
 # Ensure agent sandboxed workspace folder exists
 if (!(Test-Path $agentWorkspacePath)) {
@@ -42,7 +42,6 @@ if (!(Test-Path $configPath)) {
     $defaultConfig = @{
         telegram_token = ""
         telegram_chat_id = ""
-        discord_webhook = ""
         ollama_url = "http://localhost:11434"
         provider = "ollama"
         model_name = ""
@@ -264,48 +263,12 @@ When the user asks you to do something, use these tags to run actions on their m
     }
 }
 
-function Send-DiscordBroadcast($title, $description, $colorHex = "00f2fe") {
-    try {
-        if (Test-Path $configPath) {
-            $config = [System.IO.File]::ReadAllText($configPath) | ConvertFrom-Json
-            $webhookUrl = $config.discord_webhook
-            
-            if ($webhookUrl) {
-                $decColor = [System.Convert]::ToInt32($colorHex, 16)
-                
-                $embed = @{
-                    title = $title
-                    description = $description
-                    color = $decColor
-                    timestamp = (Get-Date).ToString("yyyy-MM-ddTHH:mm:ssZ")
-                    footer = @{ text = "AetherAI Studio Broadcaster" }
-                }
-                
-                $body = @{
-                    username = "AetherAI Broadcaster"
-                    embeds = @($embed)
-                } | ConvertTo-Json -Depth 5
-                
-                $utf8Bytes = [System.Text.Encoding]::UTF8.GetBytes($body)
-                $req = [System.Net.WebRequest]::Create($webhookUrl)
-                $req.Method = "POST"
-                $req.ContentType = "application/json"
-                $req.ContentLength = $utf8Bytes.Length
-                $stream = $req.GetRequestStream()
-                $stream.Write($utf8Bytes, 0, $utf8Bytes.Length)
-                $stream.Close()
-                $res = $req.GetResponse()
-                $res.Close()
-            }
-        }
-    } catch {}
-}
+
 
 Start-TelegramBridge
 
 try {
     Start-Process "http://localhost:$port"
-    Send-DiscordBroadcast "🖥️ Web Server Started" "AetherAI Studio local static server and CORS proxy started successfully on http://localhost:$port" "00f2fe"
 
     Write-Host "==================================================" -ForegroundColor Cyan
     Write-Host "  AetherAI Studio Web Server is Running!" -ForegroundColor Green
@@ -604,7 +567,6 @@ try {
                 
                 if ($newConfig.telegram_token -ne $null) { $currentConfig.telegram_token = $newConfig.telegram_token }
                 if ($newConfig.telegram_chat_id -ne $null) { $currentConfig.telegram_chat_id = $newConfig.telegram_chat_id }
-                if ($newConfig.discord_webhook -ne $null) { $currentConfig.discord_webhook = $newConfig.discord_webhook }
                 if ($newConfig.ollama_url -ne $null) { $currentConfig.ollama_url = $newConfig.ollama_url }
                 if ($newConfig.provider -ne $null) { $currentConfig.provider = $newConfig.provider }
                 if ($newConfig.model_name -ne $null) { $currentConfig.model_name = $newConfig.model_name }
@@ -614,13 +576,120 @@ try {
                 [System.IO.File]::WriteAllText($configPath, $jsonStr, [System.Text.Encoding]::UTF8)
                 
                 Start-TelegramBridge
-                Send-DiscordBroadcast "⚙️ Bridges Configuration Updated" "Bridges have been reconfigured and restarted successfully." "9b51e0"
                 
                 $response.ContentType = "application/json; charset=utf-8"
                 $resBytes = [System.Text.Encoding]::UTF8.GetBytes('{"status":"success"}')
                 $response.ContentLength64 = $resBytes.Length
                 $response.OutputStream.Write($resBytes, 0, $resBytes.Length)
             } catch {
+                $response.StatusCode = 500
+                $errBytes = [System.Text.Encoding]::UTF8.GetBytes("Error: " + $_.Exception.Message)
+                $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
+            }
+            $response.Close()
+            continue
+        }
+
+        # 5. Ollama Model Pull Proxy
+        if ($url -eq "/api/ollama/pull") {
+            $response.Headers.Add("Access-Control-Allow-Origin", "*")
+            $response.Headers.Add("Access-Control-Allow-Headers", "*")
+            $response.Headers.Add("Access-Control-Allow-Methods", "*")
+            if ($request.HttpMethod -eq "OPTIONS") {
+                $response.StatusCode = 200
+                $response.Close()
+                continue
+            }
+            try {
+                $reader = New-Object System.IO.StreamReader($request.InputStream, [System.Text.Encoding]::UTF8)
+                $body = $reader.ReadToEnd()
+                $reader.Close()
+                
+                $payload = $body | ConvertFrom-Json
+                $modelName = $payload.model
+                
+                if (!$modelName) {
+                    $response.StatusCode = 400
+                    $errBytes = [System.Text.Encoding]::UTF8.GetBytes("Missing model parameter")
+                    $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
+                    $response.Close()
+                    continue
+                }
+
+                $config = [System.IO.File]::ReadAllText($configPath) | ConvertFrom-Json
+                $ollamaUrl = if ($config.ollama_url) { $config.ollama_url } else { "http://localhost:11434" }
+                
+                $pullUrl = "$ollamaUrl/api/pull"
+                
+                Write-Host ""
+                Write-Host "==================================================" -ForegroundColor Cyan
+                Write-Host "🤖 Pulling Ollama Model: $modelName" -ForegroundColor Cyan
+                Write-Host "==================================================" -ForegroundColor Cyan
+
+                $postBody = @{ name = $modelName; stream = $true } | ConvertTo-Json
+                $postBytes = [System.Text.Encoding]::UTF8.GetBytes($postBody)
+
+                $ollamaReq = [System.Net.WebRequest]::Create($pullUrl)
+                $ollamaReq.Method = "POST"
+                $ollamaReq.ContentType = "application/json"
+                $ollamaReq.ContentLength = $postBytes.Length
+                $ollamaReq.Timeout = 600000 # 10 minutes
+
+                $reqStream = $ollamaReq.GetRequestStream()
+                $reqStream.Write($postBytes, 0, $postBytes.Length)
+                $reqStream.Close()
+
+                $ollamaRes = $ollamaReq.GetResponse()
+                $resStream = $ollamaRes.GetResponseStream()
+
+                $response.ContentType = "application/json; charset=utf-8"
+                
+                $buffer = New-Object byte[] 65536
+                $streamBuffer = ""
+                while ($true) {
+                    $read = $resStream.Read($buffer, 0, $buffer.Length)
+                    if ($read -le 0) { break }
+                    
+                    # Write back to web UI client
+                    $response.OutputStream.Write($buffer, 0, $read)
+                    $response.OutputStream.Flush()
+                    
+                    # Log progress inside terminal console
+                    try {
+                        $chunkStr = [System.Text.Encoding]::UTF8.GetString($buffer, 0, $read)
+                        $streamBuffer += $chunkStr
+                        if ($streamBuffer.Contains("`n")) {
+                            $lines = $streamBuffer.Split("`n")
+                            $streamBuffer = $lines[-1]
+                            
+                            for ($i = 0; $i -lt ($lines.Length - 1); $i++) {
+                                $line = $lines[$i]
+                                if ([string]::IsNullOrWhiteSpace($line)) { continue }
+                                $progress = $line | ConvertFrom-Json
+                                if ($progress.status) {
+                                    if ($progress.completed -and $progress.total) {
+                                        $percent = ($progress.completed / $progress.total) * 100
+                                        $mbCompleted = [math]::Round($progress.completed / 1MB, 1)
+                                        $mbTotal = [math]::Round($progress.total / 1MB, 1)
+                                        $percentStr = "{0:N1}%" -f $percent
+                                        Write-Host "`r[Download] status: $($progress.status) ($mbCompleted MB / $mbTotal MB) $percentStr" -NoNewline -ForegroundColor Green
+                                    } else {
+                                        Write-Host "`r[Download] status: $($progress.status)                                                " -NoNewline -ForegroundColor Yellow
+                                    }
+                                }
+                            }
+                        }
+                    } catch {}
+                }
+                
+                Write-Host ""
+                Write-Host "✅ Model $modelName downloaded successfully!" -ForegroundColor Green
+                Write-Host "==================================================" -ForegroundColor Cyan
+
+                $resStream.Close()
+                $ollamaRes.Close()
+            } catch {
+                Write-Host "❌ Model pull failed: $_" -ForegroundColor Red
                 $response.StatusCode = 500
                 $errBytes = [System.Text.Encoding]::UTF8.GetBytes("Error: " + $_.Exception.Message)
                 $response.OutputStream.Write($errBytes, 0, $errBytes.Length)
@@ -682,7 +751,6 @@ catch {
 }
 finally {
     Stop-TelegramBridge
-    Send-DiscordBroadcast "🛑 Web Server Stopped" "AetherAI Studio local static server and CORS proxy stopped safely." "eb5757"
     if ($listener) {
         $listener.Stop()
         $listener.Close()

@@ -11,7 +11,7 @@ const { exec } = require('child_process');
 let port = 8080;
 const workspacePath = process.cwd();
 const configPath = path.join(workspacePath, 'config.json');
-const agentWorkspacePath = path.join(workspacePath, '.aetherai');
+const agentWorkspacePath = path.join(workspacePath, 'workspace');
 
 // Ensure agent sandboxed workspace folder exists
 if (!fs.existsSync(agentWorkspacePath)) {
@@ -23,7 +23,6 @@ if (!fs.existsSync(configPath)) {
   const defaultConfig = {
     telegram_token: "",
     telegram_chat_id: "",
-    discord_webhook: "",
     ollama_url: "http://localhost:11434",
     provider: "ollama",
     model_name: ""
@@ -63,36 +62,6 @@ function getMimeType(filePath) {
   return mimeTypes[ext] || 'application/octet-stream';
 }
 
-// Discord Webhook Broadcaster
-async function sendDiscordBroadcast(title, description, colorHex = "00f2fe") {
-  try {
-    const config = readConfig();
-    if (!config.discord_webhook) return;
-    
-    const colorInt = parseInt(colorHex, 16);
-    const body = {
-      embeds: [{
-        title: title,
-        description: description,
-        color: colorInt,
-        timestamp: new Date().toISOString(),
-        footer: { text: "AetherAI Studio Broadcast Engine" }
-      }]
-    };
-    
-    const url = new URL(config.discord_webhook);
-    const options = {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' }
-    };
-    
-    const req = http.request(url, options);
-    req.write(JSON.stringify(body));
-    req.end();
-  } catch (err) {
-    console.error("Discord Broadcast failed:", err.message);
-  }
-}
 
 // Helper: Make HTTP Request using node http/https
 function makeRequest(targetUrl, method, headers = {}, body = null) {
@@ -593,7 +562,6 @@ const server = http.createServer((request, response) => {
           
           if (newConfig.telegram_token !== undefined) currentConfig.telegram_token = newConfig.telegram_token;
           if (newConfig.telegram_chat_id !== undefined) currentConfig.telegram_chat_id = newConfig.telegram_chat_id;
-          if (newConfig.discord_webhook !== undefined) currentConfig.discord_webhook = newConfig.discord_webhook;
           if (newConfig.ollama_url !== undefined) currentConfig.ollama_url = newConfig.ollama_url;
           if (newConfig.provider !== undefined) currentConfig.provider = newConfig.provider;
           if (newConfig.model_name !== undefined) currentConfig.model_name = newConfig.model_name;
@@ -602,7 +570,6 @@ const server = http.createServer((request, response) => {
           fs.writeFileSync(configPath, JSON.stringify(currentConfig, null, 2), 'utf8');
           
           startTelegramBridge();
-          sendDiscordBroadcast("⚙️ Bridges Configuration Updated", "Bridges have been reconfigured and restarted successfully.", "9b51e0");
           
           response.statusCode = 200;
           response.setHeader('Content-Type', 'application/json; charset=utf-8');
@@ -644,25 +611,61 @@ const server = http.createServer((request, response) => {
             timeout: 600000 // 10 minutes timeout for model download
           };
 
+          console.log("");
+          console.log("==================================================");
+          console.log(`🤖 Pulling Ollama Model: ${modelName}`);
+          console.log("==================================================");
+
           response.statusCode = 200;
           response.setHeader('Content-Type', 'application/json; charset=utf-8');
 
+          let streamBuffer = '';
+
           const pullReq = lib.request(targetUrl, options, (pullRes) => {
             pullRes.on('data', (chunk) => {
+              // Write back to web UI client
               response.write(chunk);
+
+              // Log progress inside terminal console
+              try {
+                streamBuffer += chunk.toString('utf8');
+                const lines = streamBuffer.split('\n');
+                streamBuffer = lines.pop() || '';
+
+                for (const line of lines) {
+                  if (!line.trim()) continue;
+                  const progress = JSON.parse(line);
+                  if (progress.status) {
+                    if (progress.completed !== undefined && progress.total !== undefined && progress.total > 0) {
+                      const percent = ((progress.completed / progress.total) * 100).toFixed(1);
+                      const mbCompleted = (progress.completed / (1024 * 1024)).toFixed(1);
+                      const mbTotal = (progress.total / (1024 * 1024)).toFixed(1);
+                      process.stdout.write(`\r[Download] status: ${progress.status} (${mbCompleted} MB / ${mbTotal} MB) ${percent}%        `);
+                    } else {
+                      process.stdout.write(`\r[Download] status: ${progress.status}                                                `);
+                    }
+                  }
+                }
+              } catch (e) {
+                // Ignore parsing errors for partial/malformed lines
+              }
             });
+            
             pullRes.on('end', () => {
+              console.log("\n✅ Model downloaded successfully!");
+              console.log("==================================================");
               response.end();
             });
           });
 
           pullReq.on('error', (err) => {
-            console.error("Ollama pull proxy error:", err);
+            console.log(`\n❌ Model pull failed: ${err.message}`);
+            console.log("==================================================");
             response.write(JSON.stringify({ error: err.message }));
             response.end();
           });
 
-          pullReq.write(JSON.stringify({ name: modelName }));
+          pullReq.write(JSON.stringify({ name: modelName, stream: true }));
           pullReq.end();
         } catch (e) {
           response.statusCode = 500;
@@ -714,7 +717,6 @@ function startServer() {
     console.log("  AetherAI Studio Web Server is Running!");
     console.log(`  👉 http://localhost:${port}`);
     console.log("==================================================");
-    sendDiscordBroadcast("🖥️ Web Server Started", `AetherAI Studio local Node.js server and CORS proxy started successfully on http://localhost:${port}`, "00f2fe");
   });
   
   server.on('error', (err) => {
@@ -734,7 +736,6 @@ startServer();
 process.on('SIGINT', () => {
   console.log("\nShutting down web server safely...");
   stopTelegramBridge();
-  sendDiscordBroadcast("🛑 Web Server Stopped", "AetherAI Studio local static server and CORS proxy stopped safely.", "eb5757");
   server.close(() => {
     process.exit(0);
   });

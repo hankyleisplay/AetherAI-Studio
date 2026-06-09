@@ -40,61 +40,88 @@ const psTemplate = `# ==========================================================
 Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
 
 # ==========================================================================
-# AUTOMATIC UPDATE CHECK
+# 1. DEVELOPER WORKSPACE CHECK & APP DIRECTORY CONFIG
 # ==========================================================================
-$localVersion = "${version}"
-Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
+$isDevWorkspace = $false
+$scriptPath = $MyInvocation.MyCommand.Path
 
-try {
-    [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-    $request = [System.Net.WebRequest]::Create("https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
-    $request.Timeout = 3000
-    $request.UserAgent = "Mozilla/5.0"
-    $request.Method = "GET"
-    $response = $request.GetResponse()
-    $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
-    $jsonStr = $reader.ReadToEnd()
-    $reader.Close()
-    $response.Close()
+if ($scriptPath -and (Test-Path $scriptPath)) {
+    $scriptDir = Split-Path -Parent $scriptPath
+    if (Test-Path (Join-Path $scriptDir ".git")) {
+        $isDevWorkspace = $true
+    }
+} elseif (Test-Path ".git") {
+    $isDevWorkspace = $true
+}
+
+if ($isDevWorkspace) {
+    $appDir = if ($scriptPath) { Split-Path -Parent $scriptPath } else { Get-Location }
+    $env:SCRIPT_DIR = $appDir + "\\"
+    Write-Host "Running in developer repository workspace: $appDir" -ForegroundColor Gray
+} else {
+    $appDir = Join-Path $env:UserProfile ".aetherai"
+    $targetScriptPath = Join-Path $appDir "run.ps1"
     
-    if ($jsonStr -match '"tag_name":\\s*"([^"]+)"') {
-        $remoteTag = $Matches[1]
-        $remoteVersion = if ($remoteTag -match '^v?([0-9.]+.*)$') { $Matches[1] } else { $remoteTag }
+    $shouldRedirect = $true
+    if ($scriptPath) {
+        try {
+            $normalizedScript = [System.IO.Path]::GetFullPath($scriptPath).ToLower()
+            $normalizedTarget = [System.IO.Path]::GetFullPath($targetScriptPath).ToLower()
+            if ($normalizedScript -eq $normalizedTarget) {
+                $shouldRedirect = $false
+            }
+        } catch {}
+    }
+    
+    if ($shouldRedirect) {
+        if (!(Test-Path $appDir)) {
+            New-Item -ItemType Directory -Path $appDir -Force | Out-Null
+        }
         
-        if ($remoteVersion -ne $localVersion) {
-            Write-Host "New version $remoteVersion available! (Current local: $localVersion)" -ForegroundColor Green
-            $scriptPath = $MyInvocation.MyCommand.Path
-            if ($scriptPath -and (Test-Path $scriptPath) -and ($scriptPath -notlike "*temp*")) {
-                Write-Host "Downloading update from GitHub Releases ($remoteTag)..." -ForegroundColor Yellow
-                $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/$remoteTag/run.ps1"
-                try {
-                    $webClient = New-Object System.Net.WebClient
-                    $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
-                    $webClient.DownloadFile($updateUrl, $scriptPath)
-                    Write-Host "Update installed successfully! Restarting launcher..." -ForegroundColor Green
-                    
-                    $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
-                    $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
-                    if ($args) { $arguments += $args }
-                    
-                    Start-Process $shellName -ArgumentList $arguments
-                    exit
-                } catch {
-                    Write-Host "⚠️ Failed to save update: $_" -ForegroundColor Yellow
-                }
-            } else {
-                Write-Host "Running in-memory or temp execution. Bypassing script file overwrite." -ForegroundColor Gray
+        Write-Host "Installing AetherAI Studio to $appDir..." -ForegroundColor Cyan
+        
+        if ($scriptPath -and (Test-Path $scriptPath)) {
+            Copy-Item -Path $scriptPath -Destination $targetScriptPath -Force -ErrorAction SilentlyContinue | Out-Null
+        } else {
+            Write-Host "Downloading launcher from GitHub..." -ForegroundColor Yellow
+            try {
+                [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+                $webClient = New-Object System.Net.WebClient
+                $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
+                $webClient.DownloadFile("https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/run.ps1", $targetScriptPath)
+            } catch {
+                Write-Host "⚠️ Failed to download launcher: $_" -ForegroundColor Red
+            }
+        }
+        
+        $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
+        $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $targetScriptPath)
+        if ($args) { $arguments += $args }
+        
+        if (-not $isAdmin) {
+            Write-Host "Requesting Administrator privileges to complete installation..." -ForegroundColor Yellow
+            try {
+                Start-Process $shellName -ArgumentList $arguments -Verb RunAs
+                exit
+            } catch {
+                Write-Host "❌ Error: Administrator privileges are required to install AetherAI Studio." -ForegroundColor Red
+                Write-Host "Press any key to exit..." -ForegroundColor Gray
+                try { [void][System.Console]::ReadKey($true) } catch {}
+                exit
             }
         } else {
-            Write-Host "AetherAI Studio is up to date (Version $localVersion)." -ForegroundColor Green
+            Start-Process $shellName -ArgumentList $arguments -Wait
+            exit
         }
     }
-} catch {
-    Write-Host "⚠️ Unable to check for updates (offline or GitHub Releases API unreachable)." -ForegroundColor Yellow
+    
+    $env:SCRIPT_DIR = $appDir + "\\"
+    Set-Location -Path $appDir
 }
 
 # ==========================================================================
-# ADMINISTRATOR PRIVILEGE ELEVATION CHECK
+# 1.5 ADMINISTRATOR PRIVILEGE ELEVATION CHECK (For the redirected run)
 # ==========================================================================
 $isAdmin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
 if (-not $isAdmin) {
@@ -117,69 +144,81 @@ if (-not $isAdmin) {
     }
 }
 
+# ==========================================================================
+# AUTOMATIC UPDATE CHECK
+# ==========================================================================
+$localVersion = "${version}"
+
+if ($isDevWorkspace) {
+    Write-Host "Running in developer repository workspace. Skipping automatic update check." -ForegroundColor Gray
+} else {
+    Write-Host "Checking for AetherAI Studio updates..." -ForegroundColor Cyan
+    try {
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        $request = [System.Net.WebRequest]::Create("https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
+        $request.Timeout = 3000
+        $request.UserAgent = "Mozilla/5.0"
+        $request.Method = "GET"
+        $response = $request.GetResponse()
+        $reader = New-Object System.IO.StreamReader($response.GetResponseStream())
+        $jsonStr = $reader.ReadToEnd()
+        $reader.Close()
+        $response.Close()
+        
+        if ($jsonStr -match '"tag_name":\\s*"([^"]+)"') {
+            $remoteTag = $Matches[1]
+            $remoteVersion = if ($remoteTag -match '^v?([0-9.]+.*)$') { $Matches[1] } else { $remoteTag }
+            
+            $hasNewer = $false
+            try {
+                $vRemote = [version]($remoteVersion -replace '[^0-9.]')
+                $vLocal = [version]($localVersion -replace '[^0-9.]')
+                $hasNewer = $vRemote -gt $vLocal
+            } catch {
+                $hasNewer = $remoteVersion -ne $localVersion
+            }
+            
+            if ($hasNewer) {
+                Write-Host "New version $remoteVersion available! (Current local: $localVersion)" -ForegroundColor Green
+                if ($scriptPath -and (Test-Path $scriptPath) -and ($scriptPath -notlike "*temp*")) {
+                    Write-Host "Downloading update from GitHub Releases ($remoteTag)..." -ForegroundColor Yellow
+                    $updateUrl = "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/$remoteTag/run.ps1"
+                    try {
+                        $webClient = New-Object System.Net.WebClient
+                        $webClient.Headers.Add("User-Agent", "Mozilla/5.0")
+                        $webClient.DownloadFile($updateUrl, $scriptPath)
+                        Write-Host "Update installed successfully! Restarting launcher..." -ForegroundColor Green
+                        
+                        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
+                        $arguments = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $scriptPath)
+                        if ($args) { $arguments += $args }
+                        
+                        Start-Process $shellName -ArgumentList $arguments
+                        exit
+                    } catch {
+                        Write-Host "⚠️ Failed to save update: $_" -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "Running in-memory or temp execution. Bypassing script file overwrite." -ForegroundColor Gray
+                }
+            } else {
+                Write-Host "AetherAI Studio is up to date (Version $localVersion)." -ForegroundColor Green
+            }
+        }
+    } catch {
+        Write-Host "⚠️ Unable to check for updates (offline or GitHub Releases API unreachable)." -ForegroundColor Yellow
+    }
+}
+
 $portableBase64 = "${portableBase64}"
 $serverBase64 = "${serverPsBase64}"
 
 # ==========================================================================
-# SMART INSTALLER REDIRECTION CORE
+# CREATE AGENT WORKSPACE DIRECTORY
 # ==========================================================================
-$tempDir = [System.IO.Path]::GetTempPath().TrimEnd('\\')
-$scriptPath = $MyInvocation.MyCommand.Path
-$scriptDirClean = ""
-
-if ($scriptPath) {
-    $scriptDirClean = [System.IO.Path]::GetDirectoryName($scriptPath).TrimEnd('\\')
-} else {
-    $scriptDirClean = $tempDir
-}
-
-$isTemp = $false
-if ($scriptDirClean -like "*\\AppData\\Local\\Temp*" -or $scriptDirClean -like "*\\Windows\\Temp*" -or $scriptDirClean -eq $tempDir -or [string]::IsNullOrEmpty($scriptPath)) {
-    $isTemp = $true
-}
-
-$permanentDir = "$env:UserProfile\\AetherAI-Studio"
-if ($isTemp) {
-    if (!(Test-Path $permanentDir)) {
-        New-Item -ItemType Directory -Path $permanentDir -Force | Out-Null
-    }
-    
-    $env:SCRIPT_DIR = $permanentDir + "\\"
-    $targetScriptPath = Join-Path $permanentDir "run.ps1"
-    
-    if ($scriptPath -and (Test-Path $scriptPath)) {
-        Copy-Item -Path $scriptPath -Destination $targetScriptPath -Force -ErrorAction SilentlyContinue | Out-Null
-    } else {
-        try {
-            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-            Invoke-RestMethod -Uri "https://hankyle.com/run.ps1" -OutFile $targetScriptPath -ErrorAction SilentlyContinue
-        } catch {}
-    }
-    
-    if (-not $isAdmin) {
-        Write-Host "Requesting Administrator privileges to complete installation..." -ForegroundColor Yellow
-        $argList = @("-NoProfile", "-ExecutionPolicy", "Bypass", "-File", $targetScriptPath)
-        if ($args) { $argList += $args }
-        $shellName = if ($PSVersionTable.PSVersion.Major -ge 7) { "pwsh" } else { "powershell" }
-        try {
-            Start-Process $shellName -ArgumentList $argList -Verb RunAs
-            exit
-        } catch {
-            Write-Host "❌ Error: Administrator privileges are required to complete the installation." -ForegroundColor Red
-            Write-Host "Please approve the UAC prompt or run PowerShell as Administrator." -ForegroundColor Yellow
-            Write-Host "Press any key to exit..." -ForegroundColor Gray
-            try { [void][System.Console]::ReadKey($true) } catch {}
-            exit
-        }
-    }
-    
-    Set-Location -Path $permanentDir
-    Write-Host "Smart Web Installer: Redirecting AetherAI Studio installation..." -ForegroundColor Cyan
-    Write-Host "👉 Permanent folder: $permanentDir" -ForegroundColor Yellow
-    Write-Host ""
-} else {
-    $env:SCRIPT_DIR = $scriptDirClean + "\\"
-    Set-Location -Path $scriptDirClean
+$workspaceDir = Join-Path $env:SCRIPT_DIR "workspace"
+if (!(Test-Path $workspaceDir)) {
+    New-Item -ItemType Directory -Path $workspaceDir -Force | Out-Null
 }
 
 # ==========================================================================
@@ -381,8 +420,10 @@ if ($flag -eq "--uninstall") {
         Write-Host "[>] Cleaning up local command batch wrappers..." -ForegroundColor Cyan
         $cmdPath = [System.IO.Path]::Combine($env:SCRIPT_DIR, "aether.cmd")
         $cmdPath2 = [System.IO.Path]::Combine($env:SCRIPT_DIR, "aetherai.cmd")
+        $cmdPath3 = [System.IO.Path]::Combine($env:SCRIPT_DIR, "gateway.cmd")
         Remove-Item $cmdPath -Force -ErrorAction SilentlyContinue
         Remove-Item $cmdPath2 -Force -ErrorAction SilentlyContinue
+        Remove-Item $cmdPath3 -Force -ErrorAction SilentlyContinue
         
         Write-Host ""
         Write-Host "🎉 AetherAI Studio has been successfully uninstalled from your terminal and shortcuts!" -ForegroundColor Green
@@ -394,6 +435,170 @@ if ($flag -eq "--uninstall") {
     Write-Host "Press any key to exit..." -ForegroundColor Yellow
     try { [void][System.Console]::ReadKey($true) } catch {}
     exit
+}
+
+Clear-Host
+
+# ==========================================================================
+# TERMINAL CHAT INTERFACE
+# ==========================================================================
+function Start-PowerShellChat {
+    Clear-Host
+    Write-Host "==========================================================" -ForegroundColor Cyan
+    Write-Host "         AetherAI Studio - PowerShell Terminal Chat" -ForegroundColor Cyan
+    Write-Host "==========================================================" -ForegroundColor Cyan
+    Write-Host "Type 'exit' or 'quit' to exit. / 輸入 'exit' 或 'quit' 退出對話。" -ForegroundColor Gray
+    Write-Host ""
+
+    $prov = "ollama"
+    $url = "http://localhost:11434"
+    $model = ""
+    $configPath = Join-Path $env:SCRIPT_DIR "config.json"
+    if (Test-Path $configPath) {
+        try {
+            $config = Get-Content $configPath -Raw | ConvertFrom-Json
+            if ($config.provider) { $prov = $config.provider }
+            if ($config.ollama_url) { $url = $config.ollama_url }
+            if ($config.model_name) { $model = $config.model_name }
+        } catch {}
+    }
+
+    if (!$model) {
+        if ($prov -eq "ollama") {
+            try {
+                $tags = Invoke-RestMethod -Uri "$url/api/tags" -Method Get -TimeoutSec 3
+                if ($tags.models) {
+                    $model = $tags.models[0].name
+                }
+            } catch {}
+        } else {
+            try {
+                $models = Invoke-RestMethod -Uri "$url/v1/models" -Method Get -TimeoutSec 3
+                if ($models.data) {
+                    $model = $models.data[0].id
+                }
+            } catch {}
+        }
+    }
+
+    if (!$model) {
+        $model = "llama3"
+    }
+
+    Write-Host "Active Provider: $prov" -ForegroundColor Yellow
+    Write-Host "Active Model: $model" -ForegroundColor Yellow
+    Write-Host "API Endpoint: $url" -ForegroundColor Yellow
+    Write-Host "----------------------------------------------------------" -ForegroundColor Gray
+
+    $sysPrompt = "You are a helpful assistant named AetherAI."
+    
+    while ($true) {
+        Write-Host ""
+        Write-Host "You > " -NoNewline -ForegroundColor Green
+        $userInput = [System.Console]::ReadLine()
+        if ([string]::IsNullOrWhiteSpace($userInput)) { continue }
+        if ($userInput.Trim().ToLower() -eq "exit" -or $userInput.Trim().ToLower() -eq "quit") {
+            break
+        }
+
+        if ($userInput.Trim().ToLower() -eq "/model") {
+            Write-Host "Fetching available models..." -ForegroundColor Gray
+            try {
+                if ($prov -eq "ollama") {
+                    $tags = Invoke-RestMethod -Uri "$url/api/tags" -Method Get -TimeoutSec 5
+                    if ($tags.models.Count -gt 0) {
+                        Write-Host "\`nAvailable Models:" -ForegroundColor White
+                        for ($i = 0; $i -lt $tags.models.Count; $i++) {
+                            Write-Host "   [$($i + 1)] $($tags.models[$i].name)" -ForegroundColor Gray
+                        }
+                        Write-Host "\`nSelect model number (1-$($tags.models.Count)): " -NoNewline -ForegroundColor Yellow
+                        $selection = [System.Console]::ReadLine()
+                        if ($selection -match '^\d+$' -and [int]$selection -le $tags.models.Count -and [int]$selection -gt 0) {
+                            $model = $tags.models[[int]$selection - 1].name
+                            Write-Host "Switched to model: $model" -ForegroundColor Green
+                            if (Test-Path $configPath) {
+                                try {
+                                    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+                                    $config.model_name = $model
+                                    $config | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+                                } catch {}
+                            }
+                        } else {
+                            Write-Host "Invalid selection." -ForegroundColor Red
+                        }
+                    } else {
+                        Write-Host "No models found." -ForegroundColor Yellow
+                    }
+                } else {
+                    $models = Invoke-RestMethod -Uri "$url/v1/models" -Method Get -TimeoutSec 5
+                    if ($models.data.Count -gt 0) {
+                        Write-Host "\`nAvailable Models:" -ForegroundColor White
+                        for ($i = 0; $i -lt $models.data.Count; $i++) {
+                            Write-Host "   [$($i + 1)] $($models.data[$i].id)" -ForegroundColor Gray
+                        }
+                        Write-Host "\`nSelect model number (1-$($models.data.Count)): " -NoNewline -ForegroundColor Yellow
+                        $selection = [System.Console]::ReadLine()
+                        if ($selection -match '^\d+$' -and [int]$selection -le $models.data.Count -and [int]$selection -gt 0) {
+                            $model = $models.data[[int]$selection - 1].id
+                            Write-Host "Switched to model: $model" -ForegroundColor Green
+                            if (Test-Path $configPath) {
+                                try {
+                                    $config = Get-Content $configPath -Raw | ConvertFrom-Json
+                                    $config.model_name = $model
+                                    $config | ConvertTo-Json | Out-File $configPath -Encoding UTF8 -Force
+                                } catch {}
+                            }
+                        } else {
+                            Write-Host "Invalid selection." -ForegroundColor Red
+                        }
+                    } else {
+                        Write-Host "No models found." -ForegroundColor Yellow
+                    }
+                }
+            } catch {
+                Write-Host "Error fetching models: $_" -ForegroundColor Red
+            }
+            continue
+        }
+
+        Write-Host "Thinking..." -NoNewline -ForegroundColor Gray
+        $responseRaw = ""
+        try {
+            if ($prov -eq "ollama") {
+                $body = @{
+                    model = $model
+                    messages = @(
+                        @{ role = "system"; content = $sysPrompt },
+                        @{ role = "user"; content = $userInput }
+                    )
+                    stream = $false
+                } | ConvertTo-Json
+                
+                $res = Invoke-RestMethod -Uri "$url/api/chat" -Method Post -Body $body -ContentType "application/json; charset=utf-8" -TimeoutSec 30
+                if ($res.message) {
+                    $responseRaw = $res.message.content
+                }
+            } else {
+                $body = @{
+                    model = $model
+                    messages = @(
+                        @{ role = "system"; content = $sysPrompt },
+                        @{ role = "user"; content = $userInput }
+                    )
+                    stream = $false
+                } | ConvertTo-Json
+                
+                $res = Invoke-RestMethod -Uri "$url/v1/chat/completions" -Method Post -Body $body -ContentType "application/json; charset=utf-8" -TimeoutSec 30
+                if ($res.choices) {
+                    $responseRaw = $res.choices[0].message.content
+                }
+            }
+            Write-Host "\`rAetherAI > " -ForegroundColor Cyan -NoNewline
+            Write-Host $responseRaw -ForegroundColor White
+        } catch {
+            Write-Host "\`r❌ API Request Error: $_" -ForegroundColor Red
+        }
+    }
 }
 
 Clear-Host
@@ -486,6 +691,11 @@ $dict = @{
         "ollama_opt_4" = "   [4] 暫時跳過 / 稍後設定 (稍後可在網頁介面中自訂來源)";
         "ollama_prompt_input" = "  請按 [1], [2], [3] 或 [4] 鍵選擇供應商...";
         "ollama_skip_msg" = " [+] 已選擇手動配置或使用其它供應商。跳過 Ollama 下載與安裝。";
+        "launcher_prompt" = "  請選擇您的啟動模式 / Select Launch Mode:";
+        "launcher_opt_1" = "   [1] Chat directly in PowerShell Terminal (直接在終端機對話)";
+        "launcher_opt_2" = "   [2] Start Local Server & Open Web UI (啟動網頁介面伺服器)";
+        "launcher_opt_3" = "   [3] Exit / 結束離開";
+        "launcher_prompt_input" = "  請按 [1]、[2] 或 [3] 鍵選擇...";
     };
     "en" = @{
         "title" = "                 AetherAI Studio One-Click Launcher";
@@ -546,6 +756,11 @@ $dict = @{
         "ollama_opt_4" = "   [4] Skip for now / Configure later (Manually set up source in control panel)";
         "ollama_prompt_input" = "  Please press [1], [2], [3] or [4] key to select a provider...";
         "ollama_skip_msg" = " [+] Chosen manual configuration or alternative provider. Skipping Ollama download.";
+        "launcher_prompt" = "  Please select your launch mode / 請選擇啟動模式:";
+        "launcher_opt_1" = "   [1] Chat in PowerShell (Chat directly in PowerShell terminal)";
+        "launcher_opt_2" = "   [2] Open Web UI (Start server and open browser)";
+        "launcher_opt_3" = "   [3] Exit / Exit launcher";
+        "launcher_prompt_input" = "  Please press [1], [2] or [3] key to select...";
     }
 }
 
@@ -568,7 +783,7 @@ Write-Host ""
 Write-Host $m["extracting"] -ForegroundColor Cyan
 
 try {
-    [System.IO.File]::WriteAllBytes("index.html", [System.Convert]::FromBase64String($portableBase64))
+    [System.IO.File]::WriteAllBytes((Join-Path $env:SCRIPT_DIR "index.html"), [System.Convert]::FromBase64String($portableBase64))
     Write-Host $m["extracted_html"] -ForegroundColor Green
 } catch {
     Write-Host $m["fail_html"] -ForegroundColor Red
@@ -578,7 +793,7 @@ try {
 }
 
 try {
-    [System.IO.File]::WriteAllBytes("server.ps1", [System.Convert]::FromBase64String($serverBase64))
+    [System.IO.File]::WriteAllBytes((Join-Path $env:SCRIPT_DIR "server.ps1"), [System.Convert]::FromBase64String($serverBase64))
     Write-Host $m["extracted_server"] -ForegroundColor Green
 } catch {
     Write-Host $m["fail_server"] -ForegroundColor Red
@@ -758,40 +973,83 @@ try {
     Write-Host ($m["register_fail"] + " (" + $_.Exception.Message + ")") -ForegroundColor Yellow
 }
 
-# 5. Open Default Browser
+# ==========================================================================
+# INTERACTIVE LAUNCH SELECTION
+# ==========================================================================
 Write-Host ""
-Write-Host $m["opening_browser"] -ForegroundColor Cyan
+Write-Host "==========================================================" -ForegroundColor Cyan
+Write-Host $m["launcher_prompt"] -ForegroundColor White
+Write-Host $m["launcher_opt_1"] -ForegroundColor Gray
+Write-Host $m["launcher_opt_2"] -ForegroundColor Gray
+Write-Host $m["launcher_opt_3"] -ForegroundColor Gray
+Write-Host ""
+Write-Host $m["launcher_prompt_input"] -ForegroundColor Yellow
+Write-Host "==========================================================" -ForegroundColor Cyan
 
-# Print Interactive Multilingual Next Steps Guide
-Write-Host ""
-Write-Host "====================================================================" -ForegroundColor Cyan
-Write-Host $m["congrats"] -ForegroundColor Green
-Write-Host $m["url_msg"] -ForegroundColor White
-Write-Host ""
-Write-Host $m["guide_title"] -ForegroundColor White
-Write-Host $m["guide_o1"] -ForegroundColor Cyan
-Write-Host $m["guide_o2"] -ForegroundColor Gray
-Write-Host $m["guide_o3"] -ForegroundColor Gray
-Write-Host $m["guide_o4"] -ForegroundColor Gray
-Write-Host $m["guide_o5"] -ForegroundColor Gray
-Write-Host $m["guide_c1"] -ForegroundColor Cyan
-Write-Host $m["guide_c2"] -ForegroundColor Gray
-Write-Host $m["guide_s1"] -ForegroundColor Cyan
-Write-Host $m["guide_s2"] -ForegroundColor Gray
-Write-Host $m["guide_close"] -ForegroundColor Yellow
-Write-Host $m["guide_cli"] -ForegroundColor Cyan
-Write-Host "====================================================================" -ForegroundColor Cyan
-Write-Host ""
+$launchKey = ' '
+try { $launchKey = [System.Console]::ReadKey($true).KeyChar } catch {}
 
-# 6. Start Web Server in foreground
-Write-Host $m["loading_server"] -ForegroundColor Cyan
-try {
-    & "$env:SCRIPT_DIR\\server.ps1"
-} catch {
+if ($launchKey -eq '1') {
+    Start-PowerShellChat
+} elseif ($launchKey -eq '2') {
+    # 4. Check Port 8080 conflict and free it
     Write-Host ""
-    Write-Host ($m["server_fail"] + $_) -ForegroundColor Red
-    Write-Host $m["exit_prompt"] -ForegroundColor Yellow
-    [void][System.Console]::ReadKey($true)
+    Write-Host "Checking port 8080 availability..." -ForegroundColor Cyan
+    $portActive = Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue
+    if ($portActive) {
+        Write-Host " [!] Port 8080 is currently occupied. Attempting to free it..." -ForegroundColor Yellow
+        foreach ($conn in $portActive) {
+            $pId = $conn.OwningProcess
+            if ($pId) {
+                Write-Host " [+] Stopping process using port 8080 (PID: $pId)..." -ForegroundColor Yellow
+                Stop-Process -Id $pId -Force -ErrorAction SilentlyContinue
+            }
+        }
+        Start-Sleep -Seconds 1
+    }
+    Write-Host " [+] Port 8080 is free and available." -ForegroundColor Green
+
+    # 5. Open Default Browser
+    Write-Host ""
+    Write-Host $m["opening_browser"] -ForegroundColor Cyan
+    try {
+        Start-Process "http://localhost:8080"
+    } catch {}
+
+    # Print Interactive Multilingual Next Steps Guide
+    Write-Host ""
+    Write-Host "====================================================================" -ForegroundColor Cyan
+    Write-Host $m["congrats"] -ForegroundColor Green
+    Write-Host $m["url_msg"] -ForegroundColor White
+    Write-Host ""
+    Write-Host $m["guide_title"] -ForegroundColor White
+    Write-Host $m["guide_o1"] -ForegroundColor Cyan
+    Write-Host $m["guide_o2"] -ForegroundColor Gray
+    Write-Host $m["guide_o3"] -ForegroundColor Gray
+    Write-Host $m["guide_o4"] -ForegroundColor Gray
+    Write-Host $m["guide_o5"] -ForegroundColor Gray
+    Write-Host $m["guide_c1"] -ForegroundColor Cyan
+    Write-Host $m["guide_c2"] -ForegroundColor Gray
+    Write-Host $m["guide_s1"] -ForegroundColor Cyan
+    Write-Host $m["guide_s2"] -ForegroundColor Gray
+    Write-Host $m["guide_close"] -ForegroundColor Yellow
+    Write-Host $m["guide_cli"] -ForegroundColor Cyan
+    Write-Host "====================================================================" -ForegroundColor Cyan
+    Write-Host ""
+
+    # 6. Start Web Server in foreground directly in current console window
+    Write-Host "Booting local web server in foreground..." -ForegroundColor Cyan
+    try {
+        Set-Location -Path $env:SCRIPT_DIR
+        & ".\\server.ps1"
+    } catch {
+        Write-Host ($m["server_fail"] + $_) -ForegroundColor Red
+        Write-Host $m["exit_prompt"] -ForegroundColor Yellow
+        [void][System.Console]::ReadKey($true)
+    }
+} else {
+    Write-Host "Exiting / 正在退出..." -ForegroundColor Yellow
+    exit
 }
 `;
 
@@ -816,35 +1074,41 @@ const shTemplate = `#!/bin/bash
 # AUTOMATIC UPDATE CHECK
 # ==========================================================================
 LOCAL_VERSION="${version}"
-echo "Checking for AetherAI Studio updates..."
-REMOTE_JSON=\$(curl -s --max-time 3 "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
-if [ \$? -eq 0 ] && [ "\$REMOTE_JSON" != "" ]; then
-    REMOTE_TAG=\$(echo "\$REMOTE_JSON" | grep -o '"tag_name":\\s*"[^"]*' | sed 's/.*"tag_name":\\s*"//')
-    REMOTE_VERSION=\$(echo "\$REMOTE_TAG" | sed 's/^v//')
-    if [ "\$REMOTE_VERSION" != "" ] && [ "\$REMOTE_VERSION" != "\$LOCAL_VERSION" ]; then
-        echo "New version \$REMOTE_VERSION available! (Current local: \$LOCAL_VERSION)"
-        SCRIPT_PATH="\$0"
-        if [ -f "\$SCRIPT_PATH" ] && [ -w "\$SCRIPT_PATH" ] && [[ "\$SCRIPT_PATH" != *temp* ]]; then
-            echo "Downloading update from GitHub Releases (\$REMOTE_TAG)..."
-            curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/\$REMOTE_TAG/run.sh" -o "\$SCRIPT_PATH"
-            echo "Update installed successfully! Restarting launcher..."
-            exec bash "\$SCRIPT_PATH" "\$@"
-            exit 0
+SCRIPT_DIR="\$(cd "\$(dirname "\${BASH_SOURCE[0]}")" && pwd)"
+if [ -d "\$SCRIPT_DIR/.git" ] || [ -d "./.git" ]; then
+    echo "Running in developer repository workspace. Skipping automatic update check."
+else
+    echo "Checking for AetherAI Studio updates..."
+    REMOTE_JSON=\$(curl -s --max-time 3 "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest")
+    if [ \$? -eq 0 ] && [ "\$REMOTE_JSON" != "" ]; then
+        REMOTE_TAG=\$(echo "\$REMOTE_JSON" | grep -o '"tag_name":\\s*"[^"]*' | sed 's/.*"tag_name":\\s*"//')
+        REMOTE_VERSION=\$(echo "\$REMOTE_TAG" | sed 's/^v//')
+        if [ "\$REMOTE_VERSION" != "" ] && [ "\$REMOTE_VERSION" != "\$LOCAL_VERSION" ]; then
+            echo "New version \$REMOTE_VERSION available! (Current local: \$LOCAL_VERSION)"
+            SCRIPT_PATH="\$0"
+            if [ -f "\$SCRIPT_PATH" ] && [ -w "\$SCRIPT_PATH" ] && [[ "\$SCRIPT_PATH" != *temp* ]]; then
+                echo "Downloading update from GitHub Releases (\$REMOTE_TAG)..."
+                curl -s --max-time 10 "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/\$REMOTE_TAG/run.sh" -o "\$SCRIPT_PATH"
+                echo "Update installed successfully! Restarting launcher..."
+                exec bash "\$SCRIPT_PATH" "\$@"
+                exit 0
+            fi
+        else
+            echo "AetherAI Studio is up to date (Version \$LOCAL_VERSION)."
         fi
-    else
-        echo "AetherAI Studio is up to date (Version \$LOCAL_VERSION)."
     fi
 fi
 
-PERM_DIR="$HOME/AetherAI-Studio"
+PERM_DIR="$HOME/.aetherai"
 
 echo "===================================================================="
 echo "                 AetherAI Studio Setup Launcher"
 echo "===================================================================="
 echo ""
 
-# Create permanent folder
+# Create permanent folder and workspace directory
 mkdir -p "$PERM_DIR"
+mkdir -p "$PERM_DIR/workspace"
 cd "$PERM_DIR"
 
 # Verify Node.js is installed

@@ -139,12 +139,12 @@ function updateLanguage(lang) {
     const presetId = typeof selectedPresetId === 'number' && selectedPresetId >= 0 ? 
       PromptLibrary[selectedPresetId]?.id : 'general';
     
-    injectPreset(presetId);
+    injectPreset(presetId, true);
   } else {
     // If active session, refresh active preset visual state
     const chat = chatHistory.getChatById(activeChatId);
     if (chat && chat.presetId) {
-      injectPreset(chat.presetId);
+      injectPreset(chat.presetId, false);
     }
   }
 
@@ -436,77 +436,11 @@ function updateTopBarModelName() {
 }
 
 /* ==========================================================================
-   3. Preset Library & Action Handling
+   3. Preset Library & Action Handling (Stubbed)
    ========================================================================== */
-function initPresetsGrid() {
-  const container = elements.presetsGrid;
-  if (!container) return;
-
-  container.innerHTML = '';
-  
-  PromptLibrary.forEach(preset => {
-    const card = document.createElement('div');
-    card.className = 'preset-card glass-panel glass-interactive animate-slide-in';
-    card.innerHTML = `
-      <div class="preset-card-title">
-        <span class="text-glow-cyan">${preset.icon}</span>
-        <span>${preset.name}</span>
-      </div>
-      <div class="preset-card-desc">${preset.description}</div>
-    `;
-
-    card.addEventListener('click', () => {
-      injectPreset(preset.id);
-      
-      // Highlight selection visual effect
-      document.querySelectorAll('.preset-card').forEach(c => c.style.borderColor = '');
-      card.style.borderColor = 'var(--accent-purple)';
-      
-      // Auto close side panel on tablet / mobile after selection
-      if (window.innerWidth <= 1024) {
-        elements.controlPanel.classList.remove('open');
-      }
-    });
-    
-    container.appendChild(card);
-  });
-}
-
-function injectPreset(presetId) {
-  const preset = getPresetById(presetId);
-  
-  elements.systemPromptArea.value = preset.systemPrompt;
-  elements.activePresetLabelDisplay.innerText = preset.name;
-  
-  // Inject Quick Suggestions chips above chat textarea
-  const chipsContainer = elements.suggestionsContainer;
-  chipsContainer.innerHTML = '';
-  
-  preset.suggestions.forEach(s => {
-    const chip = document.createElement('div');
-    chip.className = 'suggestion-chip';
-    chip.innerText = s;
-    chip.addEventListener('click', () => {
-      elements.chatTextarea.value = s;
-      elements.chatTextarea.focus();
-      // auto adjust textarea height
-      elements.chatTextarea.style.height = 'auto';
-      elements.chatTextarea.style.height = elements.chatTextarea.scrollHeight + 'px';
-    });
-    chipsContainer.appendChild(chip);
-  });
-
-  // If a chat session is active, save its preset
-  const activeId = chatHistory.getActiveChatId();
-  if (activeId) {
-    const chat = chatHistory.getChatById(activeId);
-    if (chat) {
-      chat.presetId = presetId;
-      chat.systemPrompt = preset.systemPrompt;
-      chatHistory._saveToStorage();
-    }
-  }
-}
+let currentPresetId = 'general';
+function initPresetsGrid() {}
+function injectPreset(presetId, loadPromptIntoTextarea = true) {}
 
 /* ==========================================================================
    4. Chat History / Sessions list UI Binding
@@ -583,10 +517,10 @@ function switchSession(chatId) {
   elements.chatWelcome.style.display = 'none';
   elements.chatMessages.innerHTML = '';
   
-  // Inject the correct preset details and system prompt
-  if (chat.presetId) {
-    injectPreset(chat.presetId);
-  }
+  // Load stored system prompt first
+  elements.systemPromptArea.value = chat.systemPrompt || '';
+  // Inject preset without overwriting prompt
+  injectPreset(chat.presetId || 'general', false);
 
   // Populate messages
   chat.messages.forEach(msg => {
@@ -654,8 +588,7 @@ async function handleSendMessage() {
     const newChat = chatHistory.createChat(
       aetherApi.modelName || 'Aether-Neural-9B',
       elements.systemPromptArea.value,
-      document.querySelector('.preset-card[style*="border-color"]') ? 
-        Array.from(document.querySelectorAll('.preset-card')).findIndex(c => c.style.borderColor !== '') : 'general'
+      currentPresetId
     );
     activeId = newChat.id;
     renderSessionsHistory();
@@ -870,6 +803,8 @@ function init() {
     this.style.height = 'auto';
     this.style.height = (this.scrollHeight) + 'px';
   });
+
+
 
   // Send bindings
   elements.btnSend?.addEventListener('click', handleSendMessage);
