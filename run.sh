@@ -6,7 +6,7 @@
 # ==========================================================================
 # AUTOMATIC UPDATE CHECK
 # ==========================================================================
-LOCAL_VERSION="26.06.0.1"
+LOCAL_VERSION="26.6.1"
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -d "$SCRIPT_DIR/.git" ] || [ -d "./.git" ]; then
     echo "Running in developer repository workspace. Skipping automatic update check."

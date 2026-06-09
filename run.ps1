@@ -112,7 +112,7 @@ if (-not $isAdmin) {
 # ==========================================================================
 # AUTOMATIC UPDATE CHECK
 # ==========================================================================
-$localVersion = "26.06.0.1"
+$localVersion = "26.6.1"
 
 if ($isDevWorkspace) {
     Write-Host "Running in developer repository workspace. Skipping automatic update check." -ForegroundColor Gray
