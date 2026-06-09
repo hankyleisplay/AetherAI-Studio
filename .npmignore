@@ -18,3 +18,5 @@ website/aetherai_hero.png
 website/index.html
 website/
 .gemini/
+.aetherai/
+gateway.cmd
