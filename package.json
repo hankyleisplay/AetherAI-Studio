@@ -1,6 +1,6 @@
 {
   "name": "@hankyleisplay/aetherai-studio",
-  "version": "1.1.0",
+  "version": "26.06.0.1",
   "description": "Private Local AI Playground and Chat Console with Agent Code Mode",
   "main": "server.js",
   "bin": {

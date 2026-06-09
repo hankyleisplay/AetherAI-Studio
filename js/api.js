@@ -198,7 +198,10 @@ class AetherAPI {
           messages: apiMessages,
           options: {
             temperature: temp,
-            num_predict: options.maxTokens || 2048
+            num_predict: options.maxTokens || 2048,
+            top_p: options.topP,
+            top_k: options.topK,
+            repeat_penalty: options.repeatPenalty
           },
           stream: true
         };
@@ -270,6 +273,11 @@ class AetherAPI {
             model: this.modelName || 'gpt-4o',
             messages: apiMessages,
             temperature: temp,
+            max_tokens: options.maxTokens || 2048,
+            top_p: options.topP,
+            top_k: options.topK,
+            repeat_penalty: options.repeatPenalty,
+            repetition_penalty: options.repeatPenalty,
             stream: true
           }),
           signal: abortController.signal

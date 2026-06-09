@@ -46,6 +46,10 @@ const translations = {
     "settings_tuning_title": "超參數微調 (Tuning)",
     "temp_label": "溫度權重 (Temperature)",
     "tokens_label": "最大 Token 限制 (Max Tokens)",
+    "topp_label": "Top-P 核心採樣 (Top-P Sampling)",
+    "topk_label": "Top-K 候選採樣 (Top-K Sampling)",
+    "penalty_label": "重複懲罰權重 (Repeat Penalty)",
+    "system_prompt_label": "自定義系統提示詞 / 人設 (System Prompt / Persona)",
     
     "system_prompt_title": "系統設定 (System Prompt)",
     "system_prompt_placeholder": "定義 AI 的人設、背景、專業能力與回應要求...",
@@ -126,6 +130,10 @@ const translations = {
     "settings_tuning_title": "Hyperparameters Tuning",
     "temp_label": "Temperature Weight",
     "tokens_label": "Max Tokens Limit",
+    "topp_label": "Top-P Sampling",
+    "topk_label": "Top-K Sampling",
+    "penalty_label": "Repeat Penalty",
+    "system_prompt_label": "System Prompt / Persona",
     
     "system_prompt_title": "System Prompt",
     "system_prompt_placeholder": "Define the AI persona, background, skills, and output guidelines...",
@@ -206,6 +214,10 @@ const translations = {
     "settings_tuning_title": "パラメータ微調整",
     "temp_label": "温度パラメータ",
     "tokens_label": "最大トークン制限",
+    "topp_label": "Top-P サンプリング",
+    "topk_label": "Top-K サンプリング",
+    "penalty_label": "繰り返しペナルティ (Repeat Penalty)",
+    "system_prompt_label": "システムプロンプト / ペルソナ",
     
     "system_prompt_title": "システム設定 (System Prompt)",
     "system_prompt_placeholder": "AI のキャラクター、専門知識、応答ガイドラインを定義します...",

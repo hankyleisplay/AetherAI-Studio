@@ -1665,7 +1665,9 @@
             <div class="cognitive-core-waves"></div>
           </div>
           <div>
-            <div class="chat-model-title" id="active-model-name">Aether-Neural-9B</div>
+            <div class="chat-model-title" style="display: flex; align-items: center;">
+              <select id="active-model-select" class="chat-model-select" style="background: transparent; border: none; color: var(--text-highlight); font-family: 'Outfit', sans-serif; font-weight: 600; font-size: 16px; cursor: pointer; padding: 0 16px 0 0; outline: none; -webkit-appearance: none; -moz-appearance: none; appearance: none; background-image: url('data:image/svg+xml;utf8,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%2210%22 height=%2210%22 viewBox=%220 0 24 24%22 fill=%22none%22 stroke=%22%238d8c9f%22 stroke-width=%222%22><polyline points=%226 9 12 15 18 9%22/></svg>'); background-repeat: no-repeat; background-position: right center; background-size: 10px;"></select>
+            </div>
             <div class="chat-model-sub">
               <span data-i18n="provider_label">來源：</span><span id="active-model-provider" style="font-weight: 600; color: var(--accent-cyan);">SIMULATOR</span>
             </div>
@@ -1826,8 +1828,39 @@
                   <input type="range" class="slider-glass" id="slider-tokens" min="128" max="8192" step="128" value="2048">
                 </div>
               </div>
-              <textarea id="textarea-system-prompt" style="display:none;"></textarea>
+              <div class="form-group" style="margin-top: 14px; margin-bottom: 14px;">
+                <label for="textarea-system-prompt" data-i18n="system_prompt_label" class="form-label" style="font-weight: 600; margin-bottom: 8px; display: block;">自定義系統提示詞 / 人設 (System Prompt / Persona)</label>
+                <textarea id="textarea-system-prompt" class="input-glass" style="width: 100%; height: 100px; padding: 10px; resize: vertical; font-family: inherit;" data-i18n-placeholder="system_prompt_placeholder" placeholder="定義 AI 的人設、背景、專業能力與回應要求..."></textarea>
+              </div>
               <span id="active-preset-label" style="display:none;"></span>
+
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <label for="slider-topp" data-i18n="topp_label">Top-P 核心採樣 (Top-P Sampling)</label>
+                    <span class="slider-val" id="val-topp">0.9</span>
+                  </div>
+                  <input type="range" class="slider-glass" id="slider-topp" min="0" max="1" step="0.05" value="0.9">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <label for="slider-topk" data-i18n="topk_label">Top-K 候選採樣 (Top-K Sampling)</label>
+                    <span class="slider-val" id="val-topk">40</span>
+                  </div>
+                  <input type="range" class="slider-glass" id="slider-topk" min="0" max="100" step="1" value="40">
+                </div>
+              </div>
+              <div class="form-group" style="margin-bottom: 14px;">
+                <div class="slider-container">
+                  <div class="slider-header">
+                    <label for="slider-penalty" data-i18n="penalty_label">重複懲罰權重 (Repeat Penalty)</label>
+                    <span class="slider-val" id="val-penalty">1.1</span>
+                  </div>
+                  <input type="range" class="slider-glass" id="slider-penalty" min="0.5" max="2.0" step="0.1" value="1.1">
+                </div>
+              </div>
 
               <!-- UI Theme Selector -->
               <div class="form-group" style="margin-top: 18px; border-top: 1px dashed rgba(255,255,255,0.06); padding-top: 14px;">
@@ -2030,6 +2063,10 @@
         "settings_tuning_title": "超參數微調 (Tuning)",
         "temp_label": "溫度權重 (Temperature)",
         "tokens_label": "最大 Token 限制 (Max Tokens)",
+        "topp_label": "Top-P 核心採樣 (Top-P Sampling)",
+        "topk_label": "Top-K 候選採樣 (Top-K Sampling)",
+        "penalty_label": "重複懲罰權重 (Repeat Penalty)",
+        "system_prompt_label": "自定義系統提示詞 / 人設 (System Prompt / Persona)",
         "system_prompt_title": "系統設定 (System Prompt)",
         "system_prompt_placeholder": "定義 AI 的人設、背景、專業能力與回應要求...",
         "confirm_del_all": "您確定要永久刪除所有歷史對話記錄嗎？此動作將無法復原。",
@@ -2087,6 +2124,10 @@
         "settings_tuning_title": "Hyperparameters Tuning",
         "temp_label": "Temperature Weight",
         "tokens_label": "Max Tokens Limit",
+        "topp_label": "Top-P Sampling",
+        "topk_label": "Top-K Sampling",
+        "penalty_label": "Repeat Penalty",
+        "system_prompt_label": "System Prompt / Persona",
         "system_prompt_title": "System Prompt",
         "system_prompt_placeholder": "Define the AI persona, background, skills, and output guidelines...",
         "confirm_del_all": "Are you absolutely sure you want to permanently delete all conversation history? This cannot be undone.",
@@ -2144,6 +2185,10 @@
         "settings_tuning_title": "パラメータ微調整",
         "temp_label": "温度パラメータ",
         "tokens_label": "最大トークン制限",
+        "topp_label": "Top-P サンプリング",
+        "topk_label": "Top-K サンプリング",
+        "penalty_label": "繰り返しペナルティ (Repeat Penalty)",
+        "system_prompt_label": "システムプロンプト / ペルソナ",
         "system_prompt_title": "システム設定 (System Prompt)",
         "system_prompt_placeholder": "AI のキャラクター、専門知識、応答ガイドラインを定義します...",
         "confirm_del_all": "すべての履歴を完全に削除してもよろしいですか？この操作は取り消せません。",
@@ -2391,7 +2436,13 @@
             const payload = {
               model: this.modelName,
               messages: apiMessages,
-              options: { temperature: temp, num_predict: options.maxTokens || 2048 },
+              options: { 
+                temperature: temp, 
+                num_predict: options.maxTokens || 2048,
+                top_p: options.topP,
+                top_k: options.topK,
+                repeat_penalty: options.repeatPenalty
+              },
               stream: true
             };
 
@@ -2465,6 +2516,12 @@
               max_tokens: options.maxTokens || 2048,
               stream: true
             };
+            if (options.topP !== undefined) payload.top_p = options.topP;
+            if (options.topK !== undefined) payload.top_k = options.topK;
+            if (options.repeatPenalty !== undefined) {
+              payload.repeat_penalty = options.repeatPenalty;
+              payload.repetition_penalty = options.repeatPenalty;
+            }
 
             const response = await fetch(`${this.ollamaUrl}/v1/chat/completions`, {
               method: 'POST',
@@ -2970,7 +3027,7 @@
       btnVoiceInput: document.getElementById('btn-voice-input'),
       langSelect: document.getElementById('select-lang'),
       suggestionsContainer: document.getElementById('suggestions-container'),
-      activeModelNameDisplay: document.getElementById('active-model-name'),
+      activeModelSelect: document.getElementById('active-model-select'),
       activeModelProviderDisplay: document.getElementById('active-model-provider'),
       connectionStatusPill: document.getElementById('connection-status-pill'),
       providerSelect: document.getElementById('select-provider'),
@@ -2983,6 +3040,12 @@
       tempValue: document.getElementById('val-temp'),
       tokensSlider: document.getElementById('slider-tokens'),
       tokensValue: document.getElementById('val-tokens'),
+      topPSlider: document.getElementById('slider-topp'),
+      topPValue: document.getElementById('val-topp'),
+      topKSlider: document.getElementById('slider-topk'),
+      topKValue: document.getElementById('val-topk'),
+      repeatPenaltySlider: document.getElementById('slider-penalty'),
+      repeatPenaltyValue: document.getElementById('val-penalty'),
       systemPromptArea: document.getElementById('textarea-system-prompt'),
       presetsGrid: null,
       activePresetLabelDisplay: document.getElementById('active-preset-label'),
@@ -3200,6 +3263,17 @@
     function initSettingsValues() {
       elements.tempSlider?.addEventListener('input', e => elements.tempValue.innerText = e.target.value);
       elements.tokensSlider?.addEventListener('input', e => elements.tokensValue.innerText = e.target.value);
+      elements.topPSlider?.addEventListener('input', e => elements.topPValue.innerText = e.target.value);
+      elements.topKSlider?.addEventListener('input', e => elements.topKValue.innerText = e.target.value);
+      elements.repeatPenaltySlider?.addEventListener('input', e => elements.repeatPenaltyValue.innerText = e.target.value);
+
+      elements.activeModelSelect?.addEventListener('change', () => {
+        if (elements.modelSelect) {
+          elements.modelSelect.value = elements.activeModelSelect.value;
+          elements.modelSelect.dispatchEvent(new Event('change'));
+          elements.btnSaveSettings?.click();
+        }
+      });
 
       elements.providerSelect?.addEventListener('change', e => {
         const prov = e.target.value;
@@ -3288,7 +3362,10 @@
     }
 
     function updateTopBarModelName() {
-      elements.activeModelNameDisplay.innerText = aetherApi.modelName || 'Disconnected';
+      if (elements.activeModelSelect) {
+        elements.activeModelSelect.innerHTML = elements.modelSelect.innerHTML;
+        elements.activeModelSelect.value = aetherApi.modelName || elements.modelSelect.value;
+      }
       elements.activeModelProviderDisplay.innerText = aetherApi.provider.toUpperCase();
     }
 
@@ -3600,12 +3677,15 @@ IMPORTANT RULES:
 
       const temp = parseFloat(elements.tempSlider.value);
       const maxTokens = parseInt(elements.tokensSlider.value);
+      const topP = parseFloat(elements.topPSlider.value);
+      const topK = parseInt(elements.topKSlider.value);
+      const repeatPenalty = parseFloat(elements.repeatPenaltySlider.value);
       const systemPrompt = elements.systemPromptArea.value + "\n\n" + agentSystemPrompt;
 
       try {
         await aetherApi.streamChat(
           chatLogs,
-          { temperature: temp, maxTokens, systemPrompt },
+          { temperature: temp, maxTokens, topP, topK, repeatPenalty, systemPrompt },
           (chunk, stats) => {
             if (waitingIntervalId) {
               clearInterval(waitingIntervalId);
@@ -3837,6 +3917,9 @@ IMPORTANT RULES:
       
       const temp = parseFloat(elements.tempSlider.value);
       const maxTokens = parseInt(elements.tokensSlider.value);
+      const topP = parseFloat(elements.topPSlider.value);
+      const topK = parseInt(elements.topKSlider.value);
+      const repeatPenalty = parseFloat(elements.repeatPenaltySlider.value);
       const systemPrompt = elements.systemPromptArea.value;
       const chatLogs = chatHistory.getChatById(activeId).messages;
 
@@ -3845,7 +3928,7 @@ IMPORTANT RULES:
       try {
         await aetherApi.streamChat(
           chatLogs,
-          { temperature: temp, maxTokens, systemPrompt, images: attachedImages },
+          { temperature: temp, maxTokens, topP, topK, repeatPenalty, systemPrompt, images: attachedImages },
           (chunk, stats) => {
             if (waitingIntervalId) {
               clearInterval(waitingIntervalId);

@@ -31,7 +31,7 @@ const elements = {
   btnExport: document.getElementById('btn-export'),
   langSelect: document.getElementById('select-lang'),
   suggestionsContainer: document.getElementById('suggestions-container'),
-  activeModelNameDisplay: document.getElementById('active-model-name'),
+  activeModelSelect: document.getElementById('active-model-select'),
   activePresetLabelDisplay: document.getElementById('active-preset-label'),
   connectionStatusPill: document.getElementById('connection-status-pill'),
   
@@ -47,6 +47,12 @@ const elements = {
   tempValue: document.getElementById('val-temp'),
   tokensSlider: document.getElementById('slider-tokens'),
   tokensValue: document.getElementById('val-tokens'),
+  topPSlider: document.getElementById('slider-topp'),
+  topPValue: document.getElementById('val-topp'),
+  topKSlider: document.getElementById('slider-topk'),
+  topKValue: document.getElementById('val-topk'),
+  repeatPenaltySlider: document.getElementById('slider-penalty'),
+  repeatPenaltyValue: document.getElementById('val-penalty'),
   systemPromptArea: document.getElementById('textarea-system-prompt'),
   presetsGrid: document.getElementById('presets-grid'),
   
@@ -321,6 +327,22 @@ function initSettingsValues() {
   elements.tokensSlider?.addEventListener('input', (e) => {
     elements.tokensValue.innerText = e.target.value;
   });
+  elements.topPSlider?.addEventListener('input', (e) => {
+    elements.topPValue.innerText = e.target.value;
+  });
+  elements.topKSlider?.addEventListener('input', (e) => {
+    elements.topKValue.innerText = e.target.value;
+  });
+  elements.repeatPenaltySlider?.addEventListener('input', (e) => {
+    elements.repeatPenaltyValue.innerText = e.target.value;
+  });
+
+  elements.activeModelSelect?.addEventListener('change', () => {
+    if (elements.modelSelect) {
+      elements.modelSelect.value = elements.activeModelSelect.value;
+      elements.modelSelect.dispatchEvent(new Event('change'));
+    }
+  });
 
   // Providers UI inputs toggling
   elements.providerSelect?.addEventListener('change', (e) => {
@@ -431,7 +453,10 @@ async function updateProviderConnection() {
 function updateTopBarModelName() {
   const model = aetherApi.modelName || 'Aether-Neural-9B';
   const provider = aetherApi.provider.toUpperCase();
-  elements.activeModelNameDisplay.innerText = model;
+  if (elements.activeModelSelect) {
+    elements.activeModelSelect.innerHTML = elements.modelSelect.innerHTML;
+    elements.activeModelSelect.value = model;
+  }
   document.getElementById('active-model-provider').innerText = provider;
 }
 
@@ -620,6 +645,9 @@ async function handleSendMessage() {
   // Dynamic system monitor parameters
   const temp = parseFloat(elements.tempSlider.value);
   const maxTokens = parseInt(elements.tokensSlider.value);
+  const topP = parseFloat(elements.topPSlider.value);
+  const topK = parseInt(elements.topKSlider.value);
+  const repeatPenalty = parseFloat(elements.repeatPenaltySlider.value);
   const systemPrompt = elements.systemPromptArea.value;
 
   const chatLogs = chatHistory.getChatById(activeId).messages;
@@ -630,7 +658,7 @@ async function handleSendMessage() {
   try {
     await aetherApi.streamChat(
       chatLogs,
-      { temperature: temp, maxTokens, systemPrompt },
+      { temperature: temp, maxTokens, topP, topK, repeatPenalty, systemPrompt },
       (chunkText, stats) => {
         if (waitingIntervalId) {
           clearInterval(waitingIntervalId);
