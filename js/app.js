@@ -411,6 +411,8 @@ async function updateProviderConnection() {
   // Show spinner inside selector
   elements.modelSelect.innerHTML = '<option value="">正在加載模型列表...</option>';
 
+  const previouslySelectedModel = aetherApi.modelName || elements.modelSelect.value;
+
   try {
     const models = await aetherApi.fetchModels();
     
@@ -423,9 +425,14 @@ async function updateProviderConnection() {
       elements.modelSelect.appendChild(opt);
     });
 
-    // Set first model active
+    // Restore or select first model
     if (models.length > 0) {
-      aetherApi.updateConfig({ modelName: models[0].name });
+      const exists = models.some(m => m.name === previouslySelectedModel);
+      let mName = exists ? previouslySelectedModel : models[0].name;
+      elements.modelSelect.value = mName;
+      aetherApi.updateConfig({ modelName: mName });
+    } else {
+      aetherApi.updateConfig({ modelName: '' });
     }
 
     elements.connectionStatusPill.className = 'status-pill status-online';

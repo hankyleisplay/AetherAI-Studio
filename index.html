@@ -3328,6 +3328,8 @@
       elements.connectionStatusPill.className = 'status-pill status-alert';
       elements.connectionStatusPill.querySelector('span:last-child').innerText = 'Loading...';
 
+      const previouslySelectedModel = aetherApi.modelName || elements.modelSelect.value;
+
       try {
         const models = await aetherApi.fetchModels();
         elements.modelSelect.innerHTML = '';
@@ -3337,8 +3339,12 @@
           elements.modelSelect.appendChild(opt);
         });
         if (models.length > 0) {
-          let mName = models[0].name;
+          const exists = models.some(m => m.name === previouslySelectedModel);
+          let mName = exists ? previouslySelectedModel : models[0].name;
+          elements.modelSelect.value = mName;
           aetherApi.updateConfig({ modelName: mName });
+        } else {
+          aetherApi.updateConfig({ modelName: '' });
         }
         elements.connectionStatusPill.className = 'status-pill status-online';
         elements.connectionStatusPill.querySelector('span:last-child').innerText = 'Connected';
