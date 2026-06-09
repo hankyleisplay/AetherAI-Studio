@@ -1,7 +1,8 @@
-﻿# ==========================================================================
+﻿
+# ==========================================================================
 # AetherAI Studio - Launcher (Pure PowerShell Edition)
 # ==========================================================================
-Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue; Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue
+try { Set-ExecutionPolicy RemoteSigned -Scope CurrentUser -Force -ErrorAction SilentlyContinue } catch {}; try { Set-ExecutionPolicy RemoteSigned -Scope LocalMachine -Force -ErrorAction SilentlyContinue } catch {}
 
 # ==========================================================================
 # 1. DEVELOPER WORKSPACE CHECK & APP DIRECTORY CONFIG
