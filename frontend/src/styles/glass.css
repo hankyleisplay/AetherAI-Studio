@@ -1,0 +1,232 @@
+/* Liquid Glass Design System */
+
+.glass-panel {
+  background: rgba(18, 24, 38, 0.65);
+  backdrop-filter: blur(24px) saturate(190%);
+  -webkit-backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
+    0 16px 36px -10px rgba(0, 0, 0, 0.6);
+}
+
+.glass-card {
+  background: rgba(255, 255, 255, 0.04);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-card:hover {
+  background: rgba(255, 255, 255, 0.07);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
+    0 8px 24px -6px rgba(0, 242, 254, 0.15);
+}
+
+.glass-input {
+  background: rgba(13, 18, 30, 0.7);
+  backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  border-color: rgba(0, 242, 254, 0.6);
+  box-shadow: 
+    inset 0 1px 2px rgba(0, 0, 0, 0.3),
+    0 0 16px rgba(0, 242, 254, 0.3);
+  outline: none;
+}
+
+.glass-button {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
+    0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-button:hover {
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
+  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-1px);
+  box-shadow: 
+    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
+    0 6px 20px rgba(0, 242, 254, 0.2);
+}
+
+.glass-button-primary {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.35) 0%, rgba(79, 172, 254, 0.2) 100%);
+  border: 1px solid rgba(0, 242, 254, 0.5);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4),
+    0 4px 20px rgba(0, 242, 254, 0.3);
+}
+
+.glass-button-primary:hover {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.5) 0%, rgba(79, 172, 254, 0.35) 100%);
+  border-color: rgba(0, 242, 254, 0.8);
+  box-shadow: 
+    inset 0 1px 1px 0 rgba(255, 255, 255, 0.6),
+    0 6px 24px rgba(0, 242, 254, 0.5);
+}
+
+/* Liquid Fluid Glowing Background Orbs */
+.liquid-orb {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.45;
+  pointer-events: none;
+  mix-blend-mode: screen;
+  transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+/* Custom Sleek Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 9999px;
+  backdrop-filter: blur(4px);
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.25);
+}
+
+/* Pulse animation for thinking state */
+@keyframes liquid-pulse {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.45;
+  }
+  50% {
+    transform: scale(1.18);
+    opacity: 0.7;
+  }
+}
+
+.animate-liquid-pulse {
+  animation: liquid-pulse 4s ease-in-out infinite;
+}
+
+/* LaTeX Math Styles with Liquid Glass Optics */
+.math-inline {
+  font-family: 'Cambria Math', 'STIXGeneral', 'DejaVu Serif', 'Outfit', serif;
+  font-style: italic;
+  color: #38bdf8;
+  padding: 0 4px;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.math-block {
+  font-family: 'Cambria Math', 'STIXGeneral', 'DejaVu Serif', 'Outfit', serif;
+  font-style: italic;
+  color: #38bdf8;
+  text-align: center;
+  padding: 16px 20px;
+  margin: 14px 0;
+  background: rgba(14, 165, 233, 0.08);
+  border-radius: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 20px rgba(0, 242, 254, 0.15);
+  font-size: 1.15em;
+  text-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
+  overflow-x: auto;
+  backdrop-filter: blur(16px);
+}
+
+.math-frac {
+  display: inline-flex;
+  flex-direction: column;
+  vertical-align: middle;
+  text-align: center;
+  padding: 0 3px;
+  font-size: 0.9em;
+}
+
+.math-num {
+  border-bottom: 1.5px solid currentColor;
+  padding-bottom: 1px;
+  line-height: 1.1;
+}
+
+.math-den {
+  padding-top: 1px;
+  line-height: 1.1;
+}
+
+.math-sqrt {
+  display: inline-flex;
+  align-items: center;
+  padding-left: 1px;
+}
+
+.math-sqrt::before {
+  content: '√';
+  font-size: 1.1em;
+  margin-right: 1px;
+}
+
+.math-radicand {
+  border-top: 1.5px solid currentColor;
+  padding: 0 3px;
+}
+
+.math-large {
+  font-size: 1.35em;
+  vertical-align: -0.15em;
+  line-height: 1;
+}
+
+.math-matrix {
+  display: inline-flex;
+  align-items: center;
+  margin: 0 4px;
+}
+
+.math-paren {
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  border-radius: 8px;
+  padding: 2px 4px;
+}
+
+.math-bracket {
+  border-left: 2px solid currentColor;
+  border-right: 2px solid currentColor;
+  padding: 2px 4px;
+}
+
+.math-matrix-table {
+  border-collapse: collapse;
+  display: inline-table;
+  vertical-align: middle;
+}
+
+.math-matrix-cell {
+  padding: 2px 8px;
+  text-align: center;
+}
+
+.math-roman {
+  font-style: normal;
+  font-family: 'Plus Jakarta Sans', sans-serif;
+}
+
+

@@ -1,0 +1,50 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <defs>
+    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
+      <stop offset="0%" stop-color="#141d33" />
+      <stop offset="60%" stop-color="#090d18" />
+      <stop offset="100%" stop-color="#04060c" />
+    </radialGradient>
+    <linearGradient id="orbGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#00f2fe" />
+      <stop offset="50%" stop-color="#4facfe" />
+      <stop offset="100%" stop-color="#7928ca" />
+    </linearGradient>
+    <linearGradient id="orbGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#ff0080" />
+      <stop offset="70%" stop-color="#7928ca" />
+      <stop offset="100%" stop-color="#00f2fe" />
+    </linearGradient>
+    <radialGradient id="specular" cx="35%" cy="30%" r="60%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
+      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.2" />
+      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <filter id="liquidGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="8" result="blur" />
+      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    </filter>
+  </defs>
+
+  <!-- Squircle Base with Metallic Glass Border -->
+  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.18)" stroke-width="2.5" />
+  
+  <!-- Subtle Grid Lines -->
+  <path d="M48 8v240 M88 8v240 M128 8v240 M168 8v240 M208 8v240" stroke="rgba(0,242,254,0.04)" stroke-width="1" />
+  <path d="M8 48h240 M8 88h240 M8 128h240 M8 168h240 M8 208h240" stroke="rgba(0,242,254,0.04)" stroke-width="1" />
+
+  <!-- Outer Ambient Glow Ring -->
+  <circle cx="128" cy="128" r="82" fill="none" stroke="url(#orbGrad1)" stroke-width="3" opacity="0.4" filter="url(#liquidGlow)" />
+
+  <!-- Central Liquid Crystal Orb -->
+  <circle cx="128" cy="128" r="68" fill="url(#orbGrad1)" opacity="0.9" />
+  <path d="M70 128 C70 90, 100 64, 138 68 C176 72, 196 110, 184 148 C172 186, 120 196, 92 180 C74 170, 70 148, 70 128 Z" fill="url(#orbGrad2)" opacity="0.75" />
+
+  <!-- Liquid Glass Caustic Specular Flare -->
+  <ellipse cx="112" cy="104" rx="42" ry="26" fill="url(#specular)" transform="rotate(-25 112 104)" />
+  
+  <!-- Modern Geometric Aether Core Node -->
+  <polygon points="128,84 162,104 162,144 128,164 94,144 94,104" fill="none" stroke="#ffffff" stroke-width="3.5" opacity="0.9" />
+  <circle cx="128" cy="124" r="10" fill="#00f2fe" filter="url(#liquidGlow)" />
+  <circle cx="128" cy="124" r="5" fill="#ffffff" />
+</svg>
