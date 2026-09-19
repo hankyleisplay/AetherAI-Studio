@@ -1,0 +1,36 @@
+# Development dependencies
+node_modules/
+frontend/node_modules/
+frontend/src/
+frontend/public/
+frontend/tsconfig*.json
+frontend/vite.config.ts
+frontend/postcss.config.js
+frontend/tailwind.config.js
+frontend/package*.json
+
+# Python venvs and installed packages
+backend/site-packages/
+backend/venv/
+backend/data/
+backend/workspace/temp_*
+__pycache__/
+*.pyc
+*.pyo
+
+# Sensitive configs and databases
+config.json
+.env
+.env.*
+*.sqlite
+*.sqlite3
+*.db
+
+# Dev testing & IDEs
+test_backend.py
+.idea/
+.vscode/
+.git/
+.github/
+.gemini/
+*.log

@@ -1,0 +1,41 @@
+{
+  "name": "@hankyleisplay/aetherai-studio",
+  "version": "26.9.19",
+  "description": "AetherAI Studio 2.0 (AetherAgent) - Liquid Glass Local & Cloud Autonomous AI Agent System with 9 Tools, Telegram Bridge, i18n & Powerful Markdown",
+  "main": "cli.js",
+  "bin": {
+    "aetherai": "./cli.js",
+    "aether": "./cli.js"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/hankyleisplay/AetherAI-Studio.git"
+  },
+  "scripts": {
+    "start": "node cli.js",
+    "dev": "node cli.js --dev",
+    "check": "node cli.js --check",
+    "build:frontend": "cd frontend && node ./node_modules/vite/bin/vite.js build"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "preferGlobal": true,
+  "license": "MIT",
+  "author": "hankyleisplay <hankyleisplay@gmail.com>",
+  "keywords": [
+    "ollama",
+    "lmstudio",
+    "agent",
+    "liquid-glass",
+    "ai-studio",
+    "tool-calling",
+    "react-agent",
+    "telegram-bot",
+    "gemini",
+    "deepseek",
+    "openai",
+    "claude",
+    "markdown"
+  ]
+}
