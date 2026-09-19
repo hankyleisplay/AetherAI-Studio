@@ -14,7 +14,10 @@ import {
   Loader2,
   X,
   Mic,
-  MicOff
+  MicOff,
+  Sliders,
+  Compass,
+  Target
 } from 'lucide-react';
 import { Message, AgentState } from '../types';
 import { MessageItem } from './MessageItem';
@@ -26,6 +29,9 @@ interface ChatViewProps {
   onSendMessage: (text: string) => void;
   onStopGeneration: () => void;
   isStreaming: boolean;
+  onBookmarkToggle?: (messageId: string) => void;
+  temperature?: number;
+  onTemperatureChange?: (temp: number) => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -33,7 +39,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
   agentState,
   onSendMessage,
   onStopGeneration,
-  isStreaming
+  isStreaming,
+  onBookmarkToggle,
+  temperature = 0.7,
+  onTemperatureChange
 }) => {
   const { t, currentLang } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -252,6 +261,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               key={m.id || idx}
               message={m}
               isStreaming={isStreaming && idx === messages.length - 1 && m.role === 'assistant'}
+              onBookmarkToggle={onBookmarkToggle}
             />
           ))
         )}
@@ -262,14 +272,73 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {showScrollBottom && (
         <button
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-28 right-8 p-2 rounded-full glass-button border border-white/20 text-cyan-300 hover:text-white shadow-xl transition-all animate-bounce z-20"
+          className="absolute bottom-32 right-8 p-2 rounded-full glass-button border border-white/20 text-cyan-300 hover:text-white shadow-xl transition-all animate-bounce z-20"
         >
           <ArrowDown className="w-4 h-4" />
         </button>
       )}
 
-      {/* Chat Input Dock */}
-      <div className="p-3 md:p-5 max-w-4xl w-full mx-auto">
+      {/* Reasoning Tuning Capsule & Chat Input Dock */}
+      <div className="p-3 md:p-5 max-w-4xl w-full mx-auto space-y-2">
+        
+        {/* Inline Reasoning Temperature Capsule */}
+        {onTemperatureChange && (
+          <div className="flex items-center justify-between px-2 text-xs">
+            <div className="flex items-center gap-1.5 text-slate-400">
+              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+              <span className="text-[11px] font-medium">{t('reasoning_tuning', '推論調優')}:</span>
+            </div>
+
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/30 border border-white/5 backdrop-blur-md">
+              {/* Precise (0.2) */}
+              <button
+                type="button"
+                onClick={() => onTemperatureChange(0.2)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                  temperature <= 0.3
+                    ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={t('reasoning_precise_desc', '低隨機度 (0.2)，適合代碼架構、數學證明、嚴格邏輯')}
+              >
+                <Target className="w-3 h-3 text-cyan-400" />
+                <span>{t('reasoning_precise', '精確嚴謹 (0.2)')}</span>
+              </button>
+
+              {/* Balanced (0.7) */}
+              <button
+                type="button"
+                onClick={() => onTemperatureChange(0.7)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                  temperature > 0.3 && temperature <= 0.8
+                    ? 'bg-blue-500/25 text-blue-200 border border-blue-400/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={t('reasoning_balanced_desc', '均衡隨機度 (0.7)，適合綜合問答、系統工程、文檔解析')}
+              >
+                <Compass className="w-3 h-3 text-blue-400" />
+                <span>{t('reasoning_balanced', '標準平衡 (0.7)')}</span>
+              </button>
+
+              {/* Creative (1.1) */}
+              <button
+                type="button"
+                onClick={() => onTemperatureChange(1.1)}
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                  temperature > 0.8
+                    ? 'bg-purple-500/25 text-purple-200 border border-purple-400/40 shadow-sm'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={t('reasoning_creative_desc', '高隨機度 (1.1)，適合頭腦風暴、靈感探索、方案發散')}
+              >
+                <Sparkles className="w-3 h-3 text-purple-400" />
+                <span>{t('reasoning_creative', '發散創意 (1.1)')}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Input Dock Container */}
         <div 
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}

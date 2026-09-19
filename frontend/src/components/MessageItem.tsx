@@ -11,7 +11,8 @@ import {
   Volume2, 
   VolumeX,
   Download,
-  FileText
+  FileText,
+  Star
 } from 'lucide-react';
 import { Message } from '../types';
 import { ToolCallCard } from './ToolCallCard';
@@ -22,9 +23,14 @@ import { useI18n } from '../i18n/I18nContext';
 interface MessageItemProps {
   message: Message;
   isStreaming?: boolean;
+  onBookmarkToggle?: (messageId: string) => void;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ 
+  message, 
+  isStreaming,
+  onBookmarkToggle
+}) => {
   const { t, currentLang } = useI18n();
   const [isThoughtOpen, setIsThoughtOpen] = useState(true);
   const [copiedAnswer, setCopiedAnswer] = useState(false);
@@ -32,6 +38,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
   const [isSpeaking, setIsSpeaking] = useState(false);
 
   const isUser = message.role === 'user';
+  const isBookmarked = Boolean(message.is_bookmarked);
 
   const handleCopyAnswer = () => {
     navigator.clipboard.writeText(message.content);
@@ -106,8 +113,22 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
         
         {/* User Bubble */}
         {isUser ? (
-          <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
-            <p className="whitespace-pre-wrap">{message.content}</p>
+          <div className="relative group">
+            <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            </div>
+            {/* User Bookmark action button */}
+            {onBookmarkToggle && (
+              <button
+                onClick={() => onBookmarkToggle(message.id)}
+                className={`absolute -bottom-5 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[11px] rounded-lg ${
+                  isBookmarked ? 'text-amber-400 opacity-100' : 'text-slate-500 hover:text-amber-400'
+                }`}
+                title={isBookmarked ? t('unbookmark_message', '取消收藏') : t('bookmark_message', '收藏此訊息')}
+              >
+                <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400' : ''}`} />
+              </button>
+            )}
           </div>
         ) : (
           /* Assistant Card with Liquid Glass Treatment */
@@ -149,7 +170,6 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
                 {message.tool_calls.map((tc, idx) => (
                   <React.Fragment key={tc.id || idx}>
                     <ToolCallCard tool={tc} />
-                    {/* If generate_chart produced chart data, render the interactive widget */}
                     {tc.name === 'generate_chart' && tc.output && (() => {
                       try {
                         const parsed = JSON.parse(tc.output);
@@ -176,6 +196,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
               </span>
 
               <div className="flex items-center gap-1.5 opacity-90 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                {/* Bookmark Toggle Button */}
+                {onBookmarkToggle && (
+                  <button
+                    onClick={() => onBookmarkToggle(message.id)}
+                    className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors ${
+                      isBookmarked ? 'text-amber-400 border-amber-400/30' : 'text-slate-400 hover:text-amber-400'
+                    }`}
+                    title={isBookmarked ? t('unbookmark_message', '取消收藏') : t('bookmark_message', '收藏此訊息')}
+                  >
+                    <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400 text-amber-400' : ''}`} />
+                    <span className="hidden sm:inline">{isBookmarked ? '已收藏' : '收藏'}</span>
+                  </button>
+                )}
+
                 {/* Speech readout */}
                 <button
                   onClick={handleSpeak}
@@ -204,7 +238,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, isStreaming }
                   className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
                   title="匯出此回答為 .md 檔案"
                 >
-                  <Download className="w-3.5 h-3.5" />
+                  <Download className="w-4 h-4" />
                   <span className="hidden sm:inline">.md</span>
                 </button>
 

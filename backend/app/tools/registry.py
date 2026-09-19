@@ -432,3 +432,306 @@ def generate_chart(
     }
     return json.dumps(chart_spec, ensure_ascii=False)
 
+@registry.register(
+    name="http_request_api",
+    description="Send RESTful HTTP requests (GET, POST, PUT, DELETE, PATCH) to external APIs or web endpoints with customizable headers, query params, and JSON body payloads.",
+    parameters={
+        "method": {
+            "type": "string",
+            "enum": ["GET", "POST", "PUT", "DELETE", "PATCH"],
+            "description": "HTTP request method (default: 'GET')."
+        },
+        "url": {
+            "type": "string",
+            "description": "Target HTTP/HTTPS URL."
+        },
+        "headers": {
+            "type": "object",
+            "description": "Optional HTTP request headers dictionary."
+        },
+        "params": {
+            "type": "object",
+            "description": "Optional URL query parameters dictionary."
+        },
+        "json_body": {
+            "type": "object",
+            "description": "Optional JSON payload object for POST/PUT/PATCH."
+        },
+        "timeout": {
+            "type": "number",
+            "description": "Request timeout in seconds (default: 15)."
+        }
+    },
+    required=["url"]
+)
+async def http_request_api(
+    url: str,
+    method: str = "GET",
+    headers: Optional[Dict[str, str]] = None,
+    params: Optional[Dict[str, Any]] = None,
+    json_body: Optional[Dict[str, Any]] = None,
+    timeout: float = 15.0
+) -> str:
+    method = method.upper()
+    req_headers = {
+        "User-Agent": "AetherAI-Studio/2.0 API-Client"
+    }
+    if headers and isinstance(headers, dict):
+        req_headers.update({str(k): str(v) for k, v in headers.items()})
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(timeout), follow_redirects=True) as client:
+            resp = await client.request(
+                method=method,
+                url=url,
+                headers=req_headers,
+                params=params,
+                json=json_body if json_body is not None else None
+            )
+            
+            content_type = resp.headers.get("content-type", "")
+            if "application/json" in content_type:
+                try:
+                    formatted_body = json.dumps(resp.json(), indent=2, ensure_ascii=False)
+                except Exception:
+                    formatted_body = resp.text
+            else:
+                formatted_body = resp.text[:4000] + ("\n...[Truncated]" if len(resp.text) > 4000 else "")
+
+            return (
+                f"Status: {resp.status_code} {resp.reason_phrase}\n"
+                f"Content-Type: {content_type}\n"
+                f"Response Body:\n{formatted_body}"
+            )
+    except Exception as e:
+        return f"HTTP Request failed: {str(e)}"
+
+@registry.register(
+    name="document_text_extractor",
+    description="Inspect, extract, and summarize text, table structures, and code definitions from files in the workspace (supports .txt, .md, .json, .csv, .py, .js, .ts, .html, .log, .pdf).",
+    parameters={
+        "path": {
+            "type": "string",
+            "description": "Relative file path inside the workspace."
+        },
+        "max_chars": {
+            "type": "integer",
+            "description": "Maximum characters to extract (default: 5000)."
+        },
+        "extract_structure": {
+            "type": "boolean",
+            "description": "If true, extracts structural overview (headers, functions, or schema) before raw content."
+        }
+    },
+    required=["path"]
+)
+def document_text_extractor(
+    path: str,
+    max_chars: int = 5000,
+    extract_structure: bool = True
+) -> str:
+    base = settings.workspace_dir.resolve()
+    target = (base / path).resolve()
+    if not str(target).startswith(str(base)):
+        return f"Access Denied: Path '{path}' escapes workspace directory."
+    if not target.exists():
+        return f"File '{path}' does not exist in workspace."
+    if not target.is_file():
+        return f"Path '{path}' is a directory, not a file."
+
+    ext = target.suffix.lower()
+    file_size = target.stat().st_size
+
+    try:
+        # Check for PDF
+        if ext == ".pdf":
+            try:
+                import pypdf
+                reader = pypdf.PdfReader(str(target))
+                text_pages = []
+                for i, page in enumerate(reader.pages[:10]):
+                    t = page.extract_text() or ""
+                    if t.strip():
+                        text_pages.append(f"--- Page {i+1} ---\n{t.strip()}")
+                extracted = "\n\n".join(text_pages)
+                return f"[PDF Document: {path}, {len(reader.pages)} pages, {file_size} bytes]\n\n" + (extracted[:max_chars] if extracted else "(No text extracted from PDF)")
+            except Exception as e:
+                return f"PDF extraction error or pypdf not available: {str(e)}"
+
+        # Text/Code/JSON/CSV
+        raw_text = target.read_text(encoding="utf-8", errors="replace")
+        summary_parts = [f"File: {path} ({file_size} bytes, {ext})"]
+
+        if extract_structure:
+            if ext == ".csv":
+                import csv
+                import io
+                f = io.StringIO(raw_text)
+                reader = csv.reader(f)
+                rows = list(reader)
+                if rows:
+                    summary_parts.append(f"CSV Structure: {len(rows)} rows, {len(rows[0])} columns")
+                    summary_parts.append(f"Columns: {', '.join(rows[0][:15])}")
+                    preview = "\n".join([", ".join(r[:8]) for r in rows[:6]])
+                    summary_parts.append(f"Preview (First 5 rows):\n{preview}")
+                    return "\n\n".join(summary_parts)
+
+            elif ext == ".json":
+                try:
+                    data = json.loads(raw_text)
+                    if isinstance(data, dict):
+                        summary_parts.append(f"JSON Object with {len(data)} root keys: {list(data.keys())[:20]}")
+                    elif isinstance(data, list):
+                        summary_parts.append(f"JSON Array with {len(data)} items. First item preview: {str(data[0])[:200] if data else '[]'}")
+                except Exception:
+                    pass
+
+            elif ext == ".md":
+                headings = [line for line in raw_text.splitlines() if line.startswith("#")]
+                if headings:
+                    summary_parts.append("Markdown Outline:\n" + "\n".join(headings[:20]))
+
+            elif ext in [".py", ".js", ".ts"]:
+                defs = [line.strip() for line in raw_text.splitlines() if re.match(r"^\s*(def |class |async def |export |function )", line)]
+                if defs:
+                    summary_parts.append(f"Code Symbol Declarations ({len(defs)} items):\n" + "\n".join(defs[:25]))
+
+        content_preview = raw_text[:max_chars]
+        if len(raw_text) > max_chars:
+            content_preview += f"\n... [Truncated, total {len(raw_text)} chars]"
+
+        summary_parts.append(f"Content Extract:\n{content_preview}")
+        return "\n\n".join(summary_parts)
+
+    except Exception as e:
+        return f"Error extracting text from '{path}': {str(e)}"
+
+@registry.register(
+    name="mermaid_generator",
+    description="Generate syntactically correct Mermaid diagrams (flowchart, sequenceDiagram, classDiagram, stateDiagram, erDiagram, gantt) for inline interactive visual architecture rendering.",
+    parameters={
+        "diagram_type": {
+            "type": "string",
+            "enum": ["flowchart", "sequenceDiagram", "classDiagram", "stateDiagram", "erDiagram", "gantt"],
+            "description": "Category of Mermaid diagram to construct."
+        },
+        "title": {
+            "type": "string",
+            "description": "Title of the architecture diagram."
+        },
+        "definition": {
+            "type": "string",
+            "description": "Mermaid diagram code definition body."
+        }
+    },
+    required=["diagram_type", "title", "definition"]
+)
+def mermaid_generator(
+    diagram_type: str,
+    title: str,
+    definition: str
+) -> str:
+    cleaned = definition.strip()
+    if diagram_type == "flowchart" and not (cleaned.startswith("flowchart") or cleaned.startswith("graph")):
+        cleaned = f"flowchart TD\n{cleaned}"
+    elif diagram_type != "flowchart" and not cleaned.startswith(diagram_type):
+        cleaned = f"{diagram_type}\n{cleaned}"
+
+    markdown_mermaid = f"### 📊 {title}\n\n```mermaid\n{cleaned}\n```"
+    return markdown_mermaid
+
+@registry.register(
+    name="code_linter_analyzer",
+    description="Perform static code analysis, AST parsing, syntax validation, and security audit on workspace source code files (Python, JavaScript, TypeScript, JSON).",
+    parameters={
+        "path": {
+            "type": "string",
+            "description": "Workspace relative path of code file to lint and analyze."
+        },
+        "language": {
+            "type": "string",
+            "enum": ["python", "javascript", "json"],
+            "description": "Language type to inspect (default: auto-detect from file extension)."
+        }
+    },
+    required=["path"]
+)
+def code_linter_analyzer(path: str, language: Optional[str] = None) -> str:
+    import ast
+    base = settings.workspace_dir.resolve()
+    target = (base / path).resolve()
+    if not str(target).startswith(str(base)):
+        return f"Access Denied: Path '{path}' escapes workspace directory."
+    if not target.exists():
+        return f"File '{path}' does not exist."
+    if not target.is_file():
+        return f"Path '{path}' is a directory."
+
+    ext = target.suffix.lower()
+    lang = language or ("python" if ext == ".py" else "json" if ext == ".json" else "javascript")
+    code_text = target.read_text(encoding="utf-8", errors="replace")
+
+    results = [f"=== Code Linter & Security Analysis: {path} ==="]
+
+    if lang == "python":
+        try:
+            tree = ast.parse(code_text, filename=path)
+            results.append("✅ Python Syntax: Valid (No syntax errors)")
+
+            functions = [node.name for node in ast.walk(tree) if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef))]
+            classes = [node.name for node in ast.walk(tree) if isinstance(node, ast.ClassDef)]
+            imports = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for n in node.names:
+                        imports.append(n.name)
+                elif isinstance(node, ast.ImportFrom):
+                    imports.append(node.module or "")
+
+            results.append(f"Structure: {len(classes)} classes, {len(functions)} functions, {len(imports)} imported modules")
+            if classes:
+                results.append(f"Classes: {', '.join(classes[:10])}")
+            if functions:
+                results.append(f"Functions: {', '.join(functions[:15])}")
+
+            security_warnings = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Call):
+                    if isinstance(node.func, ast.Name) and node.func.id in ["eval", "exec"]:
+                        security_warnings.append(f"⚠️ Line {getattr(node, 'lineno', '?')}: Insecure '{node.func.id}()' call detected.")
+                    elif isinstance(node.func, ast.Attribute) and node.func.attr in ["system", "popen"]:
+                        security_warnings.append(f"⚠️ Line {getattr(node, 'lineno', '?')}: Potential command injection risk in '{node.func.attr}()'.")
+
+            if security_warnings:
+                results.append("Security Warnings:\n" + "\n".join(security_warnings))
+            else:
+                results.append("🛡️ Security Audit: No high-risk dangerous calls (eval/exec/popen) detected.")
+
+        except SyntaxError as se:
+            results.append(f"❌ Syntax Error at line {se.lineno}, offset {se.offset}: {se.msg}")
+            if se.text:
+                results.append(f"   > {se.text.strip()}")
+
+    elif lang == "json":
+        try:
+            parsed = json.loads(code_text)
+            results.append("✅ JSON Syntax: Valid")
+            if isinstance(parsed, dict):
+                results.append(f"Root object keys ({len(parsed)}): {list(parsed.keys())[:15]}")
+            elif isinstance(parsed, list):
+                results.append(f"Root array items: {len(parsed)}")
+        except json.JSONDecodeError as je:
+            results.append(f"❌ JSON Syntax Error at line {je.lineno}, col {je.colno}: {je.msg}")
+
+    else:
+        open_braces = code_text.count('{') - code_text.count('}')
+        open_parens = code_text.count('(') - code_text.count(')')
+        open_brackets = code_text.count('[') - code_text.count(']')
+        if open_braces == 0 and open_parens == 0 and open_brackets == 0:
+            results.append("✅ Bracket/Brace Balance: Perfectly balanced")
+        else:
+            results.append(f"⚠️ Possible syntax mismatch: Braces diff: {open_braces}, Parens diff: {open_parens}, Brackets diff: {open_brackets}")
+        results.append(f"Lines of Code: {len(code_text.splitlines())}, Size: {len(code_text)} bytes")
+
+    return "\n".join(results)
+

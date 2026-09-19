@@ -12,7 +12,8 @@ import {
   PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
-  Check
+  Check,
+  Users
 } from 'lucide-react';
 import { ModelConfig, ToolDefinition, AgentState, Persona } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -26,6 +27,8 @@ interface HeaderProps {
   onToggleTool: (name: string, enabled: boolean) => void;
   onOpenSettings: () => void;
   onExportSession?: () => void;
+  onOpenWorkspace?: () => void;
+  onOpenSwarm?: () => void;
   activePersona?: Persona;
 }
 
@@ -38,6 +41,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTool,
   onOpenSettings,
   onExportSession,
+  onOpenWorkspace,
+  onOpenSwarm,
   activePersona
 }) => {
   const { currentLang, setLanguage, availableLanguages, t } = useI18n();
@@ -220,6 +225,30 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
           <Settings2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-cyan-400 transition-colors ml-1" />
         </button>
+
+        {/* Swarm Roundtable Debate Button */}
+        {onOpenSwarm && (
+          <button
+            onClick={onOpenSwarm}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-medium text-purple-300 border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/10 transition-all shadow-sm"
+            title={t('swarm_debate', '多智能體圓桌辯論 (Swarm)')}
+          >
+            <Users className="w-3.5 h-3.5 text-purple-400" />
+            <span className="hidden md:inline">論辯</span>
+          </button>
+        )}
+
+        {/* Workspace File Explorer Button */}
+        {onOpenWorkspace && (
+          <button
+            onClick={onOpenWorkspace}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-medium text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 hover:bg-cyan-500/10 transition-all shadow-sm"
+            title={t('workspace_explorer', '工作區檔案導航')}
+          >
+            <FolderGit2 className="w-3.5 h-3.5 text-cyan-400" />
+            <span className="hidden md:inline">工作區</span>
+          </button>
+        )}
 
         {/* Export Session Button */}
         {onExportSession && (

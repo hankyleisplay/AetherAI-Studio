@@ -70,6 +70,13 @@ class Database:
                     updated_at TEXT NOT NULL
                 )
             """)
+
+            # Auto-migrate: check if is_bookmarked column exists in messages
+            cursor.execute("PRAGMA table_info(messages)")
+            columns = [col[1] for col in cursor.fetchall()]
+            if "is_bookmarked" not in columns:
+                cursor.execute("ALTER TABLE messages ADD COLUMN is_bookmarked INTEGER DEFAULT 0")
+
             conn.commit()
 
         # Seed or upgrade default personas
@@ -142,6 +149,17 @@ class Database:
             rows = conn.execute("SELECT * FROM sessions ORDER BY updated_at DESC").fetchall()
             return [dict(r) for r in rows]
 
+    def search_sessions(self, query: str) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            pattern = f"%{query}%"
+            rows = conn.execute("""
+                SELECT DISTINCT s.* FROM sessions s
+                LEFT JOIN messages m ON s.id = m.session_id
+                WHERE s.title LIKE ? OR m.content LIKE ?
+                ORDER BY s.updated_at DESC
+            """, (pattern, pattern)).fetchall()
+            return [dict(r) for r in rows]
+
     def get_session(self, session_id: str) -> Optional[Dict[str, Any]]:
         with self.get_connection() as conn:
             row = conn.execute("SELECT * FROM sessions WHERE id = ?", (session_id,)).fetchone()
@@ -196,6 +214,36 @@ class Database:
     def get_messages(self, session_id: str) -> List[Dict[str, Any]]:
         with self.get_connection() as conn:
             rows = conn.execute("SELECT * FROM messages WHERE session_id = ? ORDER BY created_at ASC", (session_id,)).fetchall()
+            messages = []
+            for r in rows:
+                d = dict(r)
+                try:
+                    d["tool_calls"] = json.loads(d.get("tool_calls") or "[]")
+                except Exception:
+                    d["tool_calls"] = []
+                messages.append(d)
+            return messages
+
+    def toggle_message_bookmark(self, message_id: str) -> bool:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT is_bookmarked FROM messages WHERE id = ?", (message_id,)).fetchone()
+            if not row:
+                return False
+            curr = row["is_bookmarked"] or 0
+            new_val = 0 if curr else 1
+            conn.execute("UPDATE messages SET is_bookmarked = ? WHERE id = ?", (new_val, message_id))
+            conn.commit()
+            return bool(new_val)
+
+    def get_bookmarked_messages(self) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            rows = conn.execute("""
+                SELECT m.*, s.title as session_title 
+                FROM messages m 
+                JOIN sessions s ON m.session_id = s.id 
+                WHERE m.is_bookmarked = 1 
+                ORDER BY m.created_at DESC
+            """).fetchall()
             messages = []
             for r in rows:
                 d = dict(r)

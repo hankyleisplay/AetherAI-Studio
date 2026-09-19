@@ -13,11 +13,36 @@ export interface ToolCall {
 export interface Message {
   id: string;
   session_id?: string;
+  session_title?: string;
   role: 'user' | 'assistant' | 'system' | 'tool';
   content: string;
   thought?: string;
   tool_calls?: ToolCall[];
   created_at?: string;
+  is_bookmarked?: boolean | number;
+}
+
+export interface WorkspaceFile {
+  name: string;
+  path: string;
+  size: number;
+  is_dir: boolean;
+  mtime: number;
+  extension: string;
+}
+
+export interface SwarmPersona {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export interface SwarmTurn {
+  round: number;
+  persona_id: string;
+  persona_name: string;
+  persona_icon?: string;
+  content: string;
 }
 
 export interface Session {

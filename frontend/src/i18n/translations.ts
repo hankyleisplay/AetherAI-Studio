@@ -124,6 +124,56 @@ export const translations: Record<Language, TranslationRecord> = {
     // Common Alerts
     'alert_no_session': '請先在左側選取或開啟一個對話會話，方可匯出 Markdown。',
     'alert_empty_session': '當前會話尚無任何對話訊息可供匯出。',
+
+    // Workspace Drawer & Files
+    'workspace_explorer': '工作區檔案導航',
+    'workspace_files': '工作區檔案總覽 (Workspace)',
+    'workspace_empty': '工作區目前無檔案',
+    'file_preview': '檔案內容檢視',
+    'ask_about_file': '向 Agent 詢問此檔案',
+    'download_file': '下載檔案',
+    'delete_file': '刪除檔案',
+    'search_files': '搜尋工作區檔案...',
+    'refresh': '重新整理',
+    'file_size': '大小',
+    'last_modified': '最後修改',
+    'confirm_delete_file': '確定要刪除工作區檔案嗎？',
+
+    // Bookmarks & Search
+    'bookmark_message': '收藏此訊息',
+    'unbookmark_message': '取消收藏',
+    'bookmarked_messages': '精選收藏訊息',
+    'tab_sessions': '會話列表',
+    'tab_bookmarks': '收藏清單',
+    'no_bookmarks': '尚無任何收藏的訊息',
+    'search_placeholder': '搜尋會話或對話內容...',
+    'search_clear': '清除搜尋',
+
+    // Reasoning Capsule
+    'reasoning_tuning': '推論調優',
+    'reasoning_precise': '精確嚴謹 (0.2)',
+    'reasoning_precise_desc': '低隨機度 (0.2)，適合代碼架構、數學證明、嚴格邏輯',
+    'reasoning_balanced': '標準平衡 (0.7)',
+    'reasoning_balanced_desc': '均衡隨機度 (0.7)，適合綜合問答、系統工程、文檔解析',
+    'reasoning_creative': '發散創意 (1.1)',
+    'reasoning_creative_desc': '高隨機度 (1.1)，適合頭腦風暴、靈感探索、方案發散',
+
+    // Swarm Collaborative Debate
+    'swarm_debate': '多智能體圓桌辯論 (Swarm)',
+    'swarm_title': '多智能體協同論壇 & 深度交鋒沙盤',
+    'swarm_subtitle': '集結首席架構師、技術研究員、SRE 專家進行多輪技術研討與方案綜整',
+    'swarm_topic_label': '辯論研討核心議題',
+    'swarm_topic_placeholder': '輸入需要多位智能體專家辯論的工程技術難題...',
+    'swarm_select_personas': '挑選與會專家陣容 (至少 2 位)',
+    'swarm_rounds': '辯論交鋒輪次',
+    'swarm_start_btn': '開始圓桌論辯',
+    'swarm_in_progress': '論辯進行中...',
+    'swarm_consensus_title': 'Aether 智庫綜合共識與實施藍圖',
+    'swarm_copy_result': '複製完整會議紀要',
+    'swarm_export_to_chat': '將共識注入當前對話',
+    'swarm_preset_1': '微服務架構 vs 模組化單體：大型系統重構的得失抉擇',
+    'swarm_preset_2': '高並發分佈式交易系統的零停機容災與資料一致性方案',
+    'swarm_preset_3': '企業私有化大模型落地：量化推論 vs 專用微調的資源分配',
   },
 
   'zh-CN': {
@@ -245,6 +295,56 @@ export const translations: Record<Language, TranslationRecord> = {
     // Common Alerts
     'alert_no_session': '请先在左侧选取或开启一个对话会话，方可导出 Markdown。',
     'alert_empty_session': '当前会话尚无任何对话消息可供导出。',
+
+    // Workspace Drawer & Files
+    'workspace_explorer': '工作区文件导航',
+    'workspace_files': '工作区文件概览 (Workspace)',
+    'workspace_empty': '工作区目前无文件',
+    'file_preview': '文件内容预览',
+    'ask_about_file': '向 Agent 询问此文件',
+    'download_file': '下载文件',
+    'delete_file': '删除文件',
+    'search_files': '搜索工作区文件...',
+    'refresh': '刷新',
+    'file_size': '大小',
+    'last_modified': '最后修改',
+    'confirm_delete_file': '确定要删除工作区文件吗？',
+
+    // Bookmarks & Search
+    'bookmark_message': '收藏此消息',
+    'unbookmark_message': '取消收藏',
+    'bookmarked_messages': '精选收藏消息',
+    'tab_sessions': '会话列表',
+    'tab_bookmarks': '收藏清单',
+    'no_bookmarks': '暂无任何收藏的消息',
+    'search_placeholder': '搜索会话或对话内容...',
+    'search_clear': '清除搜索',
+
+    // Reasoning Capsule
+    'reasoning_tuning': '推理调优',
+    'reasoning_precise': '精确严谨 (0.2)',
+    'reasoning_precise_desc': '低随机度 (0.2)，适合代码架构、数学证明、严格逻辑',
+    'reasoning_balanced': '标准平衡 (0.7)',
+    'reasoning_balanced_desc': '均衡随机度 (0.7)，适合综合问答、系统工程、文档解析',
+    'reasoning_creative': '发散创意 (1.1)',
+    'reasoning_creative_desc': '高随机度 (1.1)，适合头脑风暴、灵感探索、方案发散',
+
+    // Swarm Collaborative Debate
+    'swarm_debate': '多智能体圆桌辩论 (Swarm)',
+    'swarm_title': '多智能体协同论坛 & 深度交锋沙盘',
+    'swarm_subtitle': '集结首席架构师、技术研究员、SRE 专家进行多轮技术研讨与方案综整',
+    'swarm_topic_label': '辩论研讨核心议题',
+    'swarm_topic_placeholder': '输入需要多位智能体专家辩论的工程技术难题...',
+    'swarm_select_personas': '挑选与会专家阵容 (至少 2 位)',
+    'swarm_rounds': '辩论交锋轮次',
+    'swarm_start_btn': '开始圆桌论辩',
+    'swarm_in_progress': '论辩进行中...',
+    'swarm_consensus_title': 'Aether 智库综合共识与实施蓝图',
+    'swarm_copy_result': '复制完整会议纪要',
+    'swarm_export_to_chat': '将共识注入当前对话',
+    'swarm_preset_1': '微服务架构 vs 模块化单体：大型系统重构的得失抉择',
+    'swarm_preset_2': '高并发分布式交易系统的零停机容灾与数据一致性方案',
+    'swarm_preset_3': '企业私有化大模型落地：量化推理 vs 专用微调的资源分配',
   },
 
   'en': {
@@ -366,6 +466,56 @@ export const translations: Record<Language, TranslationRecord> = {
     // Common Alerts
     'alert_no_session': 'Please select or create a session before exporting markdown.',
     'alert_empty_session': 'Current session has no messages to export.',
+
+    // Workspace Drawer & Files
+    'workspace_explorer': 'Workspace Explorer',
+    'workspace_files': 'Workspace Files & Artifacts',
+    'workspace_empty': 'No files in workspace',
+    'file_preview': 'File Preview',
+    'ask_about_file': 'Ask Agent About This File',
+    'download_file': 'Download File',
+    'delete_file': 'Delete File',
+    'search_files': 'Search files in workspace...',
+    'refresh': 'Refresh',
+    'file_size': 'Size',
+    'last_modified': 'Last Modified',
+    'confirm_delete_file': 'Are you sure you want to delete this workspace file?',
+
+    // Bookmarks & Search
+    'bookmark_message': 'Bookmark Message',
+    'unbookmark_message': 'Remove Bookmark',
+    'bookmarked_messages': 'Bookmarked Messages',
+    'tab_sessions': 'Sessions',
+    'tab_bookmarks': 'Bookmarks',
+    'no_bookmarks': 'No bookmarked messages yet',
+    'search_placeholder': 'Search sessions or content...',
+    'search_clear': 'Clear search',
+
+    // Reasoning Capsule
+    'reasoning_tuning': 'Reasoning Tuning',
+    'reasoning_precise': 'Precise (0.2)',
+    'reasoning_precise_desc': 'Low temperature (0.2) - Best for code, math, and strict logic',
+    'reasoning_balanced': 'Balanced (0.7)',
+    'reasoning_balanced_desc': 'Balanced temperature (0.7) - General queries and engineering',
+    'reasoning_creative': 'Creative (1.1)',
+    'reasoning_creative_desc': 'High temperature (1.1) - Brainstorming and exploratory ideas',
+
+    // Swarm Collaborative Debate
+    'swarm_debate': 'Multi-Agent Swarm Debate',
+    'swarm_title': 'Collaborative Multi-Agent Roundtable & Debate',
+    'swarm_subtitle': 'Assemble Chief Architect, Researcher, and SRE experts for deep technical debate',
+    'swarm_topic_label': 'Debate Topic / Architectural Dilemma',
+    'swarm_topic_placeholder': 'Enter complex engineering challenge for the swarm to debate...',
+    'swarm_select_personas': 'Select Expert Panel (at least 2)',
+    'swarm_rounds': 'Debate Rounds',
+    'swarm_start_btn': 'Launch Roundtable Debate',
+    'swarm_in_progress': 'Debate in progress...',
+    'swarm_consensus_title': 'Aether Swarm Consensus & Action Plan',
+    'swarm_copy_result': 'Copy Full Transcript',
+    'swarm_export_to_chat': 'Inject Summary Into Chat',
+    'swarm_preset_1': 'Microservices vs Modular Monolith: Trade-offs in Large Scale Refactoring',
+    'swarm_preset_2': 'Zero-Downtime Disaster Recovery & Consistency in Distributed Systems',
+    'swarm_preset_3': 'Enterprise LLM Deployment: Quantized Inference vs Fine-Tuning Headroom',
   },
 
   'ja': {
@@ -487,5 +637,55 @@ export const translations: Record<Language, TranslationRecord> = {
     // Common Alerts
     'alert_no_session': 'エクスポートする前に左側のセッションを選択してください。',
     'alert_empty_session': '現在のセッションにはエクスポートするメッセージがありません。',
+
+    // Workspace Drawer & Files
+    'workspace_explorer': 'ワークスペースファイルエクスプローラー',
+    'workspace_files': 'ワークスペースファイル概要',
+    'workspace_empty': 'ワークスペースにファイルがありません',
+    'file_preview': 'ファイル内容プレビュー',
+    'ask_about_file': 'このファイルについて Agent に尋ねる',
+    'download_file': 'ファイルをダウンロード',
+    'delete_file': 'ファイルを削除',
+    'search_files': 'ファイルを検索...',
+    'refresh': '更新',
+    'file_size': 'サイズ',
+    'last_modified': '更新日時',
+    'confirm_delete_file': 'このファイルをワークスペースから削除してもよろしいですか？',
+
+    // Bookmarks & Search
+    'bookmark_message': 'メッセージを保存',
+    'unbookmark_message': '保存を解除',
+    'bookmarked_messages': 'お気に入りメッセージ',
+    'tab_sessions': 'セッション一覧',
+    'tab_bookmarks': 'ブックマーク',
+    'no_bookmarks': '保存されたメッセージはありません',
+    'search_placeholder': 'セッションや対話内容を検索...',
+    'search_clear': '検索をクリア',
+
+    // Reasoning Capsule
+    'reasoning_tuning': '推論モード調整',
+    'reasoning_precise': '精密・厳格 (0.2)',
+    'reasoning_precise_desc': '低温度 (0.2) - コード設計、数学的検証、厳密な論理に最適',
+    'reasoning_balanced': '標準バランス (0.7)',
+    'reasoning_balanced_desc': '標準温度 (0.7) - 総合的な問答、システム設計、ドキュメント解析',
+    'reasoning_creative': 'クリエイティブ (1.1)',
+    'reasoning_creative_desc': '高温度 (1.1) - アイデア創出、ブレインストーミング、多角的発想',
+
+    // Swarm Collaborative Debate
+    'swarm_debate': 'マルチエージェント円卓討論 (Swarm)',
+    'swarm_title': 'マルチエージェント協調討論・設計検討会',
+    'swarm_subtitle': '主任アーキテクト、リサーチャー、SRE 専門家による多角的な技術討論と合意形成',
+    'swarm_topic_label': '討論議題 / エンジニアリング課題',
+    'swarm_topic_placeholder': '専門家たちが討論すべき技術的課題を入力...',
+    'swarm_select_personas': '参加エージェント選択 (2名以上)',
+    'swarm_rounds': '討論ラウンド数',
+    'swarm_start_btn': '討論を開始する',
+    'swarm_in_progress': '討論進行中...',
+    'swarm_consensus_title': 'Aether 総括合意と実装ロードマップ',
+    'swarm_copy_result': '議事録をコピー',
+    'swarm_export_to_chat': '合意内容を現在のチャットに適用',
+    'swarm_preset_1': 'マイクロサービス vs モジュラーモノリス：大規模リファクタリングの得失判断',
+    'swarm_preset_2': '高負荷分散トランザクションにおける無停止耐障害性とデータ整合性',
+    'swarm_preset_3': 'エンタープライズ LLM 導入：量子化推論 vs 特化ファインチューニングの費用対効果',
   }
 };

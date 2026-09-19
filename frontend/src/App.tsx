@@ -5,6 +5,8 @@ import { Header } from './components/Header';
 import { ChatView } from './components/ChatView';
 import { SettingsModal } from './components/SettingsModal';
 import { PersonaModal } from './components/PersonaModal';
+import { WorkspaceDrawer } from './components/WorkspaceDrawer';
+import { SwarmModal } from './components/SwarmModal';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -21,6 +23,8 @@ export const App: React.FC = () => {
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
+  const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
+  const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
 
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
     provider: 'ollama',
@@ -170,6 +174,40 @@ export const App: React.FC = () => {
       return;
     }
     window.open(`/api/sessions/${activeSessionId}/export?format=markdown`, '_blank');
+  };
+
+  const handleBookmarkToggle = async (messageId: string) => {
+    try {
+      const res = await fetch(`/api/messages/${messageId}/bookmark`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_bookmarked: data.is_bookmarked } : m));
+      }
+    } catch (err) {
+      console.error('Failed to toggle bookmark:', err);
+    }
+  };
+
+  const handleTemperatureChange = async (temp: number) => {
+    const updated = { ...modelConfig, temperature: temp };
+    setModelConfig(updated);
+    try {
+      await fetch('/api/models/active', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+    } catch (err) {
+      console.error('Failed to persist temperature:', err);
+    }
+  };
+
+  const handleAskAgent = (filePath: string) => {
+    handleSendMessage(`請深入分析並解讀工作區檔案 ${filePath} 的架構、核心邏輯與技術細節。`);
+  };
+
+  const handleApplySwarm = (summaryText: string) => {
+    handleSendMessage(summaryText);
   };
 
   const handleSelectPersona = async (id: string) => {
@@ -440,6 +478,8 @@ export const App: React.FC = () => {
           onToggleTool={handleToggleTool}
           onOpenSettings={() => setIsSettingsOpen(true)}
           onExportSession={handleExportSession}
+          onOpenWorkspace={() => setIsWorkspaceDrawerOpen(true)}
+          onOpenSwarm={() => setIsSwarmModalOpen(true)}
           activePersona={activePersona}
         />
 
@@ -450,6 +490,9 @@ export const App: React.FC = () => {
           onSendMessage={handleSendMessage}
           onStopGeneration={handleStopGeneration}
           isStreaming={isStreaming}
+          onBookmarkToggle={handleBookmarkToggle}
+          temperature={modelConfig.temperature}
+          onTemperatureChange={handleTemperatureChange}
         />
       </div>
 
@@ -467,6 +510,21 @@ export const App: React.FC = () => {
         onClose={() => setIsPersonaModalOpen(false)}
         onSavePersona={handleSavePersona}
         availableTools={tools}
+      />
+
+      {/* Workspace File Explorer Drawer */}
+      <WorkspaceDrawer
+        isOpen={isWorkspaceDrawerOpen}
+        onClose={() => setIsWorkspaceDrawerOpen(false)}
+        onAskAgent={handleAskAgent}
+      />
+
+      {/* Multi-Agent Swarm Roundtable Modal */}
+      <SwarmModal
+        isOpen={isSwarmModalOpen}
+        onClose={() => setIsSwarmModalOpen(false)}
+        personas={personas}
+        onApplyToChat={handleApplySwarm}
       />
     </div>
   );
