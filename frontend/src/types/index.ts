@@ -20,6 +20,8 @@ export interface Message {
   tool_calls?: ToolCall[];
   created_at?: string;
   is_bookmarked?: boolean | number;
+  persona_id?: string;
+  status_text?: string;
 }
 
 export interface WorkspaceFile {

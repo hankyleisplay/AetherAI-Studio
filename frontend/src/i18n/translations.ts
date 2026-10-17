@@ -218,6 +218,16 @@ export const translations: Record<Language, TranslationRecord> = {
     'bookmark': '收藏',
     'bookmarked': '已收藏',
     'copied_md': '已複製 MD',
+
+    // Commercial AI Chat Experience & Cycling Slogans
+    'slogan_thinking': '正在深度推理與分析問題架構...',
+    'slogan_researching': '正在跨領域檢索知識與驗證邏輯...',
+    'slogan_synthesizing': '正在綜合推論架構並構思解答...',
+    'slogan_finalizing': '即將完成回答，正在組織精準文字...',
+    'thinking_expanded': '思考過程 (點擊摺疊)',
+    'thinking_collapsed': '已深度思考 (點擊展開)',
+    'thinking_active': '思考中...',
+    'ai_agent_tag': '智能代理',
   },
 
   'zh-CN': {
@@ -433,6 +443,16 @@ export const translations: Record<Language, TranslationRecord> = {
     'bookmark': '收藏',
     'bookmarked': '已收藏',
     'copied_md': '已复制 MD',
+
+    // Commercial AI Chat Experience & Cycling Slogans
+    'slogan_thinking': '正在深度推理与分析问题架构...',
+    'slogan_researching': '正在跨领域检索知识与验证逻辑...',
+    'slogan_synthesizing': '正在综合推论架构并构思解答...',
+    'slogan_finalizing': '即将完成回答，正在组织精准文字...',
+    'thinking_expanded': '思考过程 (点击折叠)',
+    'thinking_collapsed': '已深度思考 (点击展开)',
+    'thinking_active': '思考中...',
+    'ai_agent_tag': '智能代理',
   },
 
   'en': {
@@ -648,6 +668,16 @@ export const translations: Record<Language, TranslationRecord> = {
     'bookmark': 'Bookmark',
     'bookmarked': 'Saved',
     'copied_md': 'Copied MD',
+
+    // Commercial AI Chat Experience & Cycling Slogans
+    'slogan_thinking': 'Deeply reasoning and analyzing request structure...',
+    'slogan_researching': 'Cross-referencing knowledge and validating logic...',
+    'slogan_synthesizing': 'Synthesizing reasoning framework and drafting response...',
+    'slogan_finalizing': 'Almost ready, structuring final output...',
+    'thinking_expanded': 'Thought Process (click to collapse)',
+    'thinking_collapsed': 'Thought Process (click to expand)',
+    'thinking_active': 'Thinking...',
+    'ai_agent_tag': 'AI Agent',
   },
 
   'ja': {
@@ -863,5 +893,15 @@ export const translations: Record<Language, TranslationRecord> = {
     'bookmark': '保存',
     'bookmarked': '保存済',
     'copied_md': 'MDコピー済',
+
+    // Commercial AI Chat Experience & Cycling Slogans
+    'slogan_thinking': 'リクエストの構造を深く推論・分析中...',
+    'slogan_researching': '知識ベースを検索し論理を検証中...',
+    'slogan_synthesizing': '推論フレームワークを統合し回答を構想中...',
+    'slogan_finalizing': 'まもなく完了します、出力を整理中...',
+    'thinking_expanded': '思考プロセス (クリックで折りたたむ)',
+    'thinking_collapsed': '思考プロセス完了 (クリックで展開)',
+    'thinking_active': '思考中...',
+    'ai_agent_tag': 'AI エージェント',
   }
 };

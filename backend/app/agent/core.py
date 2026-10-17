@@ -96,6 +96,13 @@ class AgentOrchestrator:
 
         messages.append({"role": "user", "content": user_prompt})
 
+        # Immediately emit thinking status so client starts feedback cycle right away
+        yield {
+            "type": "status",
+            "stage": "thinking",
+            "text": "正在深度推理與檢索知識庫..."
+        }
+
         # Get enabled tools filtered by active persona
         allowed_tools = self._get_persona_enabled_tools()
         tools_schema = [
@@ -108,6 +115,7 @@ class AgentOrchestrator:
         executed_tool_calls = []
 
         iteration = 0
+        has_emitted_generating = False
         while iteration < self.max_iterations:
             iteration += 1
             current_turn_content = ""
@@ -121,8 +129,10 @@ class AgentOrchestrator:
                     yield {"type": "thought", "content": chunk.content}
 
                 elif chunk.type == "token" and chunk.content:
+                    if not has_emitted_generating:
+                        has_emitted_generating = True
+                        yield {"type": "status", "stage": "generating", "text": "正在組織並生成最佳解答..."}
                     current_turn_content += chunk.content
-                    # We only yield content to user if we're not currently gathering a tool call
                     yield {"type": "token", "content": chunk.content}
 
                 elif chunk.type == "tool_call":

@@ -330,7 +330,7 @@ export const App: React.FC = () => {
       created_at: new Date().toISOString()
     };
 
-    // Prepare Assistant Message container
+    // Prepare Assistant Message container with initial status and persona attribution
     const assistantMsgId = `asst_${Date.now()}`;
     const assistantMsg: Message = {
       id: assistantMsgId,
@@ -338,6 +338,8 @@ export const App: React.FC = () => {
       content: '',
       thought: '',
       tool_calls: [],
+      persona_id: selectedPersonaId,
+      status_text: t('slogan_thinking', '正在深度推理與分析問題架構...'),
       created_at: new Date().toISOString()
     };
 
@@ -394,12 +396,21 @@ export const App: React.FC = () => {
                   setActiveSessionId(data.session_id);
                   fetchSessions();
                 }
+              } else if (currentEvent === 'status' || data.type === 'status') {
+                if (data.stage) setAgentState(data.stage);
+                if (data.text) {
+                  setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, status_text: data.text } : m));
+                }
               } else if (currentEvent === 'thought' || data.type === 'thought') {
                 setAgentState('thinking');
                 setMessages(prev => {
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
-                      return { ...m, thought: (m.thought || '') + (data.content || '') };
+                      return { 
+                        ...m, 
+                        thought: (m.thought || '') + (data.content || ''),
+                        status_text: m.status_text || t('slogan_thinking', '正在深度推理與分析問題架構...')
+                      };
                     }
                     return m;
                   });
@@ -416,7 +427,11 @@ export const App: React.FC = () => {
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
                       const existing = m.tool_calls || [];
-                      return { ...m, tool_calls: [...existing, newTool] };
+                      return { 
+                        ...m, 
+                        status_text: `${t('status_calling_tool', '調用工具中...')}: ${data.name}`,
+                        tool_calls: [...existing, newTool] 
+                      };
                     }
                     return m;
                   });
@@ -456,13 +471,14 @@ export const App: React.FC = () => {
               } else if (currentEvent === 'done' || data.type === 'done') {
                 setAgentState('idle');
                 setIsStreaming(false);
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, status_text: undefined } : m));
                 fetchSessions();
               } else if (currentEvent === 'error' || data.type === 'error') {
                 setAgentState('error');
                 setMessages(prev => {
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
-                      return { ...m, content: m.content + `\n\n❌ **執行錯誤**: ${data.error || '未知異常'}` };
+                      return { ...m, content: m.content + `\n\n❌ **執行錯誤**: ${data.error || '未知異常'}`, status_text: undefined };
                     }
                     return m;
                   });
@@ -549,6 +565,8 @@ export const App: React.FC = () => {
           onBookmarkToggle={handleBookmarkToggle}
           temperature={modelConfig.temperature}
           onTemperatureChange={handleTemperatureChange}
+          personas={personas}
+          activePersona={activePersona}
         />
       </div>
 

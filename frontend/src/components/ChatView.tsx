@@ -19,7 +19,7 @@ import {
   Compass,
   Target
 } from 'lucide-react';
-import { Message, AgentState } from '../types';
+import { Message, AgentState, Persona } from '../types';
 import { MessageItem } from './MessageItem';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -32,6 +32,8 @@ interface ChatViewProps {
   onBookmarkToggle?: (messageId: string) => void;
   temperature?: number;
   onTemperatureChange?: (temp: number) => void;
+  personas?: Persona[];
+  activePersona?: Persona;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -42,7 +44,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
   isStreaming,
   onBookmarkToggle,
   temperature = 0.7,
-  onTemperatureChange
+  onTemperatureChange,
+  personas = [],
+  activePersona
 }) => {
   const { t, currentLang } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -262,6 +266,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
               message={m}
               isStreaming={isStreaming && idx === messages.length - 1 && m.role === 'assistant'}
               onBookmarkToggle={onBookmarkToggle}
+              persona={personas.find(p => p.id === m.persona_id) || activePersona}
+              agentState={isStreaming && idx === messages.length - 1 ? agentState : undefined}
             />
           ))
         )}

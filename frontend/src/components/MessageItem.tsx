@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   Bot, 
   User, 
@@ -12,9 +12,16 @@ import {
   VolumeX,
   Download,
   FileText,
-  Star
+  Star,
+  Code2,
+  Search,
+  Terminal,
+  ShieldCheck,
+  Cpu,
+  Loader2,
+  RotateCw
 } from 'lucide-react';
-import { Message } from '../types';
+import { Message, Persona, AgentState } from '../types';
 import { ToolCallCard } from './ToolCallCard';
 import { ChartWidget, ChartData } from './ChartWidget';
 import { MarkdownRenderer } from './markdown/MarkdownRenderer';
@@ -24,21 +31,50 @@ interface MessageItemProps {
   message: Message;
   isStreaming?: boolean;
   onBookmarkToggle?: (messageId: string) => void;
+  persona?: Persona;
+  agentState?: AgentState;
 }
 
 export const MessageItem: React.FC<MessageItemProps> = ({ 
   message, 
   isStreaming,
-  onBookmarkToggle
+  onBookmarkToggle,
+  persona,
+  agentState
 }) => {
   const { t, currentLang } = useI18n();
   const [isThoughtOpen, setIsThoughtOpen] = useState(true);
   const [copiedAnswer, setCopiedAnswer] = useState(false);
   const [copiedMarkdown, setCopiedMarkdown] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [sloganIdx, setSloganIdx] = useState(0);
 
   const isUser = message.role === 'user';
   const isBookmarked = Boolean(message.is_bookmarked);
+
+  // Dynamic Cycling Slogans during thinking / generation stages
+  const cyclingSlogans = [
+    { icon: '🧠', text: t('slogan_thinking', '正在深度推理與分析問題架構...') },
+    { icon: '🔍', text: t('slogan_researching', '正在跨領域檢索知識與驗證邏輯...') },
+    { icon: '⚙️', text: t('slogan_synthesizing', '正在綜合推論架構並構思解答...') },
+    { icon: '✨', text: t('slogan_finalizing', '即將完成回答，正在組織精準文字...') }
+  ];
+
+  // Auto-cycle slogans every 2.6s when streaming
+  useEffect(() => {
+    if (!isStreaming) return;
+    const timer = setInterval(() => {
+      setSloganIdx(prev => (prev + 1) % cyclingSlogans.length);
+    }, 2600);
+    return () => clearInterval(timer);
+  }, [isStreaming, cyclingSlogans.length]);
+
+  // Keep thought chain open while streaming thought
+  useEffect(() => {
+    if (isStreaming && message.thought && !message.content) {
+      setIsThoughtOpen(true);
+    }
+  }, [isStreaming, message.thought, message.content]);
 
   const handleCopyAnswer = () => {
     navigator.clipboard.writeText(message.content);
@@ -99,19 +135,59 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     window.speechSynthesis.speak(utterance);
   };
 
+  const getPersonaIcon = (iconName?: string) => {
+    switch (iconName?.toLowerCase()) {
+      case 'code2':
+      case 'code':
+        return <Code2 className="w-4 h-4 text-cyan-400 shrink-0" />;
+      case 'search':
+        return <Search className="w-4 h-4 text-emerald-400 shrink-0" />;
+      case 'terminal':
+        return <Terminal className="w-4 h-4 text-amber-400 shrink-0" />;
+      case 'shieldcheck':
+        return <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />;
+      case 'cpu':
+        return <Cpu className="w-4 h-4 text-purple-400 shrink-0" />;
+      case 'sparkles':
+      default:
+        return <Sparkles className="w-4 h-4 text-cyan-300 shrink-0" />;
+    }
+  };
+
+  const personaDisplayName = persona 
+    ? t(`persona_${persona.id}_name`, persona.name) 
+    : t('default_agent_name', 'Aether 核心架構系統');
+
+  const currentSlogan = cyclingSlogans[sloganIdx];
+  const displayStatus = message.status_text || currentSlogan.text;
+  const isAwaitingContent = isStreaming && (!message.content || !message.content.trim());
+
   return (
-    <div className={`flex gap-3.5 py-4 px-2 md:px-4 transition-opacity duration-300 ${isUser ? 'justify-end' : 'justify-start'}`}>
-      {/* Agent Avatar */}
+    <div className={`flex gap-3.5 py-4 px-2 md:px-4 transition-all duration-300 ${isUser ? 'justify-end' : 'justify-start'}`}>
+      
+      {/* Assistant Persona Avatar (對方頭像) with dynamic live glow */}
       {!isUser && (
-        <div className="w-9 h-9 rounded-2xl glass-button flex items-center justify-center shrink-0 border border-cyan-500/30 shadow-[0_0_15px_rgba(0,242,254,0.2)] bg-gradient-to-br from-cyan-500/20 to-blue-600/20">
-          <Sparkles className="w-4 h-4 text-cyan-300" />
+        <div className="flex flex-col items-center shrink-0">
+          <div 
+            className={`w-9 h-9 rounded-2xl glass-button flex items-center justify-center border transition-all duration-300 ${
+              isStreaming 
+                ? 'border-cyan-400/80 shadow-[0_0_22px_rgba(0,242,254,0.45)] ring-2 ring-cyan-400/40 bg-gradient-to-br from-cyan-500/30 to-blue-600/30 animate-pulse' 
+                : 'border-cyan-500/30 shadow-[0_0_15px_rgba(0,242,254,0.2)] bg-gradient-to-br from-cyan-500/20 to-blue-600/20'
+            }`}
+            title={personaDisplayName}
+          >
+            {getPersonaIcon(persona?.icon)}
+          </div>
+          {isStreaming && (
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shadow-[0_0_8px_#00f2fe] mt-1.5 animate-ping" />
+          )}
         </div>
       )}
 
       {/* Message Body Container */}
-      <div className={`max-w-[92%] md:max-w-[82%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}>
+      <div className={`max-w-[92%] md:max-w-[82%] flex flex-col ${isUser ? 'items-end' : 'items-start'} min-w-0`}>
         
-        {/* User Bubble */}
+        {/* User Message Bubble */}
         {isUser ? (
           <div className="relative group">
             <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
@@ -131,20 +207,64 @@ export const MessageItem: React.FC<MessageItemProps> = ({
             )}
           </div>
         ) : (
-          /* Assistant Card with Liquid Glass Treatment */
-          <div className="w-full glass-panel rounded-3xl p-4 md:p-6 border border-white/10 shadow-2xl relative group">
+          /* Assistant Message Card */
+          <div className="w-full glass-panel rounded-3xl p-4 md:p-6 border border-white/10 shadow-2xl relative group transition-all duration-300">
             
-            {/* Thought / Thinking Chain (Collapsible) */}
+            {/* Assistant Branding Header Bar */}
+            <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-white/[0.06]">
+              <div className="flex items-center gap-2 min-w-0">
+                <span className="text-xs font-bold text-cyan-300 tracking-wide truncate">
+                  {personaDisplayName}
+                </span>
+                <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-500/30 text-cyan-300/90 whitespace-nowrap shrink-0">
+                  {t('ai_agent_tag', '智能代理')}
+                </span>
+              </div>
+
+              {isStreaming && (
+                <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-cyan-500/15 border border-cyan-400/30 text-[11px] text-cyan-300 font-mono animate-pulse whitespace-nowrap shrink-0">
+                  <RotateCw className="w-3 h-3 animate-spin text-cyan-400" />
+                  <span>{t('status_generating', '正在生成...')}</span>
+                </div>
+              )}
+            </div>
+
+            {/* Dynamic Cycling Slogan Banner (輪迴快要完成等類似標語) - Active while awaiting tokens */}
+            {isAwaitingContent && (
+              <div className="p-3.5 my-2.5 rounded-2xl bg-gradient-to-r from-cyan-500/10 via-purple-500/10 to-blue-500/10 border border-cyan-500/30 shadow-[0_0_20px_rgba(0,242,254,0.15)] flex items-center justify-between gap-3 animate-fade-in">
+                <div className="flex items-center gap-3 min-w-0">
+                  <span className="text-xl animate-bounce shrink-0">{currentSlogan.icon}</span>
+                  <div className="min-w-0">
+                    <p className="text-xs font-semibold text-cyan-200 truncate transition-all duration-300">
+                      {displayStatus}
+                    </p>
+                    <p className="text-[10px] text-slate-400 mt-0.5 font-mono truncate">
+                      Aether Reasoning Engine • Active
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-1 shrink-0 px-2">
+                  <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping" />
+                  <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping delay-150" />
+                  <span className="w-2 h-2 rounded-full bg-blue-400 animate-ping delay-300" />
+                </div>
+              </div>
+            )}
+
+            {/* Thought / Thinking Chain (Collapsible & Live Streaming) */}
             {message.thought && (
-              <div className="mb-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.15)]">
+              <div className="mb-4 rounded-2xl border border-purple-500/30 bg-purple-950/20 overflow-hidden shadow-[0_0_15px_rgba(168,85,247,0.15)] transition-all">
                 <button
                   onClick={() => setIsThoughtOpen(!isThoughtOpen)}
                   className="w-full px-3.5 py-2.5 flex items-center justify-between text-xs font-medium text-purple-300 hover:bg-purple-500/10 transition-colors"
                 >
                   <div className="flex items-center gap-2">
-                    <BrainCircuit className="w-4 h-4 text-purple-400" />
+                    <BrainCircuit className={`w-4 h-4 text-purple-400 ${isStreaming ? 'animate-pulse' : ''}`} />
                     <span className="font-semibold tracking-wide">
-                      {t('thinking_process', '思維鏈分析 (Thinking Process)')}
+                      {isStreaming && !message.content 
+                        ? t('thinking_active', '思考中...') 
+                        : isThoughtOpen ? t('thinking_expanded', '思考過程 (點擊摺疊)') : t('thinking_collapsed', '已深度思考 (點擊展開)')}
                     </span>
                   </div>
                   <div className="text-purple-400/80">
@@ -155,6 +275,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 {isThoughtOpen && (
                   <div className="px-4 pb-3.5 pt-1 border-t border-purple-500/15 text-xs text-purple-200/90 whitespace-pre-wrap leading-relaxed max-h-60 overflow-y-auto font-sans">
                     {message.thought}
+                    {isStreaming && !message.content && (
+                      <span className="inline-block w-2 h-3.5 ml-1 bg-purple-400 animate-pulse align-middle" />
+                    )}
                   </div>
                 )}
               </div>
@@ -186,8 +309,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
               </div>
             )}
 
-            {/* Powerful Markdown Rendered Output */}
-            <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+            {/* Rendered Markdown Output with Blinking Streaming Cursor */}
+            {message.content ? (
+              <div className="relative text-slate-100 text-sm md:text-[15px] leading-relaxed">
+                <MarkdownRenderer content={message.content} isStreaming={isStreaming} />
+                {isStreaming && (
+                  <span className="inline-block w-2 h-4 ml-1 bg-cyan-400 animate-pulse align-middle shadow-[0_0_8px_#00f2fe]" />
+                )}
+              </div>
+            ) : null}
 
             {/* Message Action Footer Toolbar */}
             <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs text-slate-400">
@@ -211,46 +341,54 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 )}
 
                 {/* Speech readout */}
-                <button
-                  onClick={handleSpeak}
-                  className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors whitespace-nowrap ${
-                    isSpeaking ? 'text-cyan-300' : 'text-slate-400 hover:text-cyan-300'
-                  }`}
-                  title={isSpeaking ? t('stop_generation', '停止朗讀') : t('speak_answer', '語音朗讀此回答')}
-                >
-                  {isSpeaking ? <VolumeX className="w-3.5 h-3.5 animate-pulse text-cyan-400" /> : <Volume2 className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{isSpeaking ? t('speaking', '朗讀中') : t('speak_answer', '朗讀')}</span>
-                </button>
+                {message.content && (
+                  <button
+                    onClick={handleSpeak}
+                    className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors whitespace-nowrap ${
+                      isSpeaking ? 'text-cyan-300' : 'text-slate-400 hover:text-cyan-300'
+                    }`}
+                    title={isSpeaking ? t('stop_generation', '停止朗讀') : t('speak_answer', '語音朗讀此回答')}
+                  >
+                    {isSpeaking ? <VolumeX className="w-3.5 h-3.5 animate-pulse text-cyan-400" /> : <Volume2 className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{isSpeaking ? t('speaking', '朗讀中') : t('speak_answer', '朗讀')}</span>
+                  </button>
+                )}
 
                 {/* Copy raw Markdown */}
-                <button
-                  onClick={handleCopyMarkdown}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
-                  title="複製 Markdown 原始碼"
-                >
-                  {copiedMarkdown ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileText className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{copiedMarkdown ? t('copied_md', '已複製 MD') : 'Markdown'}</span>
-                </button>
+                {message.content && (
+                  <button
+                    onClick={handleCopyMarkdown}
+                    className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
+                    title="複製 Markdown 原始碼"
+                  >
+                    {copiedMarkdown ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileText className="w-3.5 h-3.5" />}
+                    <span className="hidden sm:inline">{copiedMarkdown ? t('copied_md', '已複製 MD') : 'Markdown'}</span>
+                  </button>
+                )}
 
                 {/* Export as .md */}
-                <button
-                  onClick={handleDownloadMarkdown}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
-                  title="匯出此回答為 .md 檔案"
-                >
-                  <Download className="w-4 h-4" />
-                  <span className="hidden sm:inline">.md</span>
-                </button>
+                {message.content && (
+                  <button
+                    onClick={handleDownloadMarkdown}
+                    className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
+                    title="匯出此回答為 .md 檔案"
+                  >
+                    <Download className="w-4 h-4" />
+                    <span className="hidden sm:inline">.md</span>
+                  </button>
+                )}
 
                 {/* Copy Answer */}
-                <button
-                  onClick={handleCopyAnswer}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
-                  title={t('copy_answer', '複製回答')}
-                >
-                  {copiedAnswer ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                  <span>{copiedAnswer ? t('copied', '已複製') : t('copy', '複製')}</span>
-                </button>
+                {message.content && (
+                  <button
+                    onClick={handleCopyAnswer}
+                    className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
+                    title={t('copy_answer', '複製回答')}
+                  >
+                    {copiedAnswer ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                    <span>{copiedAnswer ? t('copied', '已複製') : t('copy', '複製')}</span>
+                  </button>
+                )}
               </div>
             </div>
 

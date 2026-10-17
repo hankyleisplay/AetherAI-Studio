@@ -356,13 +356,12 @@ class UnifiedLLMClient:
         timeout = httpx.Timeout(180.0, connect=10.0)
         async with httpx.AsyncClient(timeout=timeout) as client:
             try:
-                async with client.stream("POST", url, json=payload) as response:
-                    if response.status_code != 200:
-                        err_text = await response.aread()
-                        yield LLMResponseChunk(type="error", content=f"Ollama Error ({response.status_code}): {err_text.decode('utf-8', errors='ignore')}")
-                        return
+                # Helper to process an Ollama stream response
+                async def _consume_stream(resp):
+                    in_thought_tag = False
+                    thought_buffer = ""
 
-                    async for line in response.aiter_lines():
+                    async for line in resp.aiter_lines():
                         if not line:
                             continue
                         try:
@@ -371,9 +370,13 @@ class UnifiedLLMClient:
                             continue
 
                         msg = data.get("message", {})
-                        content = msg.get("content", "")
                         
-                        # Ollama native tool calls
+                        # 1. Capture thinking / reasoning tokens from Ollama (gemma4, deepseek-r1, etc.)
+                        thinking = msg.get("thinking")
+                        if thinking:
+                            yield LLMResponseChunk(type="thought", content=thinking)
+
+                        # 2. Ollama native tool calls
                         tool_calls = msg.get("tool_calls", [])
                         if tool_calls:
                             for tc in tool_calls:
@@ -385,12 +388,57 @@ class UnifiedLLMClient:
                                     tool_call_id=f"ollama_{int(time.time()*1000)}"
                                 )
 
+                        # 3. Capture regular content (and parse embedded <think>...</think> if present)
+                        content = msg.get("content", "")
                         if content:
-                            yield LLMResponseChunk(type="token", content=content)
+                            if "<think>" in content:
+                                parts = content.split("<think>")
+                                if parts[0]:
+                                    yield LLMResponseChunk(type="token", content=parts[0])
+                                in_thought_tag = True
+                                thought_buffer = parts[1]
+                                if "</think>" in thought_buffer:
+                                    t_parts = thought_buffer.split("</think>")
+                                    yield LLMResponseChunk(type="thought", content=t_parts[0])
+                                    in_thought_tag = False
+                                    if t_parts[1]:
+                                        yield LLMResponseChunk(type="token", content=t_parts[1])
+                                else:
+                                    yield LLMResponseChunk(type="thought", content=thought_buffer)
+                            elif in_thought_tag:
+                                if "</think>" in content:
+                                    t_parts = content.split("</think>")
+                                    yield LLMResponseChunk(type="thought", content=t_parts[0])
+                                    in_thought_tag = False
+                                    if t_parts[1]:
+                                        yield LLMResponseChunk(type="token", content=t_parts[1])
+                                else:
+                                    yield LLMResponseChunk(type="thought", content=content)
+                            else:
+                                yield LLMResponseChunk(type="token", content=content)
 
                         if data.get("done"):
                             yield LLMResponseChunk(type="done")
                             break
+
+                async with client.stream("POST", url, json=payload) as response:
+                    if response.status_code != 200:
+                        err_text = await response.aread()
+                        err_str = err_text.decode('utf-8', errors='ignore')
+                        # If tools caused an error (e.g., model does not support tools), retry without tools
+                        if tools and response.status_code in (400, 500):
+                            payload_no_tools = {**payload}
+                            payload_no_tools.pop("tools", None)
+                            async with client.stream("POST", url, json=payload_no_tools) as retry_resp:
+                                if retry_resp.status_code == 200:
+                                    async for c in _consume_stream(retry_resp):
+                                        yield c
+                                    return
+                        yield LLMResponseChunk(type="error", content=f"Ollama Error ({response.status_code}): {err_str}")
+                        return
+
+                    async for c in _consume_stream(response):
+                        yield c
 
             except Exception as e:
                 yield LLMResponseChunk(type="error", content=f"Ollama stream error: {str(e)}")
