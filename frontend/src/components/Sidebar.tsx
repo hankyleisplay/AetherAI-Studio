@@ -208,21 +208,23 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <div className="grid grid-cols-2 gap-1.5 mt-1">
               {personas.map((p) => {
                 const isSelected = p.id === selectedPersonaId;
+                const displayName = t(`persona_${p.id}_name`, p.name);
+                const displayDesc = t(`persona_${p.id}_desc`, p.description);
                 return (
                   <button
                     key={p.id}
                     onClick={() => onSelectPersona(p.id)}
-                    title={`${p.name}\n${p.description}`}
+                    title={`${displayName}\n${displayDesc}`}
                     className={`p-2 rounded-xl text-left text-xs transition-all flex items-center gap-1.5 border ${
                       isSelected
                         ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-200 shadow-[0_0_14px_rgba(0,242,254,0.25)] font-semibold'
                         : 'bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.06] hover:text-slate-200'
                     }`}
                   >
-                    <span className={isSelected ? 'text-cyan-400' : 'text-slate-400'}>
+                    <span className={`shrink-0 ${isSelected ? 'text-cyan-400' : 'text-slate-400'}`}>
                       {getPersonaIcon(p.icon)}
                     </span>
-                    <span className="truncate text-[11px]">{p.name}</span>
+                    <span className="truncate text-[11px]">{displayName}</span>
                   </button>
                 );
               })}
@@ -231,8 +233,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               onClick={onOpenNewPersona}
               className="w-full mt-2 py-1.5 px-2 rounded-xl border border-dashed border-white/15 hover:border-purple-400/50 text-[11px] text-slate-400 hover:text-purple-300 hover:bg-purple-500/10 flex items-center justify-center gap-1.5 transition-all"
             >
-              <Plus className="w-3 h-3" />
-              <span>{t('create_agent', '配置專屬工程代理角色')}</span>
+              <Plus className="w-3 h-3 shrink-0" />
+              <span className="truncate">{t('create_agent', '配置專屬工程代理角色')}</span>
             </button>
           </div>
 
@@ -247,8 +249,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <MessageSquare className="w-3.5 h-3.5" />
-                <span>{t('tab_sessions', '會話列表')}</span>
+                <MessageSquare className="w-3.5 h-3.5 shrink-0" />
+                <span className="truncate">{t('tab_sessions', '會話列表')}</span>
               </button>
               <button
                 onClick={() => {
@@ -261,8 +263,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <Star className="w-3.5 h-3.5 fill-amber-400/40 text-amber-400" />
-                <span>{t('tab_bookmarks', '收藏清單')}</span>
+                <Star className="w-3.5 h-3.5 fill-amber-400/40 text-amber-400 shrink-0" />
+                <span className="truncate">{t('tab_bookmarks', '收藏清單')}</span>
               </button>
             </div>
           </div>
@@ -273,13 +275,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <>
                 <div className="flex items-center justify-between px-1 mb-1">
                   <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                    {searchQuery ? `搜尋結果 (${displayedSessions.length})` : t('session_history', '會話歷程 (Session History)')}
+                    {searchQuery ? `${t('search_results', '搜尋結果')} (${displayedSessions.length})` : t('session_history', '會話歷程 (Session History)')}
                   </span>
                 </div>
 
                 {displayedSessions.length === 0 ? (
                   <div className="text-center py-8 text-xs text-slate-400">
-                    {searchQuery ? '未找到符合的會話' : t('no_history', '尚無歷史會話紀錄')}
+                    {searchQuery ? t('no_search_results', '未找到符合的會話') : t('no_history', '尚無歷史會話紀錄')}
                   </div>
                 ) : (
                   displayedSessions.map((s) => {

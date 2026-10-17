@@ -283,25 +283,25 @@ export const ChatView: React.FC<ChatViewProps> = ({
         
         {/* Inline Reasoning Temperature Capsule */}
         {onTemperatureChange && (
-          <div className="flex items-center justify-between px-2 text-xs">
-            <div className="flex items-center gap-1.5 text-slate-400">
-              <Sliders className="w-3.5 h-3.5 text-cyan-400" />
+          <div className="flex items-center justify-between px-2 text-xs gap-2 overflow-x-auto">
+            <div className="flex items-center gap-1.5 text-slate-400 whitespace-nowrap shrink-0">
+              <Sliders className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
               <span className="text-[11px] font-medium">{t('reasoning_tuning', '推論調優')}:</span>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/30 border border-white/5 backdrop-blur-md">
+            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/30 border border-white/5 backdrop-blur-md shrink-0">
               {/* Precise (0.2) */}
               <button
                 type="button"
                 onClick={() => onTemperatureChange(0.2)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature <= 0.3
                     ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title={t('reasoning_precise_desc', '低隨機度 (0.2)，適合代碼架構、數學證明、嚴格邏輯')}
               >
-                <Target className="w-3 h-3 text-cyan-400" />
+                <Target className="w-3 h-3 text-cyan-400 shrink-0" />
                 <span>{t('reasoning_precise', '精確嚴謹 (0.2)')}</span>
               </button>
 
@@ -309,14 +309,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => onTemperatureChange(0.7)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature > 0.3 && temperature <= 0.8
                     ? 'bg-blue-500/25 text-blue-200 border border-blue-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title={t('reasoning_balanced_desc', '均衡隨機度 (0.7)，適合綜合問答、系統工程、文檔解析')}
               >
-                <Compass className="w-3 h-3 text-blue-400" />
+                <Compass className="w-3 h-3 text-blue-400 shrink-0" />
                 <span>{t('reasoning_balanced', '標準平衡 (0.7)')}</span>
               </button>
 
@@ -324,14 +324,14 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => onTemperatureChange(1.1)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 ${
+                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature > 0.8
                     ? 'bg-purple-500/25 text-purple-200 border border-purple-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title={t('reasoning_creative_desc', '高隨機度 (1.1)，適合頭腦風暴、靈感探索、方案發散')}
               >
-                <Sparkles className="w-3 h-3 text-purple-400" />
+                <Sparkles className="w-3 h-3 text-purple-400 shrink-0" />
                 <span>{t('reasoning_creative', '發散創意 (1.1)')}</span>
               </button>
             </div>

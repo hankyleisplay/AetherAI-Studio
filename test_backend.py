@@ -35,10 +35,26 @@ async def run_tests():
             assert res.status_code == 200
             assert "AetherAI Studio 2.0 (AetherAgent)" in res.json()["app"]
 
-            # 2. Get active model
+            # 2. Get active model & test auto-discovery + model switching
             res = await client.get("/api/models/active")
-            print("2. /api/models/active:", res.status_code, res.json())
+            active_cfg = res.json()
+            print("2. /api/models/active:", res.status_code, active_cfg)
             assert res.status_code == 200
+
+            probe_res = await client.post("/api/models/test", json=active_cfg)
+            probe_data = probe_res.json()
+            print("2b. /api/models/test models:", probe_res.status_code, len(probe_data.get("models", [])), probe_data.get("models", [])[:3])
+            assert probe_res.status_code == 200
+            assert isinstance(probe_data.get("models"), list)
+            assert len(probe_data["models"]) > 0
+
+            # Test switching model and restoring
+            switched_cfg = {**active_cfg, "model": probe_data["models"][-1]}
+            save_res = await client.post("/api/models/active", json=switched_cfg)
+            assert save_res.status_code == 200
+            verify_res = await client.get("/api/models/active")
+            assert verify_res.json()["model"] == probe_data["models"][-1]
+            await client.post("/api/models/active", json=active_cfg)
 
             # 3. List tools
             res = await client.get("/api/tools")

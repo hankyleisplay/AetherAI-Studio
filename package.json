@@ -1,6 +1,6 @@
 {
   "name": "@hankyleisplay/aetherai-studio",
-  "version": "26.10.17",
+  "version": "26.10.18",
   "description": "AetherAI Studio 2.0 (AetherAgent) - Liquid Glass Local & Cloud Autonomous AI Agent System with 13 Enterprise Tools, Multi-Agent Swarm, Telegram Bridge, i18n & Powerful Markdown",
   "main": "cli.js",
   "bin": {

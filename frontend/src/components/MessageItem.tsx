@@ -200,20 +200,20 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 {onBookmarkToggle && (
                   <button
                     onClick={() => onBookmarkToggle(message.id)}
-                    className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors ${
+                    className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors whitespace-nowrap ${
                       isBookmarked ? 'text-amber-400 border-amber-400/30' : 'text-slate-400 hover:text-amber-400'
                     }`}
                     title={isBookmarked ? t('unbookmark_message', '取消收藏') : t('bookmark_message', '收藏此訊息')}
                   >
                     <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400 text-amber-400' : ''}`} />
-                    <span className="hidden sm:inline">{isBookmarked ? '已收藏' : '收藏'}</span>
+                    <span className="hidden sm:inline">{isBookmarked ? t('bookmarked', '已收藏') : t('bookmark', '收藏')}</span>
                   </button>
                 )}
 
                 {/* Speech readout */}
                 <button
                   onClick={handleSpeak}
-                  className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors ${
+                  className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors whitespace-nowrap ${
                     isSpeaking ? 'text-cyan-300' : 'text-slate-400 hover:text-cyan-300'
                   }`}
                   title={isSpeaking ? t('stop_generation', '停止朗讀') : t('speak_answer', '語音朗讀此回答')}
@@ -225,17 +225,17 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 {/* Copy raw Markdown */}
                 <button
                   onClick={handleCopyMarkdown}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
                   title="複製 Markdown 原始碼"
                 >
                   {copiedMarkdown ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileText className="w-3.5 h-3.5" />}
-                  <span className="hidden sm:inline">{copiedMarkdown ? '已複製 MD' : 'Markdown'}</span>
+                  <span className="hidden sm:inline">{copiedMarkdown ? t('copied_md', '已複製 MD') : 'Markdown'}</span>
                 </button>
 
                 {/* Export as .md */}
                 <button
                   onClick={handleDownloadMarkdown}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
                   title="匯出此回答為 .md 檔案"
                 >
                   <Download className="w-4 h-4" />
@@ -245,7 +245,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                 {/* Copy Answer */}
                 <button
                   onClick={handleCopyAnswer}
-                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px]"
+                  className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
                   title={t('copy_answer', '複製回答')}
                 >
                   {copiedAnswer ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}

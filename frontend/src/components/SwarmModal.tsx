@@ -1,9 +1,9 @@
 import React, { useState, useRef } from 'react';
 import { 
   Users, Sparkles, MessageSquare, RotateCw, X, Play, 
-  Copy, Check, Send, ShieldAlert, Cpu, Search, Terminal, Code2
+  Copy, Check, Send, Code2, Search, Terminal
 } from 'lucide-react';
-import { Persona, SwarmTurn } from '../types';
+import { Persona, SwarmTurn, ModelConfig } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 import { MarkdownRenderer } from './markdown/MarkdownRenderer';
 
@@ -12,13 +12,15 @@ interface SwarmModalProps {
   onClose: () => void;
   personas: Persona[];
   onApplyToChat: (summaryText: string) => void;
+  modelConfig?: ModelConfig;
 }
 
 export const SwarmModal: React.FC<SwarmModalProps> = ({
   isOpen,
   onClose,
   personas,
-  onApplyToChat
+  onApplyToChat,
+  modelConfig
 }) => {
   const { t } = useI18n();
   const [topic, setTopic] = useState<string>('');
@@ -46,7 +48,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
       if (selectedPersonaIds.length > 2) {
         setSelectedPersonaIds(prev => prev.filter(p => p !== id));
       } else {
-        alert('請至少保留 2 位與會專家以進行交叉論辯。');
+        alert(t('swarm_min_personas_alert', '請至少保留 2 位與會專家以進行交叉論辯。'));
       }
     } else {
       setSelectedPersonaIds(prev => [...prev, id]);
@@ -69,11 +71,11 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
 
   const handleStartDebate = async () => {
     if (!topic.trim()) {
-      alert('請輸入或選擇論辯研討核心議題。');
+      alert(t('swarm_empty_topic_alert', '請輸入或選擇論辯研討核心議題。'));
       return;
     }
     if (selectedPersonaIds.length < 2) {
-      alert('請至少挑選 2 位專家代理。');
+      alert(t('swarm_min_personas_alert', '請至少保留 2 位與會專家以進行交叉論辯。'));
       return;
     }
 
@@ -92,7 +94,8 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
         body: JSON.stringify({
           topic: topic.trim(),
           personas: selectedPersonaIds,
-          rounds: rounds
+          rounds: rounds,
+          model_config_override: modelConfig
         }),
         signal: controller.signal
       });
@@ -162,6 +165,22 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
                     return updated;
                   });
                 }
+              } else if (currentEvent === 'error' || data.type === 'error') {
+                const errMsg = `\n\n❌ **${t('status_error', '異常中斷')}**: ${data.error || 'Unknown error'}`;
+                if (isSummaryPhase) {
+                  setConsensusSummary(prev => prev + errMsg);
+                } else {
+                  setTurns(prev => {
+                    const lastIdx = prev.length - 1;
+                    if (lastIdx < 0) return prev;
+                    const updated = [...prev];
+                    updated[lastIdx] = {
+                      ...updated[lastIdx],
+                      content: updated[lastIdx].content + errMsg
+                    };
+                    return updated;
+                  });
+                }
               } else if (currentEvent === 'swarm_turn_done') {
                 // Done with current turn
               } else if (currentEvent === 'swarm_summary_start') {
@@ -181,7 +200,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
 
     } catch (err: any) {
       if (err.name !== 'AbortError') {
-        alert(`論辯過程發生異常: ${err.message}`);
+        alert(`${t('status_error', '異常中斷')}: ${err.message}`);
       }
     } finally {
       setIsDebating(false);
@@ -200,12 +219,13 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
   };
 
   const handleCopyTranscript = () => {
-    let full = `# 多智能體圓桌研討紀錄: ${topic}\n\n`;
+    let full = `# ${t('swarm_title', '多智能體協同論壇 & 深度交鋒沙盤')}: ${topic}\n\n`;
     for (const turn of turns) {
-      full += `### [第 ${turn.round} 輪] ${turn.persona_name}\n${turn.content}\n\n---\n\n`;
+      const speakerLabel = t(`persona_${turn.persona_id}_name`, turn.persona_name);
+      full += `### [${t('swarm_round_label', '輪次')} ${turn.round}] ${speakerLabel}\n${turn.content}\n\n---\n\n`;
     }
     if (consensusSummary) {
-      full += `## 🌟 Aether 智庫共識結論\n${consensusSummary}\n`;
+      full += `## 🌟 ${t('swarm_consensus_title', 'Aether 智庫綜合共識與實施藍圖')}\n${consensusSummary}\n`;
     }
     navigator.clipboard.writeText(full);
     setCopied(true);
@@ -213,7 +233,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
   };
 
   const handleApply = () => {
-    let full = `【多智能體協同論壇結論注入】\n議題: ${topic}\n\n${consensusSummary || '（請參閱上方圓桌各專家討論重點）'}`;
+    let full = `【${t('swarm_consensus_title', 'Aether 智庫綜合共識與實施藍圖')}】\n${t('swarm_topic_label', '辯論研討核心議題')}: ${topic}\n\n${consensusSummary || ''}`;
     onApplyToChat(full);
     onClose();
   };
@@ -251,7 +271,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
 
         {/* Modal Scrollable Content */}
         <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
-          {/* Topic & Configuration Setup (Hidden or condensed while debating) */}
+          {/* Topic & Configuration Setup */}
           <div className="space-y-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             {/* Topic Input */}
             <div>
@@ -291,21 +311,24 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
                 {personas.map((p) => {
                   const isSelected = selectedPersonaIds.includes(p.id);
+                  const displayName = t(`persona_${p.id}_name`, p.name);
+                  const displayDesc = t(`persona_${p.id}_desc`, p.description);
                   return (
                     <div
                       key={p.id}
                       onClick={() => !isDebating && handleTogglePersona(p.id)}
+                      title={`${displayName}\n${displayDesc}`}
                       className={`flex items-center gap-2 p-2.5 rounded-xl border transition-all cursor-pointer select-none ${
                         isSelected
                           ? 'bg-cyan-500/15 border-cyan-500/40 text-cyan-200 shadow-sm'
                           : 'bg-white/[0.02] border-white/5 text-slate-400 hover:bg-white/[0.05]'
                       } ${isDebating ? 'opacity-60 cursor-not-allowed' : ''}`}
                     >
-                      <div className="p-1 rounded-lg bg-black/30">
+                      <div className="p-1 rounded-lg bg-black/30 shrink-0">
                         {getPersonaIcon(p.icon)}
                       </div>
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-medium truncate">{p.name}</p>
+                        <p className="text-xs font-medium truncate">{displayName}</p>
                         <p className="text-[10px] text-slate-500 truncate">{p.id}</p>
                       </div>
                     </div>
@@ -338,15 +361,15 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
                 {isDebating ? (
                   <button
                     onClick={handleStop}
-                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-semibold hover:bg-red-500/30 transition-all"
+                    className="flex items-center gap-2 px-4 py-2 rounded-xl bg-red-500/20 border border-red-500/40 text-red-300 text-xs font-semibold hover:bg-red-500/30 transition-all whitespace-nowrap"
                   >
                     <RotateCw className="w-3.5 h-3.5 animate-spin text-red-400" />
-                    停止論辯
+                    {t('swarm_stop_btn', '停止論辯')}
                   </button>
                 ) : (
                   <button
                     onClick={handleStartDebate}
-                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-semibold text-xs shadow-lg shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition-all"
+                    className="flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-black font-semibold text-xs shadow-lg shadow-cyan-500/20 hover:brightness-110 active:scale-95 transition-all whitespace-nowrap"
                   >
                     <Play className="w-3.5 h-3.5 fill-black" />
                     {t('swarm_start_btn', '開始圓桌論辯')}
@@ -362,12 +385,12 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
               <div className="flex items-center justify-between">
                 <h4 className="text-xs font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-2">
                   <MessageSquare className="w-4 h-4" />
-                  即時交鋒對話流 (Roundtable Transcript)
+                  {t('swarm_live_transcript', '即時交鋒對話流 (Roundtable Transcript)')}
                 </h4>
                 {currentSpeaker && (
                   <span className="flex items-center gap-1.5 text-xs text-amber-300 font-mono animate-pulse">
                     <RotateCw className="w-3 h-3 animate-spin" />
-                    {currentSpeaker.name} 正在發言中...
+                    {t(`persona_${currentSpeaker.id}_name`, currentSpeaker.name)} {t('swarm_speaking', '正在發言中...')}
                   </span>
                 )}
               </div>
@@ -382,10 +405,10 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
                     <div className="flex items-center justify-between border-b border-white/5 pb-2">
                       <div className="flex items-center gap-2">
                         <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-slate-300">
-                          輪次 {turn.round}
+                          {t('swarm_round_label', '輪次')} {turn.round}
                         </span>
                         <span className="text-xs font-bold text-cyan-300">
-                          {turn.persona_name}
+                          {t(`persona_${turn.persona_id}_name`, turn.persona_name)}
                         </span>
                       </div>
                     </div>
@@ -411,14 +434,14 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
                 <div className="flex items-center gap-2">
                   <button
                     onClick={handleCopyTranscript}
-                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors"
+                    className="flex items-center gap-1 px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 text-slate-300 text-xs transition-colors whitespace-nowrap"
                   >
                     {copied ? <Check className="w-3.5 h-3.5 text-green-400" /> : <Copy className="w-3.5 h-3.5" />}
-                    {copied ? '已複製' : '複製紀要'}
+                    {copied ? t('copied', '已複製') : t('copy', '複製')}
                   </button>
                   <button
                     onClick={handleApply}
-                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-medium transition-colors"
+                    className="flex items-center gap-1 px-3 py-1 rounded-lg bg-cyan-500/20 hover:bg-cyan-500/30 border border-cyan-500/40 text-cyan-300 text-xs font-medium transition-colors whitespace-nowrap"
                   >
                     <Send className="w-3.5 h-3.5" />
                     {t('swarm_export_to_chat', '將共識注入當前對話')}

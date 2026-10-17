@@ -14,12 +14,14 @@ import {
   Loader2 
 } from 'lucide-react';
 import { ToolCall } from '../types';
+import { useI18n } from '../i18n/I18nContext';
 
 interface ToolCallCardProps {
   tool: ToolCall;
 }
 
 export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
+  const { t } = useI18n();
   const [isOpen, setIsOpen] = useState(false);
 
   const getToolIcon = (name: string) => {
@@ -60,21 +62,21 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
                 {tool.name}
               </span>
               {isRunning && (
-                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 animate-pulse">
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 animate-pulse whitespace-nowrap">
                   <Loader2 className="w-2.5 h-2.5 animate-spin" />
-                  執行中...
+                  {t('tool_running', '執行中...')}
                 </span>
               )}
               {!isRunning && tool.success && (
-                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30">
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 whitespace-nowrap">
                   <CheckCircle2 className="w-2.5 h-2.5" />
-                  已完成
+                  {t('tool_completed', '已完成')}
                 </span>
               )}
               {!isRunning && tool.success === false && (
-                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30">
+                <span className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full bg-rose-500/10 text-rose-400 border border-rose-500/30 whitespace-nowrap">
                   <AlertCircle className="w-2.5 h-2.5" />
-                  執行失敗
+                  {t('tool_failed', '執行失敗')}
                 </span>
               )}
             </div>
@@ -96,7 +98,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         <div className="px-3.5 pb-3 pt-1 border-t border-white/[0.06] bg-black/20 text-xs font-mono space-y-2">
           {/* Input Arguments */}
           <div>
-            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">輸入參數 :</span>
+            <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('tool_input_args', '輸入參數 :')}</span>
             <pre className="mt-1 p-2 rounded-lg bg-black/40 border border-white/5 text-slate-300 overflow-x-auto whitespace-pre-wrap break-all text-[11px]">
               {JSON.stringify(tool.args, null, 2)}
             </pre>
@@ -105,7 +107,7 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
           {/* Output / Error */}
           {tool.output && (
             <div>
-              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">工具輸出 :</span>
+              <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">{t('tool_output_result', '工具輸出 :')}</span>
               <pre className="mt-1 p-2 rounded-lg bg-black/40 border border-white/5 text-emerald-300/90 overflow-x-auto whitespace-pre-wrap break-all text-[11px] max-h-52 overflow-y-auto">
                 {tool.output}
               </pre>

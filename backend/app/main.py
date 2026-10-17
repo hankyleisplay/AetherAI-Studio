@@ -90,16 +90,28 @@ async def health_check():
 async def get_active_model_config():
     saved = db.get_setting("active_model_config")
     if saved:
-        return saved
-    # Default configuration
-    default_config = ModelConfig(
-        provider="ollama",
-        base_url="http://localhost:11434",
-        model="llama3:latest",
-        temperature=0.7,
-        max_tokens=4096
-    )
-    return default_config.model_dump()
+        cfg = ModelConfig(**saved)
+    else:
+        cfg = ModelConfig(
+            provider="ollama",
+            base_url="http://localhost:11434",
+            model="llama3:latest",
+            temperature=0.7,
+            max_tokens=4096
+        )
+
+    # Auto-probe local Ollama if no custom model was saved or if default llama3:latest isn't installed
+    if cfg.provider == "ollama" and (not saved or cfg.model == "llama3:latest"):
+        try:
+            probe = await UnifiedLLMClient(cfg).test_connection()
+            models = probe.get("models") or []
+            if probe.get("success") and models and cfg.model not in models:
+                cfg.model = models[0]
+                db.set_setting("active_model_config", cfg.model_dump())
+        except Exception:
+            pass
+
+    return cfg.model_dump()
 
 @app.post("/api/models/active")
 async def save_active_model_config(config: ModelConfig):

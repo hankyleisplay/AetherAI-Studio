@@ -25,13 +25,15 @@ interface SettingsModalProps {
   onClose: () => void;
   config: ModelConfig;
   onSaveConfig: (config: ModelConfig) => Promise<void>;
+  onModelsDetected?: (models: string[]) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
   onClose,
   config,
-  onSaveConfig
+  onSaveConfig,
+  onModelsDetected
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'model' | 'telegram'>('model');
@@ -76,10 +78,39 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
 
-  // Sync formData when modal opens or config changes
+  const probeModelsForConfig = async (targetConfig: ModelConfig) => {
+    setIsTesting(true);
+    try {
+      const res = await fetch('/api/models/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(targetConfig)
+      });
+      const data = await res.json();
+      setTestResult(data);
+      if (data.models && data.models.length > 0) {
+        if (onModelsDetected) {
+          onModelsDetected(data.models);
+        }
+        setFormData((prev) => {
+          const shouldSwitchDefault = !prev.model || !data.models.includes(prev.model);
+          return shouldSwitchDefault ? { ...prev, model: data.models[0] } : prev;
+        });
+      }
+    } catch (err: any) {
+      setTestResult({ success: false, error: err.message || '無法連線至後端伺服器' });
+    } finally {
+      setIsTesting(false);
+    }
+  };
+
+  // Sync formData and auto-probe models when modal opens
   useEffect(() => {
     if (isOpen) {
-      setFormData({ ...config });
+      const initialConfig = { ...config };
+      setFormData(initialConfig);
+      probeModelsForConfig(initialConfig);
+
       fetch('/api/telegram/status')
         .then((res) => res.json())
         .then((data) => {
@@ -160,34 +191,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (preset.id === 'claude') providerName = 'anthropic';
     if (preset.id === 'lm_studio') providerName = 'openai_compatible';
 
-    setFormData({
+    const nextConfig: ModelConfig = {
       ...formData,
       provider: providerName as any,
       base_url: preset.url,
       model: preset.defaultModel
-    });
+    };
+    setFormData(nextConfig);
     setTestResult(null);
+    probeModelsForConfig(nextConfig);
   };
 
   const handleTestConnection = async () => {
-    setIsTesting(true);
-    setTestResult(null);
-    try {
-      const res = await fetch('/api/models/test', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(formData)
-      });
-      const data = await res.json();
-      setTestResult(data);
-      if (data.models && data.models.length > 0 && !formData.model) {
-        setFormData((prev) => ({ ...prev, model: data.models[0] }));
-      }
-    } catch (err: any) {
-      setTestResult({ success: false, error: err.message || '無法連線至後端伺服器' });
-    } finally {
-      setIsTesting(false);
-    }
+    await probeModelsForConfig(formData);
   };
 
   const handleSaveModel = async () => {
@@ -366,7 +382,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
 
             {/* Model Name & Discovery */}
-            <div>
+            <div className="space-y-2">
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-300">
                   {t('target_model', '目標模型名稱 (Model Name)')}
@@ -386,19 +402,36 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </button>
               </div>
 
-              {testResult?.models && testResult.models.length > 0 ? (
-                <select
-                  value={formData.model}
-                  onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100 bg-slate-900/80 cursor-pointer"
-                >
-                  {testResult.models.map((m) => (
-                    <option key={m} value={m} className="bg-slate-900 text-slate-100">
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              ) : (
+              {testResult?.models && testResult.models.length > 0 && (
+                <div>
+                  <span className="text-[11px] text-slate-400 block mb-1">
+                    {t('detected_models_select', '從已探測的可用模型中快速選擇')} ({testResult.models.length})
+                  </span>
+                  <select
+                    value={formData.model}
+                    onChange={(e) => setFormData({ ...formData, model: e.target.value })}
+                    className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100 bg-slate-900/80 cursor-pointer"
+                  >
+                    {!testResult.models.includes(formData.model) && formData.model && (
+                      <option value={formData.model} className="bg-slate-900 text-cyan-300">
+                        {formData.model}
+                      </option>
+                    )}
+                    {testResult.models.map((m) => (
+                      <option key={m} value={m} className="bg-slate-900 text-slate-100">
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div>
+                {testResult?.models && testResult.models.length > 0 && (
+                  <span className="text-[11px] text-slate-400 block mb-1">
+                    {t('custom_model_input', '或手動輸入自訂模型名稱')}
+                  </span>
+                )}
                 <input
                   type="text"
                   value={formData.model}
@@ -406,7 +439,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   placeholder="例如: llama3:latest 或 gpt-4o"
                   className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100"
                 />
-              )}
+              </div>
 
               {/* Test Result Message */}
               {testResult && (
@@ -425,16 +458,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   <div>
                     {testResult.success ? (
                       <div>
-                        <div className="font-semibold">連線成功！延遲: {testResult.latency_ms} ms</div>
+                        <div className="font-semibold">
+                          {t('conn_success_latency', '連線成功！延遲:')} {testResult.latency_ms} ms
+                        </div>
                         {testResult.models && (
                           <div className="text-[11px] text-emerald-400/80 mt-0.5">
-                            已自動探測到 {testResult.models.length} 個可用模型。
+                            {t('conn_detected_models', '已自動探測到可用模型數:')} {testResult.models.length}
                           </div>
                         )}
                       </div>
                     ) : (
                       <div>
-                        <div className="font-semibold">連線失敗</div>
+                        <div className="font-semibold">{t('conn_failed', '連線失敗')}</div>
                         <div className="text-[11px] text-rose-400/80 mt-0.5">{testResult.error}</div>
                       </div>
                     )}

@@ -33,6 +33,8 @@ export const App: React.FC = () => {
     temperature: 0.7,
     max_tokens: 4096
   });
+  const [availableModels, setAvailableModels] = useState<string[]>([]);
+  const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -53,15 +55,51 @@ export const App: React.FC = () => {
     }
   }, [activeSessionId]);
 
+  const probeAvailableModels = async (configToProbe: ModelConfig) => {
+    setIsProbingModels(true);
+    try {
+      const res = await fetch('/api/models/test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(configToProbe)
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const detected: string[] = Array.isArray(data.models) ? data.models : [];
+        if (detected.length > 0) {
+          setAvailableModels(detected);
+          // If the endpoint is live and current model is not in detected list, auto-select the first available model
+          if (data.success && (!configToProbe.model || !detected.includes(configToProbe.model))) {
+            const updatedConfig = { ...configToProbe, model: detected[0] };
+            setModelConfig(updatedConfig);
+            await fetch('/api/models/active', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedConfig)
+            });
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to auto-probe models:', e);
+    } finally {
+      setIsProbingModels(false);
+    }
+  };
+
   const fetchActiveModel = async () => {
     try {
       const res = await fetch('/api/models/active');
       if (res.ok) {
         const data = await res.json();
         setModelConfig(data);
+        probeAvailableModels(data);
+      } else {
+        probeAvailableModels(modelConfig);
       }
     } catch (e) {
       console.error('Failed to load active model:', e);
+      probeAvailableModels(modelConfig);
     }
   };
 
@@ -142,10 +180,21 @@ export const App: React.FC = () => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newConfig)
       });
+      const endpointChanged = newConfig.provider !== modelConfig.provider || newConfig.base_url !== modelConfig.base_url;
       setModelConfig(newConfig);
+      if (endpointChanged) {
+        probeAvailableModels(newConfig);
+      } else if (newConfig.model && !availableModels.includes(newConfig.model)) {
+        setAvailableModels(prev => [newConfig.model, ...prev]);
+      }
     } catch (e) {
       console.error('Failed to save model config:', e);
     }
+  };
+
+  const handleQuickSelectModel = async (modelName: string) => {
+    const updated = { ...modelConfig, model: modelName };
+    await handleSaveModelConfig(updated);
   };
 
   const handleSavePersona = async (newPersona: Persona) => {
@@ -470,7 +519,7 @@ export const App: React.FC = () => {
       />
 
       {/* Main Chat Workspace Area */}
-      <div className="flex-1 flex flex-col h-full relative z-10 overflow-hidden">
+      <div className="flex-1 flex flex-col h-full relative z-10 overflow-hidden min-w-0">
         {/* Header */}
         <Header
           onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
@@ -484,6 +533,10 @@ export const App: React.FC = () => {
           onOpenWorkspace={() => setIsWorkspaceDrawerOpen(true)}
           onOpenSwarm={() => setIsSwarmModalOpen(true)}
           activePersona={activePersona}
+          availableModels={availableModels}
+          isProbingModels={isProbingModels}
+          onSelectModel={handleQuickSelectModel}
+          onRefreshModels={() => probeAvailableModels(modelConfig)}
         />
 
         {/* Chat Canvas & Input */}
@@ -505,6 +558,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSettingsOpen(false)}
         config={modelConfig}
         onSaveConfig={handleSaveModelConfig}
+        onModelsDetected={setAvailableModels}
       />
 
       {/* Custom Persona Builder Modal */}
@@ -528,6 +582,7 @@ export const App: React.FC = () => {
         onClose={() => setIsSwarmModalOpen(false)}
         personas={personas}
         onApplyToChat={handleApplySwarm}
+        modelConfig={modelConfig}
       />
     </div>
   );

@@ -24,73 +24,169 @@ class UnifiedLLMClient:
     def __init__(self, config: ModelConfig):
         self.config = config
 
+    DEFAULT_PROVIDER_MODELS: Dict[str, List[str]] = {
+        "ollama": ["llama3:latest", "qwen2.5:7b", "deepseek-r1:8b", "gemma2:9b", "mistral:latest"],
+        "openai_compatible": ["local-model"],
+        "lm_studio": ["local-model"],
+        "deepseek": ["deepseek-chat", "deepseek-reasoner"],
+        "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini", "o1"],
+        "anthropic": ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
+        "gemini": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-2.0-flash", "gemini-flash-latest", "gemini-pro-latest"],
+        "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "deepseek-r1-distill-llama-70b", "mixtral-8x7b-32768", "gemma2-9b-it"]
+    }
+
     async def test_connection(self) -> Dict[str, Any]:
         """Test connection and return latency + available models if discoverable."""
         start = time.time()
-        timeout = httpx.Timeout(8.0)
+        timeout = httpx.Timeout(5.0)
+        provider = self.config.provider
+        fallback_models = self.DEFAULT_PROVIDER_MODELS.get(provider, [self.config.model] if self.config.model else [])
+
         async with httpx.AsyncClient(timeout=timeout) as client:
             try:
-                if self.config.provider == "ollama":
-                    url = f"{self.config.base_url.rstrip('/')}/api/tags"
-                    resp = await client.get(url)
-                    latency = round((time.time() - start) * 1000, 1)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        models = [m.get("name") for m in data.get("models", [])]
-                        return {"success": True, "latency_ms": latency, "models": models, "provider": "ollama"}
-                    return {"success": False, "error": f"Ollama HTTP {resp.status_code}: {resp.text}"}
+                if provider == "ollama":
+                    base = self.config.base_url.rstrip("/")
+                    urls_to_try = [f"{base}/api/tags"]
+                    if "localhost" in base:
+                        urls_to_try.append(f"{base.replace('localhost', '127.0.0.1')}/api/tags")
 
-                elif self.config.provider in ["openai_compatible", "lm_studio", "deepseek", "groq", "openai"]:
-                    url = f"{self.config.base_url.rstrip('/')}/models"
+                    last_err = ""
+                    for url in urls_to_try:
+                        try:
+                            resp = await client.get(url)
+                            latency = round((time.time() - start) * 1000, 1)
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                models = [m.get("name") for m in data.get("models", []) if m.get("name")]
+                                return {
+                                    "success": True,
+                                    "latency_ms": latency,
+                                    "models": models if models else fallback_models,
+                                    "installed_count": len(models),
+                                    "provider": "ollama"
+                                }
+                            last_err = f"Ollama HTTP {resp.status_code}"
+                        except Exception as e:
+                            last_err = str(e)
+
+                    # Try `ollama list` CLI if daemon isn't responding or on another port
+                    try:
+                        import subprocess
+                        res = subprocess.run(
+                            ["ollama", "list"],
+                            capture_output=True,
+                            text=True,
+                            encoding="utf-8",
+                            errors="replace",
+                            timeout=3
+                        )
+                        if res.returncode == 0 and res.stdout:
+                            lines = [ln.strip() for ln in res.stdout.strip().splitlines() if ln.strip()]
+                            cli_models = []
+                            for ln in lines[1:]:
+                                parts = ln.split()
+                                if parts:
+                                    cli_models.append(parts[0])
+                            if cli_models:
+                                latency = round((time.time() - start) * 1000, 1)
+                                return {
+                                    "success": True,
+                                    "latency_ms": latency,
+                                    "models": cli_models,
+                                    "installed_count": len(cli_models),
+                                    "provider": "ollama"
+                                }
+                    except Exception:
+                        pass
+
+                    return {
+                        "success": False,
+                        "error": f"無法連線至本機 Ollama 服務 ({last_err or '未啟動'})，已載入預設模型清單供選擇。",
+                        "models": fallback_models,
+                        "provider": "ollama"
+                    }
+
+                elif provider in ["openai_compatible", "lm_studio", "deepseek", "groq", "openai"]:
+                    base = self.config.base_url.rstrip("/")
+                    urls_to_try = [f"{base}/models"]
+                    if not base.endswith("/v1"):
+                        urls_to_try.append(f"{base}/v1/models")
                     headers = {}
                     if self.config.api_key:
                         headers["Authorization"] = f"Bearer {self.config.api_key}"
-                    resp = await client.get(url, headers=headers)
-                    latency = round((time.time() - start) * 1000, 1)
-                    if resp.status_code == 200:
-                        data = resp.json()
-                        raw_models = data.get("data", [])
-                        models = [m.get("id") for m in raw_models if isinstance(m, dict)]
-                        return {"success": True, "latency_ms": latency, "models": models, "provider": self.config.provider}
-                    # If /models is not implemented, try a minimal ping
-                    return {"success": True, "latency_ms": latency, "models": [self.config.model], "provider": self.config.provider}
 
-                elif self.config.provider == "anthropic":
-                    latency = round((time.time() - start) * 1000, 1)
-                    # Anthropic doesn't have a free /models without key check
-                    return {"success": True, "latency_ms": latency, "models": ["claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"]}
+                    for url in urls_to_try:
+                        try:
+                            resp = await client.get(url, headers=headers)
+                            latency = round((time.time() - start) * 1000, 1)
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                raw_models = data.get("data", [])
+                                models = [m.get("id") for m in raw_models if isinstance(m, dict) and m.get("id")]
+                                if models:
+                                    # Keep curated models first if present
+                                    prioritized = [m for m in fallback_models if m in models] + [m for m in models if m not in fallback_models]
+                                    return {"success": True, "latency_ms": latency, "models": prioritized, "provider": provider}
+                        except Exception:
+                            pass
 
-                elif self.config.provider == "gemini":
-                    api_key = self.config.api_key or ""
-                    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
                     latency = round((time.time() - start) * 1000, 1)
-                    try:
-                        resp = await client.get(url)
-                        if resp.status_code == 200:
-                            data = resp.json()
-                            raw_models = data.get("models", [])
-                            valid_models = []
-                            for m in raw_models:
-                                methods = m.get("supportedGenerationMethods", [])
-                                if "generateContent" in methods:
-                                    name = m.get("name", "").replace("models/", "")
-                                    valid_models.append(name)
-                            if valid_models:
-                                return {"success": True, "latency_ms": latency, "models": valid_models, "provider": "gemini"}
-                        elif resp.status_code == 400:
-                            return {"success": False, "error": "Gemini API Key 無效或未提供", "provider": "gemini"}
-                    except Exception:
-                        pass
                     return {
-                        "success": True, 
-                        "latency_ms": latency, 
-                        "models": ["gemini-2.5-flash", "gemini-2.5-pro", "gemini-flash-latest", "gemini-pro-latest"], 
+                        "success": bool(self.config.api_key or provider in ["openai_compatible", "lm_studio"]),
+                        "latency_ms": latency,
+                        "models": fallback_models,
+                        "error": None if (self.config.api_key or provider in ["openai_compatible", "lm_studio"]) else "尚未填寫 API Key，已預載官方可用模型清單。",
+                        "provider": provider
+                    }
+
+                elif provider == "anthropic":
+                    latency = round((time.time() - start) * 1000, 1)
+                    return {
+                        "success": True,
+                        "latency_ms": latency,
+                        "models": fallback_models,
+                        "provider": "anthropic"
+                    }
+
+                elif provider == "gemini":
+                    api_key = self.config.api_key or ""
+                    latency = round((time.time() - start) * 1000, 1)
+                    if api_key:
+                        url = f"https://generativelanguage.googleapis.com/v1beta/models?key={api_key}"
+                        try:
+                            resp = await client.get(url)
+                            latency = round((time.time() - start) * 1000, 1)
+                            if resp.status_code == 200:
+                                data = resp.json()
+                                raw_models = data.get("models", [])
+                                valid_models = []
+                                for m in raw_models:
+                                    methods = m.get("supportedGenerationMethods", [])
+                                    if "generateContent" in methods:
+                                        name = m.get("name", "").replace("models/", "")
+                                        valid_models.append(name)
+                                if valid_models:
+                                    prioritized = [m for m in fallback_models if m in valid_models] + [m for m in valid_models if m not in fallback_models]
+                                    return {"success": True, "latency_ms": latency, "models": prioritized, "provider": "gemini"}
+                            elif resp.status_code in (400, 403):
+                                return {
+                                    "success": False,
+                                    "error": "Gemini API Key 無效或未授權，已預載官方模型清單",
+                                    "models": fallback_models,
+                                    "provider": "gemini"
+                                }
+                        except Exception:
+                            pass
+                    return {
+                        "success": True,
+                        "latency_ms": latency,
+                        "models": fallback_models,
                         "provider": "gemini"
                     }
 
-                return {"success": False, "error": f"Unknown provider: {self.config.provider}"}
+                return {"success": False, "error": f"Unknown provider: {provider}", "models": fallback_models}
             except Exception as e:
-                return {"success": False, "error": f"Connection failed: {str(e)}"}
+                return {"success": False, "error": f"Connection failed: {str(e)}", "models": fallback_models}
 
     async def stream_chat(
         self,

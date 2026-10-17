@@ -212,7 +212,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
           {isLoading ? (
             <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-2">
               <RotateCw className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="text-xs">載入工作區檔案中...</span>
+              <span className="text-xs">{t('loading_files', '載入工作區檔案中...')}</span>
             </div>
           ) : filteredFiles.length === 0 ? (
             <div className="flex flex-col items-center justify-center h-48 text-slate-500 gap-2">
@@ -295,8 +295,8 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
 
         {/* Footer Quick Action */}
         <div className="p-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[11px] text-slate-400">
-          <span>點選檔案直接檢視內容與語法結構</span>
-          <span className="font-mono text-cyan-400">{filteredFiles.length} 檔案/資料夾</span>
+          <span>{t('workspace_click_hint', '點選檔案直接檢視內容與語法結構')}</span>
+          <span className="font-mono text-cyan-400">{filteredFiles.length} {t('workspace_items_count', '檔案/資料夾')}</span>
         </div>
       </div>
 
