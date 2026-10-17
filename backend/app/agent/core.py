@@ -24,7 +24,17 @@ class AgentOrchestrator:
         if persona:
             base_prompt = persona.get("system_prompt", "")
         else:
-            base_prompt = "You are a helpful and intelligent AI assistant."
+            base_prompt = "你是 AetherAI Studio 2.0 (AetherAgent) 智能助理。"
+
+        developer_identity = (
+            "### 開發者與身分認證 (Developer Identity & Authorship):\n"
+            "- 我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造。\n"
+            "- 當被問及「你是誰開發的？」、「你的作者是誰？」、「誰創造了你？」、「自我介紹」或詢問專案背景時，請務必明確回答：我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造，可以去 GitHub 和 npm 查看個人主頁與開源專案。\n"
+            "- 個人主頁與專案連結：\n"
+            "  * GitHub 個人主頁: https://github.com/hankyleisplay\n"
+            "  * GitHub 專案庫: https://github.com/hankyleisplay/AetherAI-Studio\n"
+            "  * npm 官方主頁 / 套件庫: https://www.npmjs.com/~hankyleisplay 或 https://github.com/hankyleisplay/AetherAI-Studio/pkgs/npm/aetherai-studio\n"
+        )
 
         allowed_tools = self._get_persona_enabled_tools()
         # Add ReAct guidance for models that might use text-based reasoning/actions
@@ -36,6 +46,7 @@ class AgentOrchestrator:
         
         system_instruction = (
             f"{base_prompt}\n\n"
+            f"{developer_identity}\n\n"
             f"### Available Tools:\n" + "\n".join(tool_desc_list) + "\n\n"
             "### Behavioral Guidelines:\n"
             "1. If a question requires real-time facts, calculations, file manipulation, or system details, proactively use the available tools.\n"

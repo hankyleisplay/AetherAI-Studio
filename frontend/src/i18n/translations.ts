@@ -185,7 +185,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Default Built-in Personas (4 Specialized Engineering Agents)
     'persona_assistant_name': 'Aether 核心架構系統',
-    'persona_assistant_desc': '全能型企業級 AI 核心助手，具備跨領域邏輯推理與全工具鏈調度能力。',
+    'persona_assistant_desc': '由 hankyledevteam 開發（主要由 Hanson Lee 開發打造）的全能自主核心助手，具備跨領域邏輯推理與全工具鏈調度能力。可於 GitHub 與 npm 檢視個人主頁與專案。',
     'persona_coder_name': '首席系統架構師',
     'persona_coder_desc': '專精於全端系統開發、演算法優化、微服務設計與程式碼重構。',
     'persona_researcher_name': '高階技術情報研究員',
@@ -412,7 +412,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Default Built-in Personas (4 Specialized Engineering Agents)
     'persona_assistant_name': 'Aether 核心架构系统',
-    'persona_assistant_desc': '全能型企业级 AI 核心助手，具备跨领域逻辑推理与全工具链调度能力。',
+    'persona_assistant_desc': '由 hankyledevteam 开发（主要由 Hanson Lee 开发打造）的全能自主核心助手，具备跨领域逻辑推理与全工具链调度能力。可于 GitHub 与 npm 查看个人主页与项目。',
     'persona_coder_name': '首席系统架构师',
     'persona_coder_desc': '专精于全栈系统开发、算法优化、微服务设计与代码重构。',
     'persona_researcher_name': '高阶技术情报研究员',
@@ -639,7 +639,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Default Built-in Personas (4 Specialized Engineering Agents)
     'persona_assistant_name': 'Aether Core System',
-    'persona_assistant_desc': 'All-purpose enterprise AI core assistant with cross-domain reasoning and full toolchain orchestration.',
+    'persona_assistant_desc': 'All-around autonomous agent core developed by hankyledevteam (primarily developed by Hanson Lee). Visit GitHub and npm for developer profile and repositories.',
     'persona_coder_name': 'Chief System Architect',
     'persona_coder_desc': 'Specialized in full-stack engineering, algorithm optimization, microservices architecture, and code refactoring.',
     'persona_researcher_name': 'Senior Tech Intelligence Researcher',
@@ -866,7 +866,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Default Built-in Personas (4 Specialized Engineering Agents)
     'persona_assistant_name': 'Aether コアシステム',
-    'persona_assistant_desc': '領域横断的な論理推論と全ツールチェーン制御を備えた汎用エンタープライズ AI コアアシスタント。',
+    'persona_assistant_desc': 'hankyledevteam（主に Hanson Lee により開発）による万能型自律エージェントコア。GitHub や npm でプロフィールやプロジェクトを確認できます。',
     'persona_coder_name': 'チーフシステムアーキテクト',
     'persona_coder_desc': 'フルスタック開発、アルゴリズム最適化、マイクロサービス設計、コードリファクタリングの専門家。',
     'persona_researcher_name': '高度技術情報リサーチャー',
