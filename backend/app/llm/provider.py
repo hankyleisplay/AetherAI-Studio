@@ -11,6 +11,7 @@ class ModelConfig(BaseModel):
     model: str = "llama3:latest"
     temperature: float = 0.7
     max_tokens: int = 4096
+    context_window: int = 16384
 
 class LLMResponseChunk(BaseModel):
     type: str  # "token", "thought", "tool_call", "done", "error"
@@ -259,6 +260,13 @@ class UnifiedLLMClient:
                         if not choices:
                             continue
 
+                        finish_reason = choices[0].get("finish_reason")
+                        if finish_reason == "length":
+                            yield LLMResponseChunk(
+                                type="token",
+                                content="\n\n*(⚠️ 提示：模型已達本次最大生成長度上限。如需接續，請輸入「請繼續」)*"
+                            )
+
                         delta = choices[0].get("delta", {})
 
                         # 1. Check reasoning / thought tokens (DeepSeek R1 / OpenAI o1/o3 style)
@@ -366,6 +374,12 @@ class UnifiedLLMClient:
         options = {
             "temperature": self.config.temperature
         }
+        # Explicitly configure num_ctx to prevent Ollama from defaulting to 2048/4096 tokens,
+        # which causes premature cutoff in long multi-turn sessions.
+        ctx_size = getattr(self.config, "context_window", None) or 16384
+        min_ctx = (self.config.max_tokens or 4096) + 4096
+        options["num_ctx"] = max(ctx_size, min_ctx)
+
         if self.config.max_tokens:
             options["num_predict"] = self.config.max_tokens
 
@@ -444,6 +458,11 @@ class UnifiedLLMClient:
                                 yield LLMResponseChunk(type="token", content=content)
 
                         if data.get("done"):
+                            if data.get("done_reason") == "length":
+                                yield LLMResponseChunk(
+                                    type="token",
+                                    content="\n\n*(⚠️ 提示：模型已達本次最大生成長度上限。如需接續，請輸入「請繼續」)*"
+                                )
                             yield LLMResponseChunk(type="done")
                             break
 

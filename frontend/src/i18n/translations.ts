@@ -86,6 +86,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'hyperparameters': '模型推論超參數 (Hyperparameters)',
     'temperature': '創意隨機度 (Temperature)',
     'max_tokens': '最大輸出長度 (Max Tokens)',
+    'context_window': '上下文視窗容量 (Context Window)',
     'close': '關閉',
     'save_model_settings': '儲存模型設定',
 
@@ -313,6 +314,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'hyperparameters': '模型推理超参数 (Hyperparameters)',
     'temperature': '创意随机度 (Temperature)',
     'max_tokens': '最大输出长度 (Max Tokens)',
+    'context_window': '上下文窗口容量 (Context Window)',
     'close': '关闭',
     'save_model_settings': '保存模型设置',
 
@@ -540,6 +542,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'hyperparameters': 'Inference Hyperparameters',
     'temperature': 'Temperature',
     'max_tokens': 'Max Tokens',
+    'context_window': 'Context Window Size',
     'close': 'Close',
     'save_model_settings': 'Save Model Settings',
 
@@ -767,6 +770,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'hyperparameters': '推論ハイパーパラメータ',
     'temperature': '温度 (Temperature)',
     'max_tokens': '最大トークン数 (Max Tokens)',
+    'context_window': 'コンテキストウィンドウ容量 (Context Window)',
     'close': '閉じる',
     'save_model_settings': '設定を保存',
 

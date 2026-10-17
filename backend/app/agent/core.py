@@ -73,6 +73,67 @@ class AgentOrchestrator:
             return {"name": tool_name, "args": args}
         return None
 
+    def _build_conversation_context(self, history: List[Dict[str, Any]], user_prompt: str) -> List[Dict[str, Any]]:
+        """
+        Construct a token-efficient, context-safe message history.
+        1. Ensures conversation starts with a 'user' message (never a dangling 'assistant').
+        2. Caps total historical characters to stay well within model context limits.
+        3. Condenses overly long historical messages (e.g. huge code dumps or large outputs).
+        """
+        messages: List[Dict[str, Any]] = [
+            {"role": "system", "content": self._get_system_prompt()}
+        ]
+
+        # Prior history excludes the last message if it's the current user prompt
+        prior_history = history[:-1] if len(history) > 1 else []
+        if not prior_history:
+            messages.append({"role": "user", "content": user_prompt})
+            return messages
+
+        # Budget: up to 24,000 characters (~6,000 tokens) for prior dialogue
+        max_history_chars = 24000
+        current_chars = 0
+        selected_history: List[Dict[str, Any]] = []
+
+        # Traverse backwards to prioritize most recent conversation turns
+        for msg in reversed(prior_history):
+            role = msg.get("role")
+            if role not in ["user", "assistant"]:
+                continue
+
+            raw_content = msg.get("content", "")
+            # If an individual historical message is excessively large, condense its middle
+            if len(raw_content) > 3500:
+                content = (
+                    raw_content[:2000]
+                    + "\n\n... [為保留上下文長度，歷史超長訊息中間已省略] ...\n\n"
+                    + raw_content[-1200:]
+                )
+            else:
+                content = raw_content
+
+            msg_len = len(content)
+            # Only stop if we've accumulated at least 4 turns and exceed the char budget
+            if current_chars + msg_len > max_history_chars and len(selected_history) >= 4:
+                break
+
+            selected_history.append({"role": role, "content": content})
+            current_chars += msg_len
+            # Keep at most 16 messages
+            if len(selected_history) >= 16:
+                break
+
+        # Reverse back to chronological order
+        selected_history.reverse()
+
+        # Ensure the conversation starts with a user message (drop leading assistant turn)
+        while selected_history and selected_history[0]["role"] != "user":
+            selected_history.pop(0)
+
+        messages.extend(selected_history)
+        messages.append({"role": "user", "content": user_prompt})
+        return messages
+
     async def run_stream(
         self,
         session_id: str,
@@ -91,21 +152,9 @@ class AgentOrchestrator:
         # Save user message to database
         db.add_message(session_id=session_id, role="user", content=user_prompt)
 
-        # Retrieve session context
+        # Retrieve session context and build safe conversation history
         history = db.get_messages(session_id)
-        # Construct message list for LLM
-        messages: List[Dict[str, Any]] = [
-            {"role": "system", "content": self._get_system_prompt()}
-        ]
-        
-        # Take last 10 messages for context window management
-        recent_history = history[-11:-1] if len(history) > 1 else []
-        for h in recent_history:
-            role = h["role"]
-            if role in ["user", "assistant"]:
-                messages.append({"role": role, "content": h["content"]})
-
-        messages.append({"role": "user", "content": user_prompt})
+        messages = self._build_conversation_context(history, user_prompt)
 
         # Immediately emit thinking status so client starts feedback cycle right away
         yield {
@@ -231,12 +280,19 @@ class AgentOrchestrator:
                         "duration": duration
                     }
 
-                    # Append tool result to context
+                    # Append tool result to context with safe length budgeting
+                    tool_content_for_llm = output_str
+                    if len(tool_content_for_llm) > 4000:
+                        tool_content_for_llm = (
+                            tool_content_for_llm[:3000]
+                            + f"\n\n... [工具輸出過長，總計 {len(output_str)} 字，已節錄前 3000 字元以確保對話完整生成] ..."
+                        )
+
                     messages.append({
                         "role": "tool",
                         "tool_call_id": tool_id,
                         "name": tool_name,
-                        "content": output_str
+                        "content": tool_content_for_llm
                     })
 
                 # Proceed to next iteration of reasoning loop

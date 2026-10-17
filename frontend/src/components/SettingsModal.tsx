@@ -514,6 +514,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="w-full accent-cyan-400 cursor-pointer"
                 />
               </div>
+
+              <div>
+                <div className="flex justify-between text-xs text-slate-300 mb-1">
+                  <span>{t('context_window', '上下文視窗容量 (Context Window)')}: {formData.context_window || 16384}</span>
+                </div>
+                <input
+                  type="range"
+                  min="4096"
+                  max="65536"
+                  step="2048"
+                  value={formData.context_window || 16384}
+                  onChange={(e) => setFormData({ ...formData, context_window: parseInt(e.target.value) })}
+                  className="w-full accent-cyan-400 cursor-pointer"
+                />
+              </div>
             </div>
 
             {/* Footer Actions for Model */}

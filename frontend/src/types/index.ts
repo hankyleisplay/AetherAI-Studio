@@ -71,6 +71,7 @@ export interface ModelConfig {
   model: string;
   temperature: number;
   max_tokens: number;
+  context_window?: number;
 }
 
 export interface ToolDefinition {
