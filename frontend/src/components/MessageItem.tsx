@@ -317,6 +317,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({
                   <span className="inline-block w-2 h-4 ml-1 bg-cyan-400 animate-pulse align-middle shadow-[0_0_8px_#00f2fe]" />
                 )}
               </div>
+            ) : !isStreaming && !isAwaitingContent ? (
+              <div className="text-xs text-slate-400/80 italic py-1.5 flex items-center gap-1.5">
+                <Sparkles className="w-3.5 h-3.5 text-cyan-400/60" />
+                <span>
+                  {message.thought 
+                    ? t('thought_only_notice', '（已完成深度思維推論，請展開上方思維鏈查看推理過程）') 
+                    : t('no_content_notice', '（未返回正文內容）')}
+                </span>
+              </div>
             ) : null}
 
             {/* Message Action Footer Toolbar */}

@@ -228,6 +228,8 @@ export const translations: Record<Language, TranslationRecord> = {
     'thinking_collapsed': '已深度思考 (點擊展開)',
     'thinking_active': '思考中...',
     'ai_agent_tag': '智能代理',
+    'thought_only_notice': '（已完成深度思維推論，請展開上方思維鏈查看推理過程）',
+    'no_content_notice': '（未返回正文內容）',
   },
 
   'zh-CN': {
@@ -453,6 +455,8 @@ export const translations: Record<Language, TranslationRecord> = {
     'thinking_collapsed': '已深度思考 (点击展开)',
     'thinking_active': '思考中...',
     'ai_agent_tag': '智能代理',
+    'thought_only_notice': '（已完成深度思维推论，请展开上方思维链查看推理过程）',
+    'no_content_notice': '（未返回正文内容）',
   },
 
   'en': {
@@ -678,6 +682,8 @@ export const translations: Record<Language, TranslationRecord> = {
     'thinking_collapsed': 'Thought Process (click to expand)',
     'thinking_active': 'Thinking...',
     'ai_agent_tag': 'AI Agent',
+    'thought_only_notice': '(Deep reasoning completed. Expand the thought process above to view details.)',
+    'no_content_notice': '(No text response was returned.)',
   },
 
   'ja': {
@@ -903,5 +909,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'thinking_collapsed': '思考プロセス完了 (クリックで展開)',
     'thinking_active': '思考中...',
     'ai_agent_tag': 'AI エージェント',
+    'thought_only_notice': '（深い思考推論が完了しました。上の思考プロセスを展開して詳細を確認してください）',
+    'no_content_notice': '（テキストの回答が返されませんでした）',
   }
 };

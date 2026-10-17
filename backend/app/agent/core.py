@@ -133,6 +133,7 @@ class AgentOrchestrator:
                         has_emitted_generating = True
                         yield {"type": "status", "stage": "generating", "text": "正在組織並生成最佳解答..."}
                     current_turn_content += chunk.content
+                    full_content += chunk.content
                     yield {"type": "token", "content": chunk.content}
 
                 elif chunk.type == "tool_call":
@@ -144,6 +145,14 @@ class AgentOrchestrator:
 
                 elif chunk.type == "error":
                     yield {"type": "error", "error": chunk.content}
+                    # Save error message to DB so conversation state is preserved
+                    db.add_message(
+                        session_id=session_id,
+                        role="assistant",
+                        content=full_content or f"❌ 執行錯誤: {chunk.content}",
+                        thought=full_thought,
+                        tool_calls=executed_tool_calls
+                    )
                     return
 
             # Check if text fallback ReAct action is present if no native tool call was detected
@@ -224,8 +233,14 @@ class AgentOrchestrator:
 
             else:
                 # Final response reached
-                full_content += current_turn_content
                 break
+
+        # Ensure full_content is never completely blank if thoughts or tools occurred
+        if not full_content.strip():
+            if full_thought.strip():
+                full_content = "（模型已完成深度思維推論，未輸出額外正文。請展開上方思維鏈查看推理過程。）"
+            elif executed_tool_calls:
+                full_content = "（已完成所有工具調用序列執行。）"
 
         # Save assistant response to DB
         saved_msg = db.add_message(
@@ -240,5 +255,7 @@ class AgentOrchestrator:
             "type": "done",
             "message_id": saved_msg["id"],
             "session_id": session_id,
-            "executed_tools": len(executed_tool_calls)
+            "executed_tools": len(executed_tool_calls),
+            "content": full_content,
+            "thought": full_thought
         }

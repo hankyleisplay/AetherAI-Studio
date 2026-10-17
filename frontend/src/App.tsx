@@ -37,6 +37,8 @@ export const App: React.FC = () => {
   const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
 
   const abortControllerRef = useRef<AbortController | null>(null);
+  const isStreamingRef = useRef<boolean>(false);
+  const streamingSessionIdRef = useRef<string | null>(null);
 
   // Initial Fetching
   useEffect(() => {
@@ -49,9 +51,20 @@ export const App: React.FC = () => {
   // Fetch session messages when activeSessionId changes
   useEffect(() => {
     if (activeSessionId) {
+      if (streamingSessionIdRef.current === activeSessionId) {
+        // Session ID was assigned by the active stream, do not wipe live streaming messages
+        streamingSessionIdRef.current = null;
+        return;
+      }
+      if (isStreamingRef.current) {
+        // Never wipe messages while streaming is actively running
+        return;
+      }
       fetchSessionMessages(activeSessionId);
     } else {
-      setMessages([]);
+      if (!isStreamingRef.current) {
+        setMessages([]);
+      }
     }
   }, [activeSessionId]);
 
@@ -315,6 +328,7 @@ export const App: React.FC = () => {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
     }
+    isStreamingRef.current = false;
     setIsStreaming(false);
     setAgentState('idle');
   };
@@ -344,6 +358,7 @@ export const App: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMsg, assistantMsg]);
+    isStreamingRef.current = true;
     setIsStreaming(true);
     setAgentState('thinking');
 
@@ -393,6 +408,7 @@ export const App: React.FC = () => {
 
               if (currentEvent === 'session_info' || data.type === 'session_info') {
                 if (data.session_id && data.session_id !== activeSessionId) {
+                  streamingSessionIdRef.current = data.session_id;
                   setActiveSessionId(data.session_id);
                   fetchSessions();
                 }
@@ -404,6 +420,22 @@ export const App: React.FC = () => {
               } else if (currentEvent === 'thought' || data.type === 'thought') {
                 setAgentState('thinking');
                 setMessages(prev => {
+                  const exists = prev.some(m => m.id === assistantMsgId);
+                  if (!exists) {
+                    return [
+                      ...prev,
+                      {
+                        id: assistantMsgId,
+                        role: 'assistant',
+                        content: '',
+                        thought: data.content || '',
+                        tool_calls: [],
+                        persona_id: selectedPersonaId,
+                        status_text: t('slogan_thinking', '正在深度推理與分析問題架構...'),
+                        created_at: new Date().toISOString()
+                      }
+                    ];
+                  }
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
                       return { 
@@ -461,6 +493,21 @@ export const App: React.FC = () => {
               } else if (currentEvent === 'token' || data.type === 'token') {
                 setAgentState('generating');
                 setMessages(prev => {
+                  const exists = prev.some(m => m.id === assistantMsgId);
+                  if (!exists) {
+                    return [
+                      ...prev,
+                      {
+                        id: assistantMsgId,
+                        role: 'assistant',
+                        content: data.content || '',
+                        thought: '',
+                        tool_calls: [],
+                        persona_id: selectedPersonaId,
+                        created_at: new Date().toISOString()
+                      }
+                    ];
+                  }
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
                       return { ...m, content: m.content + (data.content || '') };
@@ -469,11 +516,41 @@ export const App: React.FC = () => {
                   });
                 });
               } else if (currentEvent === 'done' || data.type === 'done') {
+                isStreamingRef.current = false;
                 setAgentState('idle');
                 setIsStreaming(false);
-                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, status_text: undefined } : m));
+                setMessages(prev => {
+                  const exists = prev.some(m => m.id === assistantMsgId);
+                  if (!exists && (data.content || data.thought)) {
+                    return [
+                      ...prev,
+                      {
+                        id: data.message_id || assistantMsgId,
+                        role: 'assistant',
+                        content: data.content || '',
+                        thought: data.thought || '',
+                        tool_calls: [],
+                        persona_id: selectedPersonaId,
+                        created_at: new Date().toISOString()
+                      }
+                    ];
+                  }
+                  return prev.map(m => {
+                    if (m.id === assistantMsgId) {
+                      return {
+                        ...m,
+                        id: data.message_id || m.id,
+                        content: m.content || data.content || '',
+                        thought: m.thought || data.thought || '',
+                        status_text: undefined
+                      };
+                    }
+                    return m;
+                  });
+                });
                 fetchSessions();
               } else if (currentEvent === 'error' || data.type === 'error') {
+                isStreamingRef.current = false;
                 setAgentState('error');
                 setMessages(prev => {
                   return prev.map(m => {
@@ -505,6 +582,7 @@ export const App: React.FC = () => {
         });
       }
     } finally {
+      isStreamingRef.current = false;
       setIsStreaming(false);
       setAgentState('idle');
       abortControllerRef.current = null;
