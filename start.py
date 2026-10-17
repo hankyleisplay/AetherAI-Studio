@@ -173,7 +173,8 @@ def start_prod_mode(port: int, host: str, no_browser: bool):
             "backend.app.main:app",
             host=host,
             port=port,
-            reload=False,
+            reload=True,
+            reload_dirs=[str(PROJECT_ROOT / "backend")],
             log_level="info"
         )
     except KeyboardInterrupt:

@@ -48,10 +48,11 @@ class AgentOrchestrator:
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"
             f"### Available Tools:\n" + "\n".join(tool_desc_list) + "\n\n"
-            "### Behavioral Guidelines:\n"
-            "1. If a question requires real-time facts, calculations, file manipulation, or system details, proactively use the available tools.\n"
-            "2. When tools return results, synthesize them clearly and answer accurately.\n"
+            "### Behavioral Guidelines & Tool Calling:\n"
+            "1. When asked to use Python sandbox (Python 沙盒), execute code, run calculations, or benchmark algorithms, proactively call the `python_eval` tool to compute real results and performance metrics.\n"
+            "2. When tools return results, provide a comprehensive, fully written final answer in Traditional Chinese with code, output metrics, and deep technical synthesis.\n"
             "3. If tool calls fail, analyze the error and try an alternative approach or report to the user.\n"
+            "4. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!"
         )
         return system_instruction
 
@@ -305,9 +306,19 @@ class AgentOrchestrator:
         # Ensure full_content is never completely blank if thoughts or tools occurred
         if not full_content.strip():
             if full_thought.strip():
-                full_content = "（模型已完成深度思維推論，未輸出額外正文。請展開上方思維鏈查看推理過程。）"
+                # If the reasoning model outputted its analysis/code in the thinking stream,
+                # promote it to the response body so the user receives a complete deliverable.
+                full_content = full_thought.strip()
             elif executed_tool_calls:
-                full_content = "（已完成所有工具調用序列執行。）"
+                # If tools were executed but model provided no final text, present tool results cleanly
+                tool_summaries = []
+                for tc in executed_tool_calls:
+                    name = tc.get("name")
+                    out = tc.get("output", "")
+                    tool_summaries.append(f"### 工具 `{name}` 執行成果：\n```\n{out}\n```")
+                full_content = "已成功完成工具執行，以下為運行成果：\n\n" + "\n\n".join(tool_summaries)
+            else:
+                full_content = "（模型推論結束，未產生回應內容。請嘗試重新提問或調整提示詞。）"
 
         # Save assistant response to DB
         saved_msg = db.add_message(
