@@ -48,6 +48,8 @@ class ChatRequest(BaseModel):
     message: str
     persona_id: Optional[str] = "assistant"
     model_config_override: Optional[ModelConfig] = None
+    user_message_id: Optional[str] = None
+    assistant_message_id: Optional[str] = None
 
 class SessionCreate(BaseModel):
     title: Optional[str] = "新對話"
@@ -168,7 +170,12 @@ async def chat_stream(request: ChatRequest):
             "data": json.dumps({"session_id": session_id})
         }
         try:
-            async for ev in orchestrator.run_stream(session_id, request.message):
+            async for ev in orchestrator.run_stream(
+                session_id=session_id,
+                user_prompt=request.message,
+                user_message_id=request.user_message_id,
+                assistant_message_id=request.assistant_message_id
+            ):
                 ev_type = ev.get("type", "message")
                 yield {
                     "event": ev_type,

@@ -149,18 +149,57 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  const isNearBottomRef = useRef(true);
+  const lastScrollTimeRef = useRef(0);
+  const scrollRafRef = useRef<number | null>(null);
+
   const scrollToBottom = (smooth = true) => {
-    messagesEndRef.current?.scrollIntoView({ behavior: smooth ? 'smooth' : 'auto' });
+    if (!scrollContainerRef.current) return;
+    if (smooth) {
+      messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    } else {
+      scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+    }
   };
 
   useEffect(() => {
-    scrollToBottom(true);
+    if (!scrollContainerRef.current) return;
+
+    if (isStreaming) {
+      // Only auto-scroll down if user was already near the bottom (prevents scroll-lock fight)
+      if (!isNearBottomRef.current) return;
+
+      const now = performance.now();
+      if (now - lastScrollTimeRef.current > 75) {
+        lastScrollTimeRef.current = now;
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      } else if (!scrollRafRef.current) {
+        scrollRafRef.current = requestAnimationFrame(() => {
+          scrollRafRef.current = null;
+          if (scrollContainerRef.current && isNearBottomRef.current) {
+            scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+            lastScrollTimeRef.current = performance.now();
+          }
+        });
+      }
+    } else {
+      // When not streaming (e.g. new user prompt or generation finished), settle smoothly
+      scrollToBottom(true);
+    }
+
+    return () => {
+      if (scrollRafRef.current) {
+        cancelAnimationFrame(scrollRafRef.current);
+        scrollRafRef.current = null;
+      }
+    };
   }, [messages, isStreaming]);
 
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
     const isFarFromBottom = scrollHeight - scrollTop - clientHeight > 150;
+    isNearBottomRef.current = !isFarFromBottom;
     setShowScrollBottom(isFarFromBottom);
   };
 

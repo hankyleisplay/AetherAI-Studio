@@ -36,10 +36,34 @@ export const App: React.FC = () => {
   });
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
+  const [bookmarkVersion, setBookmarkVersion] = useState<number>(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isStreamingRef = useRef<boolean>(false);
   const streamingSessionIdRef = useRef<string | null>(null);
+  const tokenBufferRef = useRef<{ [msgId: string]: string }>({});
+  const tokenRafRef = useRef<number | null>(null);
+
+  const flushTokenBuffer = () => {
+    const buffers = tokenBufferRef.current;
+    const msgIds = Object.keys(buffers);
+    if (msgIds.length === 0) return;
+
+    const copy = { ...buffers };
+    tokenBufferRef.current = {};
+
+    setMessages(prev => {
+      let changed = false;
+      const next = prev.map(m => {
+        if (copy[m.id]) {
+          changed = true;
+          return { ...m, content: m.content + copy[m.id] };
+        }
+        return m;
+      });
+      return changed ? next : prev;
+    });
+  };
 
   // Initial Fetching
   useEffect(() => {
@@ -248,10 +272,27 @@ export const App: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         setMessages(prev => prev.map(m => m.id === messageId ? { ...m, is_bookmarked: data.is_bookmarked } : m));
+        setBookmarkVersion(v => v + 1);
       }
     } catch (err) {
       console.error('Failed to toggle bookmark:', err);
     }
+  };
+
+  const handleSelectBookmark = (sessionId: string, messageId: string) => {
+    if (activeSessionId !== sessionId) {
+      setActiveSessionId(sessionId);
+    }
+    setTimeout(() => {
+      const el = document.getElementById(`msg-${messageId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('ring-2', 'ring-amber-400', 'shadow-[0_0_25px_rgba(251,191,36,0.4)]');
+        setTimeout(() => {
+          el.classList.remove('ring-2', 'ring-amber-400', 'shadow-[0_0_25px_rgba(251,191,36,0.4)]');
+        }, 2500);
+      }
+    }, 300);
   };
 
   const handleTemperatureChange = async (temp: number) => {
@@ -337,16 +378,24 @@ export const App: React.FC = () => {
   const handleSendMessage = async (text: string) => {
     if (!text.trim() || isStreaming) return;
 
+    // Generate robust UUIDs for both messages
+    const userMsgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : `usr_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+    const assistantMsgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
+      ? crypto.randomUUID() 
+      : `asst_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     // Add User Message immediately
     const userMsg: Message = {
-      id: `user_${Date.now()}`,
+      id: userMsgId,
       role: 'user',
       content: text,
       created_at: new Date().toISOString()
     };
 
     // Prepare Assistant Message container with initial status and persona attribution
-    const assistantMsgId = `asst_${Date.now()}`;
     const assistantMsg: Message = {
       id: assistantMsgId,
       role: 'assistant',
@@ -374,7 +423,9 @@ export const App: React.FC = () => {
           session_id: activeSessionId,
           message: text,
           persona_id: selectedPersonaId,
-          model_config_override: modelConfig
+          model_config_override: modelConfig,
+          user_message_id: userMsgId,
+          assistant_message_id: assistantMsgId
         }),
         signal: controller.signal
       });
@@ -412,6 +463,9 @@ export const App: React.FC = () => {
                   streamingSessionIdRef.current = data.session_id;
                   setActiveSessionId(data.session_id);
                   fetchSessions();
+                }
+                if (data.user_message_id) {
+                  setMessages(prev => prev.map(m => m.id === userMsgId ? { ...m, id: data.user_message_id } : m));
                 }
               } else if (currentEvent === 'status' || data.type === 'status') {
                 if (data.stage) setAgentState(data.stage);
@@ -493,30 +547,20 @@ export const App: React.FC = () => {
                 });
               } else if (currentEvent === 'token' || data.type === 'token') {
                 setAgentState('generating');
-                setMessages(prev => {
-                  const exists = prev.some(m => m.id === assistantMsgId);
-                  if (!exists) {
-                    return [
-                      ...prev,
-                      {
-                        id: assistantMsgId,
-                        role: 'assistant',
-                        content: data.content || '',
-                        thought: '',
-                        tool_calls: [],
-                        persona_id: selectedPersonaId,
-                        created_at: new Date().toISOString()
-                      }
-                    ];
-                  }
-                  return prev.map(m => {
-                    if (m.id === assistantMsgId) {
-                      return { ...m, content: m.content + (data.content || '') };
-                    }
-                    return m;
+                const chunk = data.content || '';
+                tokenBufferRef.current[assistantMsgId] = (tokenBufferRef.current[assistantMsgId] || '') + chunk;
+                if (!tokenRafRef.current) {
+                  tokenRafRef.current = requestAnimationFrame(() => {
+                    tokenRafRef.current = null;
+                    flushTokenBuffer();
                   });
-                });
+                }
               } else if (currentEvent === 'done' || data.type === 'done') {
+                if (tokenRafRef.current) {
+                  cancelAnimationFrame(tokenRafRef.current);
+                  tokenRafRef.current = null;
+                }
+                flushTokenBuffer();
                 isStreamingRef.current = false;
                 setAgentState('idle');
                 setIsStreaming(false);
@@ -551,6 +595,11 @@ export const App: React.FC = () => {
                 });
                 fetchSessions();
               } else if (currentEvent === 'error' || data.type === 'error') {
+                if (tokenRafRef.current) {
+                  cancelAnimationFrame(tokenRafRef.current);
+                  tokenRafRef.current = null;
+                }
+                flushTokenBuffer();
                 isStreamingRef.current = false;
                 setAgentState('error');
                 setMessages(prev => {
@@ -583,6 +632,11 @@ export const App: React.FC = () => {
         });
       }
     } finally {
+      if (tokenRafRef.current) {
+        cancelAnimationFrame(tokenRafRef.current);
+        tokenRafRef.current = null;
+      }
+      flushTokenBuffer();
       isStreamingRef.current = false;
       setIsStreaming(false);
       setAgentState('idle');
@@ -611,6 +665,9 @@ export const App: React.FC = () => {
         onOpenSettings={() => setIsSettingsOpen(true)}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
+        bookmarkVersion={bookmarkVersion}
+        onSelectBookmark={handleSelectBookmark}
+        onBookmarkToggle={handleBookmarkToggle}
       />
 
       {/* Main Chat Workspace Area */}

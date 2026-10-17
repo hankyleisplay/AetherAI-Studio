@@ -35,7 +35,7 @@ interface MessageItemProps {
   agentState?: AgentState;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ 
+const MessageItemComponent: React.FC<MessageItemProps> = ({ 
   message, 
   isStreaming,
   onBookmarkToggle,
@@ -163,7 +163,10 @@ export const MessageItem: React.FC<MessageItemProps> = ({
   const isAwaitingContent = isStreaming && (!message.content || !message.content.trim());
 
   return (
-    <div className={`flex gap-3.5 py-4 px-2 md:px-4 transition-all duration-300 ${isUser ? 'justify-end' : 'justify-start'}`}>
+    <div 
+      id={`msg-${message.id}`}
+      className={`flex gap-3.5 py-4 px-2 md:px-4 transition-all duration-300 rounded-3xl ${isUser ? 'justify-end' : 'justify-start'}`}
+    >
       
       {/* Assistant Persona Avatar (對方頭像) with dynamic live glow */}
       {!isUser && (
@@ -189,22 +192,41 @@ export const MessageItem: React.FC<MessageItemProps> = ({
         
         {/* User Message Bubble */}
         {isUser ? (
-          <div className="relative group">
+          <div className="flex flex-col items-end group max-w-full">
             <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
-              <p className="whitespace-pre-wrap">{message.content}</p>
+              <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </div>
-            {/* User Bookmark action button */}
-            {onBookmarkToggle && (
+            
+            {/* User Message Action Toolbar */}
+            <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
+              <span className="text-[11px] text-slate-400 font-mono">
+                {message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
+              </span>
+
+              {/* Bookmark Toggle Button for User Message */}
+              {onBookmarkToggle && (
+                <button
+                  onClick={() => onBookmarkToggle(message.id)}
+                  className={`p-1 px-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-all whitespace-nowrap ${
+                    isBookmarked ? 'text-amber-400 border-amber-400/40 opacity-100 shadow-[0_0_10px_rgba(251,191,36,0.25)]' : 'text-slate-400 hover:text-amber-400 opacity-80 sm:opacity-0 group-hover:opacity-100'
+                  }`}
+                  title={isBookmarked ? t('unbookmark_message', '取消收藏') : t('bookmark_message', '收藏此訊息')}
+                >
+                  <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400 text-amber-400' : ''}`} />
+                  <span className="hidden sm:inline">{isBookmarked ? t('bookmarked', '已收藏') : t('bookmark', '收藏')}</span>
+                </button>
+              )}
+
+              {/* Copy prompt button */}
               <button
-                onClick={() => onBookmarkToggle(message.id)}
-                className={`absolute -bottom-5 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-1 text-[11px] rounded-lg ${
-                  isBookmarked ? 'text-amber-400 opacity-100' : 'text-slate-500 hover:text-amber-400'
-                }`}
-                title={isBookmarked ? t('unbookmark_message', '取消收藏') : t('bookmark_message', '收藏此訊息')}
+                onClick={handleCopyAnswer}
+                className="p-1 px-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-300 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                title={t('copy', '複製')}
               >
-                <Star className={`w-3.5 h-3.5 ${isBookmarked ? 'fill-amber-400' : ''}`} />
+                {copiedAnswer ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
+                <span className="hidden sm:inline">{copiedAnswer ? t('copied', '已複製') : t('copy', '複製')}</span>
               </button>
-            )}
+            </div>
           </div>
         ) : (
           /* Assistant Message Card */
@@ -414,4 +436,39 @@ export const MessageItem: React.FC<MessageItemProps> = ({
     </div>
   );
 };
+
+export const MessageItem = React.memo<MessageItemProps>(
+  MessageItemComponent,
+  (prev, next) => {
+    // If streaming state or agent state changed for this message, re-render
+    if (prev.isStreaming !== next.isStreaming) return false;
+    if (prev.agentState !== next.agentState) return false;
+
+    // If message content, thought or status changed, re-render
+    if (prev.message.id !== next.message.id) return false;
+    if (prev.message.content !== next.message.content) return false;
+    if (prev.message.thought !== next.message.thought) return false;
+    if (prev.message.status_text !== next.message.status_text) return false;
+
+    // If bookmark status changed, re-render
+    if (Boolean(prev.message.is_bookmarked) !== Boolean(next.message.is_bookmarked)) return false;
+
+    // If persona changed, re-render
+    if (prev.persona?.id !== next.persona?.id) return false;
+
+    // If tool calls changed, re-render
+    const prevTc = prev.message.tool_calls || [];
+    const nextTc = next.message.tool_calls || [];
+    if (prevTc.length !== nextTc.length) return false;
+    for (let i = 0; i < prevTc.length; i++) {
+      if (prevTc[i].isRunning !== nextTc[i].isRunning) return false;
+      if (prevTc[i].output !== nextTc[i].output) return false;
+      if (prevTc[i].success !== nextTc[i].success) return false;
+    }
+
+    // Identical historical message: skip heavy markdown/katex re-renders!
+    return true;
+  }
+);
+
 export default MessageItem;

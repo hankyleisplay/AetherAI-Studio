@@ -138,7 +138,9 @@ class AgentOrchestrator:
     async def run_stream(
         self,
         session_id: str,
-        user_prompt: str
+        user_prompt: str,
+        user_message_id: Optional[str] = None,
+        assistant_message_id: Optional[str] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Execute agent reasoning loop with SSE events:
@@ -150,14 +152,26 @@ class AgentOrchestrator:
         - {"type": "done", "message_id": ...}
         - {"type": "error", "error": ...}
         """
-        # Save user message to database
-        db.add_message(session_id=session_id, role="user", content=user_prompt)
+        # Save user message to database with pre-assigned ID if provided
+        user_msg = db.add_message(
+            session_id=session_id,
+            role="user",
+            content=user_prompt,
+            msg_id=user_message_id
+        )
 
         # Retrieve session context and build safe conversation history
         history = db.get_messages(session_id)
         messages = self._build_conversation_context(history, user_prompt)
 
-        # Immediately emit thinking status so client starts feedback cycle right away
+        # Immediately emit session info and thinking status so client starts feedback cycle right away
+        yield {
+            "type": "session_info",
+            "session_id": session_id,
+            "user_message_id": user_msg["id"],
+            "assistant_message_id": assistant_message_id
+        }
+
         yield {
             "type": "status",
             "stage": "thinking",
@@ -326,7 +340,8 @@ class AgentOrchestrator:
             role="assistant",
             content=full_content,
             thought=full_thought,
-            tool_calls=executed_tool_calls
+            tool_calls=executed_tool_calls,
+            msg_id=assistant_message_id
         )
 
         yield {

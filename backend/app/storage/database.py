@@ -189,20 +189,21 @@ class Database:
         role: str,
         content: str,
         thought: str = "",
-        tool_calls: Optional[List[Dict[str, Any]]] = None
+        tool_calls: Optional[List[Dict[str, Any]]] = None,
+        msg_id: Optional[str] = None
     ) -> Dict[str, Any]:
-        msg_id = str(uuid.uuid4())
+        actual_id = str(msg_id) if msg_id else str(uuid.uuid4())
         now = datetime.now().isoformat()
         tc_json = json.dumps(tool_calls or [])
         with self.get_connection() as conn:
             conn.execute(
                 "INSERT INTO messages (id, session_id, role, content, thought, tool_calls, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (msg_id, session_id, role, content, thought, tc_json, now)
+                (actual_id, session_id, role, content, thought, tc_json, now)
             )
             conn.execute("UPDATE sessions SET updated_at = ? WHERE id = ?", (now, session_id))
             conn.commit()
         return {
-            "id": msg_id,
+            "id": actual_id,
             "session_id": session_id,
             "role": role,
             "content": content,
@@ -240,7 +241,7 @@ class Database:
             rows = conn.execute("""
                 SELECT m.*, s.title as session_title 
                 FROM messages m 
-                JOIN sessions s ON m.session_id = s.id 
+                LEFT JOIN sessions s ON m.session_id = s.id 
                 WHERE m.is_bookmarked = 1 
                 ORDER BY m.created_at DESC
             """).fetchall()

@@ -30,6 +30,9 @@ interface SidebarProps {
   onOpenSettings: () => void;
   isOpen: boolean;
   onToggle: () => void;
+  bookmarkVersion?: number;
+  onSelectBookmark?: (sessionId: string, messageId: string) => void;
+  onBookmarkToggle?: (messageId: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -45,6 +48,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenSettings,
   isOpen,
   onToggle,
+  bookmarkVersion,
+  onSelectBookmark,
+  onBookmarkToggle,
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'sessions' | 'bookmarks'>('sessions');
@@ -95,7 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     if (activeTab === 'bookmarks') {
       fetchBookmarks();
     }
-  }, [activeTab]);
+  }, [activeTab, bookmarkVersion]);
 
   const getPersonaIcon = (icon: string) => {
     switch (icon) {
@@ -331,14 +337,40 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   bookmarks.map((bm) => (
                     <div
                       key={bm.id}
-                      onClick={() => bm.session_id && onSelectSession(bm.session_id)}
-                      className="p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-amber-500/20 hover:border-amber-500/40 cursor-pointer transition-all space-y-1"
+                      onClick={() => {
+                        if (onSelectBookmark && bm.session_id) {
+                          onSelectBookmark(bm.session_id, bm.id);
+                        } else if (bm.session_id) {
+                          onSelectSession(bm.session_id);
+                        }
+                      }}
+                      className="group/bm p-2.5 rounded-xl bg-white/[0.02] hover:bg-white/[0.06] border border-amber-500/20 hover:border-amber-500/50 cursor-pointer transition-all space-y-1 relative"
                     >
                       <div className="flex items-center justify-between text-[10px] text-amber-300/80">
-                        <span className="font-semibold truncate max-w-[140px]">
+                        <span className="font-semibold truncate max-w-[130px]">
                           {bm.session_title || '會話紀錄'}
                         </span>
-                        <span>{bm.created_at ? bm.created_at.substring(5, 16).replace('T', ' ') : ''}</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            {bm.created_at ? bm.created_at.substring(5, 16).replace('T', ' ') : ''}
+                          </span>
+                          <button
+                            onClick={async (e) => {
+                              e.stopPropagation();
+                              try {
+                                await fetch(`/api/messages/${bm.id}/bookmark`, { method: 'POST' });
+                                fetchBookmarks();
+                                if (onBookmarkToggle) onBookmarkToggle(bm.id);
+                              } catch (err) {
+                                console.error('Failed to unbookmark:', err);
+                              }
+                            }}
+                            className="p-1 rounded hover:bg-white/10 text-amber-400 hover:text-rose-400 opacity-80 group-hover/bm:opacity-100 transition-colors"
+                            title={t('unbookmark_message', '取消收藏')}
+                          >
+                            <Star className="w-3.5 h-3.5 fill-amber-400" />
+                          </button>
+                        </div>
                       </div>
                       <p className="text-xs text-slate-300 line-clamp-2 leading-snug">
                         {bm.content || (bm.thought ? `[思考] ${bm.thought}` : '(無內容)')}
