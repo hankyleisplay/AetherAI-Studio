@@ -15,6 +15,37 @@ interface SwarmModalProps {
   modelConfig?: ModelConfig;
 }
 
+interface SwarmTurnCardProps {
+  turn: SwarmTurn;
+  isCurrent: boolean;
+}
+
+const SwarmTurnCard: React.FC<SwarmTurnCardProps> = React.memo(({ turn, isCurrent }) => {
+  const { t } = useI18n();
+  return (
+    <div className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 shadow-lg relative space-y-2">
+      {/* Speaker Tag */}
+      <div className="flex items-center justify-between border-b border-white/5 pb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-slate-300">
+            {t('swarm_round_label', '輪次')} {turn.round}
+          </span>
+          <span className="text-xs font-bold text-cyan-300">
+            {t(`persona_${turn.persona_id}_name`, turn.persona_name)}
+          </span>
+        </div>
+      </div>
+
+      {/* Turn Markdown Content */}
+      <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
+        <MarkdownRenderer content={turn.content || '...'} isStreaming={isCurrent} />
+      </div>
+    </div>
+  );
+}, (prevProps, nextProps) => {
+  return prevProps.turn.content === nextProps.turn.content && prevProps.isCurrent === nextProps.isCurrent;
+});
+
 export const SwarmModal: React.FC<SwarmModalProps> = ({
   isOpen,
   onClose,
@@ -32,8 +63,19 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
   const [currentSpeaker, setCurrentSpeaker] = useState<{ id: string; name: string; icon: string; round: number } | null>(null);
   const [copied, setCopied] = useState<boolean>(false);
 
-  const transcriptEndRef = useRef<HTMLDivElement | null>(null);
+  const scrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const lastScrollTimeRef = useRef<number>(0);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  const throttleScrollToBottom = () => {
+    const now = Date.now();
+    if (now - lastScrollTimeRef.current > 120) {
+      lastScrollTimeRef.current = now;
+      if (scrollContainerRef.current) {
+        scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      }
+    }
+  };
 
   if (!isOpen) return null;
 
@@ -195,7 +237,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
             }
           }
         }
-        transcriptEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+        throttleScrollToBottom();
       }
 
     } catch (err: any) {
@@ -270,7 +312,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
         </div>
 
         {/* Modal Scrollable Content */}
-        <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-6">
           {/* Topic & Configuration Setup */}
           <div className="space-y-4 p-4 rounded-2xl bg-white/[0.02] border border-white/5">
             {/* Topic Input */}
@@ -397,27 +439,11 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
 
               <div className="space-y-3">
                 {turns.map((turn, idx) => (
-                  <div
-                    key={idx}
-                    className="p-4 rounded-2xl bg-white/[0.03] border border-white/10 shadow-lg relative space-y-2 animate-fade-in"
-                  >
-                    {/* Speaker Tag */}
-                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[10px] font-mono px-2 py-0.5 rounded-md bg-white/10 text-slate-300">
-                          {t('swarm_round_label', '輪次')} {turn.round}
-                        </span>
-                        <span className="text-xs font-bold text-cyan-300">
-                          {t(`persona_${turn.persona_id}_name`, turn.persona_name)}
-                        </span>
-                      </div>
-                    </div>
-
-                    {/* Turn Markdown Content */}
-                    <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
-                      <MarkdownRenderer content={turn.content || '...'} />
-                    </div>
-                  </div>
+                  <SwarmTurnCard
+                    key={`${turn.round}-${turn.persona_id}-${idx}`}
+                    turn={turn}
+                    isCurrent={idx === turns.length - 1 && isDebating}
+                  />
                 ))}
               </div>
             </div>
@@ -450,12 +476,10 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
               </div>
 
               <div className="text-xs sm:text-sm text-slate-200 leading-relaxed font-sans">
-                <MarkdownRenderer content={consensusSummary} />
+                <MarkdownRenderer content={consensusSummary} isStreaming={isDebating} />
               </div>
             </div>
           )}
-
-          <div ref={transcriptEndRef} />
         </div>
       </div>
     </div>

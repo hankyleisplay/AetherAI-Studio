@@ -495,6 +495,13 @@ async def swarm_stream(request: SwarmRequest):
         debate_transcript = []
         rounds = max(1, min(request.rounds or 1, 3))
 
+        # Create lightweight client configs for debate turns and summary to ensure swift responsiveness
+        turn_config = active_config.model_copy(update={"max_tokens": 384, "temperature": min(active_config.temperature, 0.7)})
+        turn_client = UnifiedLLMClient(turn_config)
+
+        summary_config = active_config.model_copy(update={"max_tokens": 768, "temperature": 0.5})
+        summary_client = UnifiedLLMClient(summary_config)
+
         for r in range(1, rounds + 1):
             for persona in selected_personas:
                 pid = persona["id"]
@@ -512,24 +519,24 @@ async def swarm_stream(request: SwarmRequest):
                     })
                 }
 
-                context_str = "\n\n".join([f"[{item['persona_name']} (輪次 {item['round']})]:\n{item['content']}" for item in debate_transcript[-6:]])
+                context_str = "\n\n".join([f"[{item['persona_name']} (輪次 {item['round']})]:\n{item['content']}" for item in debate_transcript[-4:]])
                 prompt = (
                     f"【多智能體協同架構會議 / 圓桌論壇】\n"
                     f"會議核心議題: {request.topic}\n"
                     f"當前輪次: 第 {r} 輪 (共 {rounds} 輪)\n\n"
                 )
                 if context_str:
-                    prompt += f"先前發言摘要與交鋒:\n{context_str}\n\n請根據你的專業定位，針對議題及上述同僚發言提出深度剖析、技術質疑或關鍵解決方案。"
+                    prompt += f"先前發言摘要與交鋒:\n{context_str}\n\n請針對同僚發言提出關鍵技術剖析、架構質疑或實施方案。"
                 else:
-                    prompt += "請根據你的專業定位，對此議題提出第一輪的關鍵觀點、架構分析與解決路線。"
+                    prompt += "請對此議題提出第一輪的關鍵觀點、架構分析與解決路線。"
 
                 messages = [
-                    {"role": "system", "content": f"{psystem}\n請保持極度專業，精闢闡述，不要冗長客套，直切工程核心要害。"},
+                    {"role": "system", "content": f"{psystem}\n【圓桌發言限制】請以高信息密度的繁體中文切入核心要點，不贅述背景與客套寒暄，發言篇幅控制在 150～200 字以內。"},
                     {"role": "user", "content": prompt}
                 ]
 
                 turn_content = ""
-                async for chunk in client.stream_chat(messages):
+                async for chunk in turn_client.stream_chat(messages):
                     if chunk.type == "token" and chunk.content:
                         turn_content += chunk.content
                         yield {
@@ -568,7 +575,7 @@ async def swarm_stream(request: SwarmRequest):
         summary_messages = [
             {
                 "role": "system",
-                "content": "你是 Aether 智庫主席。請根據會議中各位專家的深度交鋒與技術觀點，進行高度結構化的總結，產出：\n1. 核心技術共識\n2. 關鍵爭議點與取捨\n3. 具體可執行的工程落地方案與建議技術架構。"
+                "content": "你是 Aether 智庫主席。請根據會議中各位專家的深度交鋒與技術觀點，進行高度結構化的總結，產出核心技術共識、關鍵爭議點與具體可執行的工程落地方案（總篇幅控制在 250 字內）。"
             },
             {
                 "role": "user",
@@ -577,7 +584,7 @@ async def swarm_stream(request: SwarmRequest):
         ]
 
         summary_content = ""
-        async for chunk in client.stream_chat(summary_messages):
+        async for chunk in summary_client.stream_chat(summary_messages):
             if chunk.type == "token" and chunk.content:
                 summary_content += chunk.content
                 yield {

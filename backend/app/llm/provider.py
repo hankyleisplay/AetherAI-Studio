@@ -341,13 +341,39 @@ class UnifiedLLMClient:
         tools: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncGenerator[LLMResponseChunk, None]:
         url = f"{self.config.base_url.rstrip('/')}/api/chat"
+
+        # Sanitize messages for Ollama: Ollama requires function.arguments to be an object (dict), not a JSON string
+        sanitized_messages = []
+        for m in messages:
+            m_copy = dict(m)
+            if "tool_calls" in m_copy and isinstance(m_copy["tool_calls"], list):
+                new_tcs = []
+                for tc in m_copy["tool_calls"]:
+                    tc_copy = dict(tc)
+                    if "function" in tc_copy and isinstance(tc_copy["function"], dict):
+                        fn_copy = dict(tc_copy["function"])
+                        raw_args = fn_copy.get("arguments")
+                        if isinstance(raw_args, str):
+                            try:
+                                fn_copy["arguments"] = json.loads(raw_args)
+                            except Exception:
+                                fn_copy["arguments"] = {}
+                        tc_copy["function"] = fn_copy
+                    new_tcs.append(tc_copy)
+                m_copy["tool_calls"] = new_tcs
+            sanitized_messages.append(m_copy)
+
+        options = {
+            "temperature": self.config.temperature
+        }
+        if self.config.max_tokens:
+            options["num_predict"] = self.config.max_tokens
+
         payload = {
             "model": self.config.model,
-            "messages": messages,
+            "messages": sanitized_messages,
             "stream": True,
-            "options": {
-                "temperature": self.config.temperature
-            }
+            "options": options
         }
         if tools:
             # Ollama accepts tools schema directly in recent versions

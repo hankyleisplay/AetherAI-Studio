@@ -188,7 +188,7 @@ class AgentOrchestrator:
                             "type": "function",
                             "function": {
                                 "name": tc["name"],
-                                "arguments": json.dumps(tc["args"])
+                                "arguments": tc["args"] if isinstance(tc.get("args"), dict) else json.loads(tc.get("args", "{}"))
                             }
                         }
                         for tc in current_tool_calls
