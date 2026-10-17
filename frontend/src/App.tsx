@@ -156,7 +156,10 @@ export const App: React.FC = () => {
         body: JSON.stringify(newPersona)
       });
       if (res.ok) {
-        setPersonas(prev => [...prev, newPersona]);
+        setPersonas(prev => {
+          const exists = prev.some(p => p.id === newPersona.id);
+          return exists ? prev.map(p => p.id === newPersona.id ? newPersona : p) : [...prev, newPersona];
+        });
         setSelectedPersonaId(newPersona.id);
       }
     } catch (e) {

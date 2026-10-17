@@ -262,7 +262,7 @@ class TelegramBridgeService:
 
         if text.startswith("/new"):
             db.delete_session(session_id)
-            db.create_session(title=f"Telegram: @{username}", persona_id="assistant")
+            db.create_session(title=f"Telegram: @{username}", persona_id="assistant", session_id=session_id)
             await self._send_telegram_message(client, token, chat_id, "🔄 已成功為您重設對話紀錄，讓我們開始新的對話！")
             return
 
@@ -273,7 +273,7 @@ class TelegramBridgeService:
         # Ensure session exists in SQLite
         sess = db.get_session(session_id)
         if not sess:
-            db.create_session(title=f"Telegram: @{username}", persona_id="assistant")
+            db.create_session(title=f"Telegram: @{username}", persona_id="assistant", session_id=session_id)
 
         # Load active model config
         saved_cfg = db.get_setting("active_model_config")
@@ -297,11 +297,11 @@ class TelegramBridgeService:
         try:
             async for ev in orchestrator.run_stream(session_id, text):
                 ev_type = ev.get("type")
-                if ev_type == "tool_call":
+                if ev_type in ("tool_start", "tool_call"):
                     tool_name = ev.get("name")
                     tool_call_summaries.append(f"⚙️ 正在調用工具: `{tool_name}`...")
                     await self._send_chat_action(client, token, chat_id, "typing")
-                elif ev_type == "delta":
+                elif ev_type in ("token", "delta"):
                     full_response.append(ev.get("content", ""))
                 elif ev_type == "error":
                     full_response.append(f"\n⚠️ 錯誤: {ev.get('error')}")

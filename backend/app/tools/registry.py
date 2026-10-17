@@ -4,15 +4,27 @@ import json
 import time
 import inspect
 import re
+import locale
 import httpx
 import subprocess
 import platform
 import psutil
-from datetime import datetime
+from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 from typing import Dict, Any, List, Callable, Optional
 from pydantic import BaseModel
 from backend.app.config import settings
+
+
+def _decode_subprocess_bytes(data: Optional[bytes]) -> str:
+    if not data:
+        return ""
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        enc = locale.getpreferredencoding(False) or "utf-8"
+        return data.decode(enc, errors="replace")
+
 
 class ToolParameter(BaseModel):
     type: str = "string"
@@ -134,12 +146,18 @@ def web_search(query: str, max_results: int = 5) -> str:
 )
 def python_eval(code: str) -> str:
     try:
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        env["PYTHONUTF8"] = "1"
         res = subprocess.run(
             [sys.executable, "-c", code],
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
             timeout=15,
-            cwd=str(settings.workspace_dir)
+            cwd=str(settings.workspace_dir),
+            env=env
         )
         out = res.stdout.strip()
         err = res.stderr.strip()
@@ -172,12 +190,11 @@ def bash_executor(command: str) -> str:
             command,
             shell=True,
             capture_output=True,
-            text=True,
             timeout=30,
             cwd=str(settings.workspace_dir)
         )
-        out = res.stdout.strip()
-        err = res.stderr.strip()
+        out = _decode_subprocess_bytes(res.stdout).strip()
+        err = _decode_subprocess_bytes(res.stderr).strip()
         output = []
         if out:
             output.append(out)
@@ -216,7 +233,7 @@ def file_system(action: str, path: str, content: Optional[str] = None) -> str:
     target = (base / path).resolve()
     
     # Path traversal check
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         return f"Access Denied: Path '{path}' escapes workspace directory."
 
     try:
@@ -239,7 +256,7 @@ def file_system(action: str, path: str, content: Optional[str] = None) -> str:
                 return f"Path '{path}' is not a directory."
             items = []
             for item in sorted(target.iterdir()):
-                rel = item.relative_to(base)
+                rel = item.relative_to(base).as_posix()
                 prefix = "[DIR] " if item.is_dir() else "[FILE]"
                 size = f"({item.stat().st_size} bytes)" if item.is_file() else ""
                 items.append(f"{prefix} {rel} {size}")
@@ -295,12 +312,20 @@ def system_status() -> str:
 )
 def datetime_calc(timezone: Optional[str] = None) -> str:
     now = datetime.now()
-    now_utc = datetime.utcnow()
-    return (
-        f"Current Local Time: {now.strftime('%Y-%m-%d %H:%M:%S %A')}\n"
-        f"Current UTC Time: {now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}\n"
+    now_utc = datetime.now(dt_timezone.utc)
+    lines = [
+        f"Current Local Time: {now.strftime('%Y-%m-%d %H:%M:%S %A')}",
+        f"Current UTC Time: {now_utc.strftime('%Y-%m-%d %H:%M:%S UTC')}",
         f"ISO Timestamp: {now.isoformat()}"
-    )
+    ]
+    if timezone:
+        try:
+            from zoneinfo import ZoneInfo
+            tz_now = datetime.now(ZoneInfo(timezone))
+            lines.append(f"Requested Timezone ({timezone}): {tz_now.strftime('%Y-%m-%d %H:%M:%S %Z')}")
+        except Exception:
+            pass
+    return "\n".join(lines)
 
 @registry.register(
     name="read_url",
@@ -532,7 +557,7 @@ def document_text_extractor(
 ) -> str:
     base = settings.workspace_dir.resolve()
     target = (base / path).resolve()
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         return f"Access Denied: Path '{path}' escapes workspace directory."
     if not target.exists():
         return f"File '{path}' does not exist in workspace."
@@ -660,7 +685,7 @@ def code_linter_analyzer(path: str, language: Optional[str] = None) -> str:
     import ast
     base = settings.workspace_dir.resolve()
     target = (base / path).resolve()
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         return f"Access Denied: Path '{path}' escapes workspace directory."
     if not target.exists():
         return f"File '{path}' does not exist."

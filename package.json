@@ -1,15 +1,18 @@
 {
   "name": "@hankyleisplay/aetherai-studio",
-  "version": "26.9.19",
-  "description": "AetherAI Studio 2.0 (AetherAgent) - Liquid Glass Local & Cloud Autonomous AI Agent System with 9 Tools, Telegram Bridge, i18n & Powerful Markdown",
+  "version": "26.10.17",
+  "description": "AetherAI Studio 2.0 (AetherAgent) - Liquid Glass Local & Cloud Autonomous AI Agent System with 13 Enterprise Tools, Multi-Agent Swarm, Telegram Bridge, i18n & Powerful Markdown",
   "main": "cli.js",
   "bin": {
-    "aetherai": "./cli.js",
-    "aether": "./cli.js"
+    "aetherai": "cli.js",
+    "aether": "cli.js"
   },
   "repository": {
     "type": "git",
     "url": "git+https://github.com/hankyleisplay/AetherAI-Studio.git"
+  },
+  "publishConfig": {
+    "registry": "https://npm.pkg.github.com"
   },
   "scripts": {
     "start": "node cli.js",

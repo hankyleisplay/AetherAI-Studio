@@ -21,9 +21,8 @@ yarn-debug.log*
 yarn-error.log*
 .pnpm-debug.log*
 
-# Build outputs (can be rebuilt via npm run build / ./install.sh)
-dist/
-# Optional: frontend/dist can be included or rebuilt
+# Build outputs
+/dist/
 
 # Runtime Databases & Dynamic State
 backend/data/
@@ -37,6 +36,7 @@ backend/workspace/*
 .env
 .env.local
 .env.*.local
+.npmrc
 config.json
 
 # IDEs & System

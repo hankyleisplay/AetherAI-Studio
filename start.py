@@ -13,23 +13,50 @@ import webbrowser
 from pathlib import Path
 import subprocess
 
+# Configure UTF-8 console output and ANSI color support on Windows
+if os.name == "nt":
+    os.system("")
+    try:
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 PROJECT_ROOT = Path(__file__).resolve().parent
 SITE_PACKAGES = PROJECT_ROOT / "backend" / "site-packages"
 
-# Inject local site-packages if present
-if SITE_PACKAGES.exists():
+# Inject local site-packages and project root into sys.path and PYTHONPATH
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+if SITE_PACKAGES.exists() and str(SITE_PACKAGES) not in sys.path:
     sys.path.insert(0, str(SITE_PACKAGES))
 
+existing_pythonpath = os.environ.get("PYTHONPATH", "")
+pythonpath_parts = [str(SITE_PACKAGES), str(PROJECT_ROOT)]
+if existing_pythonpath:
+    pythonpath_parts.append(existing_pythonpath)
+os.environ["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
+os.environ["PYTHONIOENCODING"] = "utf-8"
+
+NPM_CMD = "npm.cmd" if os.name == "nt" else "npm"
+
+
 def print_banner():
-    print(r"""\033[1;36m
-    ___       __  __              ___    ____   _____ __            ___      
-   /   | ___ / /_/ /_  ___  _____/   |  /  _/  / ___// /___  ______/ (_)___  
-  / /| |/ _ \ __/ __ \/ _ \/ ___/ /| |  / /    \__ \/ __/ / / / __  / / __ \ 
- / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / 
-/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  
-                                                                             
-      Liquid Glass • Local & Cloud Autonomous AI Agent System v2.0
-\033[0m""")
+    banner = (
+        "\033[1;36m\n"
+        r"    ___       __  __              ___    ____   _____ __            ___      " "\n"
+        r"   /   | ___ / /_/ /_  ___  _____/   |  /  _/  / ___// /___  ______/ (_)___  " "\n"
+        r"  / /| |/ _ \ __/ __ \/ _ \/ ___/ /| |  / /    \__ \/ __/ / / / __  / / __ \ " "\n"
+        r" / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / " "\n"
+        r"/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  " "\n"
+        "\n"
+        "      Liquid Glass • Local & Cloud Autonomous AI Agent System v2.0\n"
+        "\033[0m"
+    )
+    print(banner)
+
 
 def ensure_dependencies():
     """Verify backend and frontend state before booting."""
@@ -38,27 +65,37 @@ def ensure_dependencies():
         import uvicorn
         import httpx
         import sse_starlette
+        import psutil
+        import multipart
     except ImportError:
-        print("\033[33m[*] 尚未檢測到後端依賴，正在為您自動執行安裝...\033[0m")
-        install_script = PROJECT_ROOT / "install.sh"
-        if install_script.exists():
-            subprocess.run(["bash", str(install_script)], check=True)
-        else:
-            subprocess.run([
-                sys.executable, "-m", "pip", "install", "--break-system-packages",
-                "--target", str(SITE_PACKAGES), "-r", str(PROJECT_ROOT / "backend" / "requirements.txt")
-            ])
+        print("\033[33m[*] 尚未檢測到完整後端依賴，正在為您自動執行安裝...\033[0m")
+        req_file = PROJECT_ROOT / "backend" / "requirements.txt"
+        SITE_PACKAGES.mkdir(parents=True, exist_ok=True)
+        cmd = [
+            sys.executable, "-m", "pip", "install",
+            "--target", str(SITE_PACKAGES),
+            "-r", str(req_file)
+        ]
+        res = subprocess.run(cmd)
+        if res.returncode != 0 and os.name != "nt":
+            subprocess.run(cmd + ["--break-system-packages"], check=False)
+        if str(SITE_PACKAGES) not in sys.path:
             sys.path.insert(0, str(SITE_PACKAGES))
+
 
 def check_frontend_dist():
     dist_html = PROJECT_ROOT / "frontend" / "dist" / "index.html"
     if not dist_html.exists():
         print("\033[33m[*] 正在自動編譯 Liquid Glass 前端介面...\033[0m")
         try:
-            subprocess.run(["npm", "run", "build"], cwd=str(PROJECT_ROOT / "frontend"), check=True)
+            frontend_dir = PROJECT_ROOT / "frontend"
+            if not (frontend_dir / "node_modules").exists():
+                subprocess.run([NPM_CMD, "install"], cwd=str(frontend_dir), check=True)
+            subprocess.run([NPM_CMD, "run", "build"], cwd=str(frontend_dir), check=True)
             print("\033[32m[✓] 前端介面打包完成！\033[0m")
         except Exception as e:
             print(f"\033[31m[!] 前端編譯提示: {e}\033[0m")
+
 
 def start_dev_mode(port: int, host: str):
     """Launch both backend API and Vite dev server concurrently."""
@@ -69,13 +106,15 @@ def start_dev_mode(port: int, host: str):
     # Start FastAPI backend process
     backend_proc = subprocess.Popen(
         [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", host, "--port", str(port), "--reload"],
-        cwd=str(PROJECT_ROOT)
+        cwd=str(PROJECT_ROOT),
+        env=os.environ.copy()
     )
 
     # Start Vite frontend process
     frontend_proc = subprocess.Popen(
-        ["npm", "run", "dev"],
-        cwd=str(PROJECT_ROOT / "frontend")
+        [NPM_CMD, "run", "dev"],
+        cwd=str(PROJECT_ROOT / "frontend"),
+        env=os.environ.copy()
     )
 
     time.sleep(1.5)
@@ -90,6 +129,7 @@ def start_dev_mode(port: int, host: str):
     signal.signal(signal.SIGINT, handle_sigint)
     backend_proc.wait()
 
+
 def ensure_shortcuts():
     shortcut_script = PROJECT_ROOT / "create_shortcut.sh"
     if shortcut_script.exists() and sys.platform.startswith("linux"):
@@ -97,6 +137,7 @@ def ensure_shortcuts():
             subprocess.run(["bash", str(shortcut_script)], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         except Exception:
             pass
+
 
 def start_prod_mode(port: int, host: str, no_browser: bool):
     """Launch single-port unified FastAPI + built SPA mode."""
@@ -112,7 +153,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool):
     model = active_cfg.get("model", "預設")
 
     url = f"http://localhost:{port}"
-    print(f"\033[1;32m🚀 AetherAI Studio 2.0 (AetherAgent) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 AetherAI Studio 2.0 (AetherAgent) 服務就緒！\033[0m")
     print(f"📡 訪問網址: \033[1;36m{url}\033[0m")
     print(f"🧠 當前模型: \033[1;33m{provider}\033[0m ({model})")
     print(f"🛠️ 啟用工具: {tool_count} 個企業級工程工具")
@@ -138,12 +179,13 @@ def start_prod_mode(port: int, host: str, no_browser: bool):
     except KeyboardInterrupt:
         print("\n\033[32m[✓] AetherAI Studio 2.0 服務已安全結束。\033[0m")
 
+
 def main():
     parser = argparse.ArgumentParser(description="LiquidGlass Agent 啟動器")
     parser.add_argument("--port", type=int, default=8000, help="服務監聽連接埠 (預設: 8000)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="監聽主機 IP (預設: 0.0.0.0)")
     parser.add_argument("--dev", action="store_true", help="啟用前端 Vite 熱重載開發模式")
-    parser.add_argument("--no-browser", action="store_true", help="啟動時不安裝自動開啟瀏覽器")
+    parser.add_argument("--no-browser", action="store_true", help="啟動時不自動開啟瀏覽器")
     parser.add_argument("--check", action="store_true", help="執行系統依賴與整合檢驗後離開")
     args = parser.parse_args()
 
@@ -151,13 +193,18 @@ def main():
     ensure_dependencies()
 
     if args.check:
-        print("\033[32m[✓] 系統環境與依賴檢測完全正常！\033[0m")
+        from backend.app.storage.database import db
+        from backend.app.tools.registry import registry
+        tools = registry.get_raw_definitions()
+        personas = db.list_personas()
+        print(f"\033[32m[✓] 系統環境與依賴檢測完全正常！（已載入 {len(tools)} 個工具、{len(personas)} 個預設角色）\033[0m")
         sys.exit(0)
 
     if args.dev:
         start_dev_mode(args.port, args.host)
     else:
         start_prod_mode(args.port, args.host, args.no_browser)
+
 
 if __name__ == "__main__":
     main()

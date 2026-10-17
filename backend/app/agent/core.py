@@ -13,6 +13,12 @@ class AgentOrchestrator:
         self.persona_id = persona_id
         self.max_iterations = 6
 
+    def _get_persona_enabled_tools(self) -> Optional[set]:
+        persona = db.get_persona(self.persona_id)
+        if persona and persona.get("enabled_tools"):
+            return set(persona["enabled_tools"])
+        return None
+
     def _get_system_prompt(self) -> str:
         persona = db.get_persona(self.persona_id)
         if persona:
@@ -20,11 +26,12 @@ class AgentOrchestrator:
         else:
             base_prompt = "You are a helpful and intelligent AI assistant."
 
+        allowed_tools = self._get_persona_enabled_tools()
         # Add ReAct guidance for models that might use text-based reasoning/actions
         tool_desc_list = []
         raw_tools = registry.get_raw_definitions()
         for t in raw_tools:
-            if t.get("enabled"):
+            if t.get("enabled") and (allowed_tools is None or t["name"] in allowed_tools):
                 tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
         
         system_instruction = (
@@ -89,8 +96,12 @@ class AgentOrchestrator:
 
         messages.append({"role": "user", "content": user_prompt})
 
-        # Get enabled tools
-        tools_schema = registry.get_definitions(enabled_only=True)
+        # Get enabled tools filtered by active persona
+        allowed_tools = self._get_persona_enabled_tools()
+        tools_schema = [
+            t for t in registry.get_definitions(enabled_only=True)
+            if allowed_tools is None or t["function"]["name"] in allowed_tools
+        ]
 
         full_thought = ""
         full_content = ""

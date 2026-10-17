@@ -62,7 +62,7 @@ class TelegramConfigPayload(BaseModel):
     enabled: bool = False
 
 class TelegramTestPayload(BaseModel):
-    token: str
+    token: Optional[str] = None
     chat_id: Optional[str] = None
 
 class WorkspaceFileSavePayload(BaseModel):
@@ -128,7 +128,7 @@ async def chat_stream(request: ChatRequest):
         sess = db.get_session(session_id)
         if not sess:
             title = request.message[:20] + ("..." if len(request.message) > 20 else "")
-            db.create_session(title=title, persona_id=request.persona_id or "assistant")
+            db.create_session(title=title, persona_id=request.persona_id or "assistant", session_id=session_id)
 
     # Determine Model Config
     if request.model_config_override:
@@ -206,6 +206,8 @@ async def list_tools():
 @app.post("/api/tools/{name}/toggle")
 async def toggle_tool(name: str, payload: ToolToggle):
     registry.set_tool_enabled(name, payload.enabled)
+    return {"status": "updated", "name": name, "enabled": payload.enabled}
+
 # Personas Endpoints
 @app.get("/api/personas")
 async def list_personas():
@@ -223,7 +225,7 @@ async def upload_file(file: UploadFile = File(...)):
         upload_dir = settings.workspace_dir / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         # Sanitize filename
-        safe_name = Path(file.filename).name
+        safe_name = Path(file.filename or "uploaded_file").name
         target_path = upload_dir / safe_name
         content = await file.read()
         target_path.write_bytes(content)
@@ -307,7 +309,10 @@ async def get_telegram_status():
 
 @app.post("/api/telegram/config")
 async def save_telegram_config(config: TelegramConfigPayload):
+    existing = db.get_setting("telegram_config") or {}
     data = config.model_dump()
+    if not data.get("token") and existing.get("token"):
+        data["token"] = existing["token"]
     db.set_setting("telegram_config", data)
     if data.get("enabled"):
         await telegram_bridge.restart()
@@ -317,7 +322,10 @@ async def save_telegram_config(config: TelegramConfigPayload):
 
 @app.post("/api/telegram/test")
 async def test_telegram_endpoint(payload: TelegramTestPayload):
-    return await telegram_bridge.test_connection(payload.token, payload.chat_id)
+    existing = db.get_setting("telegram_config") or {}
+    token = payload.token or existing.get("token", "")
+    chat_id = payload.chat_id if payload.chat_id is not None else existing.get("chat_id")
+    return await telegram_bridge.test_connection(token, chat_id)
 
 # ================= Full-Text Session Search & Bookmarks =================
 
@@ -336,7 +344,7 @@ async def get_bookmarks_endpoint():
 async def list_workspace_files(subpath: str = ""):
     base = settings.workspace_dir.resolve()
     target_dir = (base / subpath).resolve() if subpath else base
-    if not str(target_dir).startswith(str(base)):
+    if not target_dir.is_relative_to(base):
         raise HTTPException(status_code=403, detail="Access denied: Path escapes workspace")
     if not target_dir.exists():
         return []
@@ -347,7 +355,7 @@ async def list_workspace_files(subpath: str = ""):
             dirs[:] = [d for d in dirs if not d.startswith(".") and d != "__pycache__" and d != "node_modules"]
             for d in dirs:
                 full_d = Path(root) / d
-                rel_d = str(full_d.relative_to(base))
+                rel_d = full_d.relative_to(base).as_posix()
                 file_list.append({
                     "name": d,
                     "path": rel_d,
@@ -360,7 +368,7 @@ async def list_workspace_files(subpath: str = ""):
                 if f.startswith("."):
                     continue
                 full_f = Path(root) / f
-                rel_f = str(full_f.relative_to(base))
+                rel_f = full_f.relative_to(base).as_posix()
                 stat = full_f.stat()
                 file_list.append({
                     "name": f,
@@ -380,7 +388,7 @@ async def list_workspace_files(subpath: str = ""):
 async def get_workspace_file(path: str, raw: bool = False):
     base = settings.workspace_dir.resolve()
     target = (base / path).resolve()
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         raise HTTPException(status_code=403, detail="Access denied: Path escapes workspace")
     if not target.exists() or not target.is_file():
         raise HTTPException(status_code=404, detail=f"File '{path}' not found")
@@ -395,7 +403,7 @@ async def get_workspace_file(path: str, raw: bool = False):
         stat = target.stat()
         return {
             "name": target.name,
-            "path": path,
+            "path": target.relative_to(base).as_posix(),
             "size": stat.st_size,
             "mtime": int(stat.st_mtime),
             "extension": ext.lstrip("."),
@@ -408,12 +416,12 @@ async def get_workspace_file(path: str, raw: bool = False):
 async def save_workspace_file(payload: WorkspaceFileSavePayload):
     base = settings.workspace_dir.resolve()
     target = (base / payload.path).resolve()
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         raise HTTPException(status_code=403, detail="Access denied: Path escapes workspace")
     try:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(payload.content, encoding="utf-8")
-        return {"status": "saved", "path": payload.path, "size": len(payload.content)}
+        return {"status": "saved", "path": target.relative_to(base).as_posix(), "size": len(payload.content)}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Error saving file: {str(e)}")
 
@@ -421,7 +429,7 @@ async def save_workspace_file(payload: WorkspaceFileSavePayload):
 async def delete_workspace_file(path: str):
     base = settings.workspace_dir.resolve()
     target = (base / path).resolve()
-    if not str(target).startswith(str(base)):
+    if not target.is_relative_to(base):
         raise HTTPException(status_code=403, detail="Access denied: Path escapes workspace")
     if not target.exists():
         raise HTTPException(status_code=404, detail="Path not found")
@@ -574,13 +582,20 @@ async def swarm_stream(request: SwarmRequest):
 
 
 # Serve Frontend static assets if built
-FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
-if FRONTEND_DIST.exists():
+FRONTEND_DIST = (BASE_DIR.parent / "frontend" / "dist").resolve()
+if (FRONTEND_DIST / "assets").exists():
     app.mount("/assets", StaticFiles(directory=str(FRONTEND_DIST / "assets")), name="assets")
 
-    @app.get("/{full_path:path}")
-    async def serve_spa(full_path: str):
-        file_path = FRONTEND_DIST / full_path
-        if file_path.exists() and file_path.is_file():
+@app.get("/{full_path:path}")
+async def serve_spa(full_path: str):
+    if not FRONTEND_DIST.exists():
+        raise HTTPException(status_code=404, detail="Frontend dist not built yet. Run 'npm run build' in frontend/.")
+    if full_path:
+        file_path = (FRONTEND_DIST / full_path).resolve()
+        if file_path.is_relative_to(FRONTEND_DIST) and file_path.exists() and file_path.is_file():
             return FileResponse(str(file_path))
-        return FileResponse(str(FRONTEND_DIST / "index.html"))
+    index_file = FRONTEND_DIST / "index.html"
+    if index_file.exists():
+        return FileResponse(str(index_file))
+    raise HTTPException(status_code=404, detail="index.html not found in frontend/dist.")
+

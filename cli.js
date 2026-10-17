@@ -5,24 +5,39 @@
  * Cross-platform entry point for npm / npx
  */
 
-const { spawn, execSync } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
 const path = require('path');
-const fs = require('fs');
 
 const projectRoot = __dirname;
 const startScript = path.join(projectRoot, 'start.py');
 
-// Find Python executable
+/**
+ * Find a valid Python >= 3.10 command, avoiding Windows Store alias stubs
+ * and avoiding stdout path encoding issues on non-ASCII Windows usernames.
+ */
 function getPythonCommand() {
   const isWindows = process.platform === 'win32';
-  const candidates = isWindows 
-    ? ['python3', 'python', 'py'] 
-    : ['python3', 'python'];
+  const candidates = isWindows
+    ? [
+        { cmd: 'python', prefixArgs: [] },
+        { cmd: 'py', prefixArgs: ['-3'] },
+        { cmd: 'python3', prefixArgs: [] }
+      ]
+    : [
+        { cmd: 'python3', prefixArgs: [] },
+        { cmd: 'python', prefixArgs: [] }
+      ];
 
-  for (const cmd of candidates) {
+  for (const candidate of candidates) {
     try {
-      execSync(`${cmd} --version`, { stdio: 'ignore' });
-      return cmd;
+      const res = spawnSync(
+        candidate.cmd,
+        [...candidate.prefixArgs, '-c', 'import sys; sys.exit(0 if sys.version_info >= (3, 10) else 1)'],
+        { stdio: 'ignore', timeout: 5000 }
+      );
+      if (res.status === 0) {
+        return candidate;
+      }
     } catch (e) {
       // Continue search
     }
@@ -30,24 +45,26 @@ function getPythonCommand() {
   return null;
 }
 
-const pyCmd = getPythonCommand();
+const py = getPythonCommand();
 
-if (!pyCmd) {
-  console.error('\n\x1b[31m[❌ 錯誤] 未檢測到 Python 3 執行環境！\x1b[0m');
+if (!py) {
+  console.error('\n\x1b[31m[❌ 錯誤] 未檢測到 Python 3.10+ 執行環境！\x1b[0m');
   console.error('AetherAI Studio 2.0 (AetherAgent) 後端核心需要 Python >= 3.10。');
   console.error('請前往 https://www.python.org/downloads/ 安裝 Python 3 後再次執行。\n');
   process.exit(1);
 }
 
 // Pass all CLI arguments to start.py
-const args = [startScript, ...process.argv.slice(2)];
+const args = [...py.prefixArgs, startScript, ...process.argv.slice(2)];
 
-const child = spawn(pyCmd, args, {
+const child = spawn(py.cmd, args, {
   cwd: projectRoot,
   stdio: 'inherit',
   env: {
     ...process.env,
-    PYTHONUNBUFFERED: '1'
+    PYTHONUNBUFFERED: '1',
+    PYTHONIOENCODING: 'utf-8',
+    PYTHONUTF8: '1'
   }
 });
 

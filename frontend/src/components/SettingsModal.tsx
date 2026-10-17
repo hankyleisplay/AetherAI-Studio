@@ -76,9 +76,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
 
-  // Fetch Telegram status on modal open
+  // Sync formData when modal opens or config changes
   useEffect(() => {
     if (isOpen) {
+      setFormData({ ...config });
       fetch('/api/telegram/status')
         .then((res) => res.json())
         .then((data) => {
@@ -91,7 +92,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         })
         .catch((err) => console.error('Failed to fetch telegram status:', err));
     }
-  }, [isOpen]);
+  }, [isOpen, config]);
 
   if (!isOpen) return null;
 
@@ -606,7 +607,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <button
                 type="button"
                 onClick={handleTestTelegram}
-                disabled={isTestingTelegram || !telegramConfig.token}
+                disabled={isTestingTelegram || (!telegramConfig.token && !telegramStatus?.has_token)}
                 className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-cyan-300 hover:text-cyan-200 flex items-center gap-1.5 transition-all disabled:opacity-50"
               >
                 {isTestingTelegram ? (
