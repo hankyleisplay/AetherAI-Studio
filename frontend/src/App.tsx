@@ -375,8 +375,8 @@ export const App: React.FC = () => {
     setAgentState('idle');
   };
 
-  const handleSendMessage = async (text: string) => {
-    if (!text.trim() || isStreaming) return;
+  const handleSendMessage = async (text: string, images?: string[]) => {
+    if ((!text.trim() && (!images || images.length === 0)) || isStreaming) return;
 
     // Generate robust UUIDs for both messages
     const userMsgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
@@ -392,6 +392,7 @@ export const App: React.FC = () => {
       id: userMsgId,
       role: 'user',
       content: text,
+      images: images,
       created_at: new Date().toISOString()
     };
 
@@ -425,7 +426,8 @@ export const App: React.FC = () => {
           persona_id: selectedPersonaId,
           model_config_override: modelConfig,
           user_message_id: userMsgId,
-          assistant_message_id: assistantMsgId
+          assistant_message_id: assistantMsgId,
+          images: images
         }),
         signal: controller.signal
       });

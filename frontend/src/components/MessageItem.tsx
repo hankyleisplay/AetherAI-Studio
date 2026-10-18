@@ -193,6 +193,25 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
         {/* User Message Bubble */}
         {isUser ? (
           <div className="flex flex-col items-end group max-w-full">
+            {/* Attached Images thumbnail gallery */}
+            {message.images && message.images.length > 0 && (
+              <div className="flex flex-wrap gap-2 mb-2 justify-end max-w-full">
+                {message.images.map((img, idx) => {
+                  const src = img.startsWith('data:image') ? img : `data:image/jpeg;base64,${img}`;
+                  return (
+                    <a 
+                      key={idx} 
+                      href={src} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="block overflow-hidden rounded-2xl border border-cyan-400/40 shadow-[0_0_15px_rgba(0,242,254,0.2)] hover:scale-105 transition-all max-w-[240px] max-h-[200px] bg-black/40"
+                    >
+                      <img src={src} alt="Uploaded visual attachment" className="object-cover w-full h-full rounded-2xl" />
+                    </a>
+                  );
+                })}
+              </div>
+            )}
             <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
               <p className="whitespace-pre-wrap break-words">{message.content}</p>
             </div>

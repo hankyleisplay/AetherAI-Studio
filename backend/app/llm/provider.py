@@ -219,9 +219,25 @@ class UnifiedLLMClient:
         if self.config.api_key:
             headers["Authorization"] = f"Bearer {self.config.api_key}"
 
+        # Support multimodal image payloads for OpenAI-compatible providers
+        formatted_messages = []
+        for m in messages:
+            m_copy = dict(m)
+            if m.get("images") and m.get("role") == "user":
+                parts = [{"type": "text", "text": m.get("content", "")}]
+                for img in m["images"]:
+                    clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                    parts.append({
+                        "type": "image_url",
+                        "image_url": {"url": f"data:image/jpeg;base64,{clean_b64}"}
+                    })
+                m_copy["content"] = parts
+                m_copy.pop("images", None)
+            formatted_messages.append(m_copy)
+
         payload: Dict[str, Any] = {
             "model": self.config.model,
-            "messages": messages,
+            "messages": formatted_messages,
             "temperature": self.config.temperature,
             "stream": True
         }
@@ -651,7 +667,17 @@ class UnifiedLLMClient:
                     }]
                 })
             else:
-                contents.append({"role": "user", "parts": [{"text": text}]})
+                user_parts = [{"text": text}]
+                if m.get("images"):
+                    for img in m["images"]:
+                        clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                        user_parts.append({
+                            "inline_data": {
+                                "mime_type": "image/jpeg",
+                                "data": clean_b64
+                            }
+                        })
+                contents.append({"role": "user", "parts": user_parts})
 
         payload: Dict[str, Any] = {
             "contents": contents,

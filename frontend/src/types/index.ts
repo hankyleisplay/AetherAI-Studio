@@ -22,6 +22,7 @@ export interface Message {
   is_bookmarked?: boolean | number;
   persona_id?: string;
   status_text?: string;
+  images?: string[];
 }
 
 export interface WorkspaceFile {

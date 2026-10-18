@@ -17,16 +17,25 @@ import {
   MicOff,
   Sliders,
   Compass,
-  Target
+  Target,
+  Image as ImageIcon
 } from 'lucide-react';
 import { Message, AgentState, Persona } from '../types';
 import { MessageItem } from './MessageItem';
 import { useI18n } from '../i18n/I18nContext';
 
+export interface AttachedImage {
+  id: string;
+  name: string;
+  dataUrl: string;
+  base64: string;
+  size: number;
+}
+
 interface ChatViewProps {
   messages: Message[];
   agentState: AgentState;
-  onSendMessage: (text: string) => void;
+  onSendMessage: (text: string, images?: string[]) => void;
   onStopGeneration: () => void;
   isStreaming: boolean;
   onBookmarkToggle?: (messageId: string) => void;
@@ -53,6 +62,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [showScrollBottom, setShowScrollBottom] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<{ name: string; path: string } | null>(null);
+  const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const recognitionRef = useRef<any>(null);
@@ -150,11 +160,78 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
+  const processImageFile = (file: File, fallbackName?: string) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      const base64 = dataUrl.replace(/^data:image\/[a-zA-Z0-9\+\-\.]+;base64,/, '');
+      const newImg: AttachedImage = {
+        id: `img_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
+        name: file.name || fallbackName || 'image.png',
+        dataUrl,
+        base64,
+        size: file.size
+      };
+      setAttachedImages(prev => [...prev, newImg]);
+    };
+    reader.readAsDataURL(file);
+    // Background upload so workspace tools have the physical file available
+    handleFileUpload(file);
+  };
+
+  const removeAttachedImage = (index: number) => {
+    setAttachedImages(prev => prev.filter((_, i) => i !== index));
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          e.preventDefault();
+          const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+          processImageFile(file, `pasted_image_${timestamp}.png`);
+        }
+      }
+    }
+  };
+
+  useEffect(() => {
+    const onGlobalPaste = (e: ClipboardEvent) => {
+      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i];
+        if (item.type.startsWith('image/')) {
+          const file = item.getAsFile();
+          if (file) {
+            e.preventDefault();
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+            processImageFile(file, `pasted_image_${timestamp}.png`);
+          }
+        }
+      }
+    };
+    window.addEventListener('paste', onGlobalPaste);
+    return () => window.removeEventListener('paste', onGlobalPaste);
+  }, []);
+
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     setIsDragging(false);
     if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-      handleFileUpload(e.dataTransfer.files[0]);
+      for (let i = 0; i < e.dataTransfer.files.length; i++) {
+        const file = e.dataTransfer.files[i];
+        if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+          processImageFile(file);
+        } else {
+          handleFileUpload(file);
+        }
+      }
     }
   };
 
@@ -222,6 +299,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const handleSubmit = () => {
     if (isStreaming) return;
     const trimmedInput = inputText.trim();
+    const imagesPayload = attachedImages.map(img => img.base64);
 
     // If there is an uploaded file attached
     if (uploadedFile) {
@@ -236,18 +314,21 @@ export const ChatView: React.FC<ChatViewProps> = ({
           finalMessage = trimmedInput;
         }
       }
-      onSendMessage(finalMessage);
+      onSendMessage(finalMessage, imagesPayload.length > 0 ? imagesPayload : undefined);
       setInputText('');
       setUploadedFile(null);
+      setAttachedImages([]);
       if (textareaRef.current) {
         textareaRef.current.style.height = 'auto';
       }
       return;
     }
 
-    if (!trimmedInput) return;
-    onSendMessage(trimmedInput);
+    if (!trimmedInput && imagesPayload.length === 0) return;
+    const msgToSend = trimmedInput || (imagesPayload.length > 0 ? "請詳細分析此圖片並說明其內容、文字與關鍵細節。" : "");
+    onSendMessage(msgToSend, imagesPayload.length > 0 ? imagesPayload : undefined);
     setInputText('');
+    setAttachedImages([]);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
@@ -440,10 +521,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
           <input
             ref={fileInputRef}
             type="file"
+            multiple
+            accept="image/*,.txt,.md,.py,.js,.ts,.json,.csv,.pdf,.html,.css"
             className="hidden"
             onChange={(e) => {
-              if (e.target.files && e.target.files[0]) {
-                handleFileUpload(e.target.files[0]);
+              if (e.target.files && e.target.files.length > 0) {
+                for (let i = 0; i < e.target.files.length; i++) {
+                  const file = e.target.files[i];
+                  if (file.type.startsWith('image/') || /\.(png|jpe?g|webp|gif|bmp)$/i.test(file.name)) {
+                    processImageFile(file);
+                  } else {
+                    handleFileUpload(file);
+                  }
+                }
+                e.target.value = '';
               }
             }}
           />
@@ -471,16 +562,54 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
           )}
 
+          {/* Attached Images Thumbnail Preview Dock */}
+          {attachedImages.length > 0 && (
+            <div className="mb-2.5 flex flex-wrap items-center gap-2.5 p-2 rounded-xl bg-cyan-950/40 border border-cyan-500/30 backdrop-blur-md">
+              {attachedImages.map((img, idx) => (
+                <div 
+                  key={img.id}
+                  className="relative group rounded-xl overflow-hidden border border-cyan-400/40 shadow-md bg-black/50 w-20 h-20 shrink-0 transition-transform hover:scale-[1.03]"
+                >
+                  <img
+                    src={img.dataUrl}
+                    alt={img.name}
+                    className="w-full h-full object-cover rounded-xl"
+                  />
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent flex flex-col justify-between p-1 opacity-90 group-hover:opacity-100 transition-opacity">
+                    <button
+                      type="button"
+                      onClick={() => removeAttachedImage(idx)}
+                      className="self-end p-1 rounded-full bg-rose-600/90 hover:bg-rose-500 text-white shadow transition-all hover:scale-110"
+                      title="移除此圖片"
+                    >
+                      <X className="w-2.5 h-2.5" />
+                    </button>
+                    <span className="text-[9px] text-cyan-200 truncate font-mono px-1 pb-0.5" title={img.name}>
+                      {img.name}
+                    </span>
+                  </div>
+                </div>
+              ))}
+              <div className="text-[11px] text-cyan-300/90 flex items-center gap-1.5 px-2 py-1 rounded-lg bg-cyan-500/15 border border-cyan-400/20 font-mono">
+                <ImageIcon className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
+                <span>{attachedImages.length} 張圖片已載入視覺辨識</span>
+              </div>
+            </div>
+          )}
+
           <textarea
             ref={textareaRef}
             rows={1}
             value={inputText}
             onChange={handleInputResize}
             onKeyDown={handleKeyDown}
+            onPaste={handlePaste}
             placeholder={
-              uploadedFile 
-                ? `已附加「${uploadedFile.name}」，直接按 Enter 發送或輸入自訂分析要求...`
-                : t('chat_placeholder', '請輸入指令或問題... (可拖曳代碼/文字/數據檔案至此，Enter 發送)')
+              attachedImages.length > 0
+                ? `已附加 ${attachedImages.length} 張視覺圖像，可直接按 Enter 發送進行多模態/OCR深度分析...`
+                : uploadedFile 
+                  ? `已附加「${uploadedFile.name}」，直接按 Enter 發送或輸入自訂分析要求...`
+                  : t('chat_placeholder', '請輸入指令或問題... (支援 Ctrl+V 貼上或拖曳圖片/代碼至此，Enter 發送)')
             }
             disabled={isStreaming}
             className="w-full bg-transparent px-3 py-1.5 text-sm md:text-[15px] text-slate-100 placeholder-slate-500 focus:outline-none resize-none max-h-44 overflow-y-auto font-sans"
@@ -542,9 +671,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!inputText.trim() && !uploadedFile}
+                disabled={!inputText.trim() && !uploadedFile && attachedImages.length === 0}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
-                  (inputText.trim() || uploadedFile)
+                  (inputText.trim() || uploadedFile || attachedImages.length > 0)
                     ? 'glass-button-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.3)]'
                     : 'bg-white/[0.04] text-slate-500 border border-white/5 cursor-not-allowed'
                 }`}

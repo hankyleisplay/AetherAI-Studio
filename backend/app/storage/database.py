@@ -71,11 +71,13 @@ class Database:
                 )
             """)
 
-            # Auto-migrate: check if is_bookmarked column exists in messages
+            # Auto-migrate: check if is_bookmarked and images column exist in messages
             cursor.execute("PRAGMA table_info(messages)")
             columns = [col[1] for col in cursor.fetchall()]
             if "is_bookmarked" not in columns:
                 cursor.execute("ALTER TABLE messages ADD COLUMN is_bookmarked INTEGER DEFAULT 0")
+            if "images" not in columns:
+                cursor.execute("ALTER TABLE messages ADD COLUMN images TEXT DEFAULT '[]'")
 
             conn.commit()
 
@@ -190,15 +192,17 @@ class Database:
         content: str,
         thought: str = "",
         tool_calls: Optional[List[Dict[str, Any]]] = None,
-        msg_id: Optional[str] = None
+        msg_id: Optional[str] = None,
+        images: Optional[List[str]] = None
     ) -> Dict[str, Any]:
         actual_id = str(msg_id) if msg_id else str(uuid.uuid4())
         now = datetime.now().isoformat()
         tc_json = json.dumps(tool_calls or [])
+        img_json = json.dumps(images or [])
         with self.get_connection() as conn:
             conn.execute(
-                "INSERT INTO messages (id, session_id, role, content, thought, tool_calls, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)",
-                (actual_id, session_id, role, content, thought, tc_json, now)
+                "INSERT INTO messages (id, session_id, role, content, thought, tool_calls, images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (actual_id, session_id, role, content, thought, tc_json, img_json, now)
             )
             conn.execute("UPDATE sessions SET updated_at = ? WHERE id = ?", (now, session_id))
             conn.commit()
@@ -209,6 +213,7 @@ class Database:
             "content": content,
             "thought": thought,
             "tool_calls": tool_calls or [],
+            "images": images or [],
             "created_at": now
         }
 
@@ -222,6 +227,10 @@ class Database:
                     d["tool_calls"] = json.loads(d.get("tool_calls") or "[]")
                 except Exception:
                     d["tool_calls"] = []
+                try:
+                    d["images"] = json.loads(d.get("images") or "[]")
+                except Exception:
+                    d["images"] = []
                 messages.append(d)
             return messages
 

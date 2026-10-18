@@ -2,9 +2,23 @@ import re
 import json
 import time
 from typing import Dict, Any, List, AsyncGenerator, Optional
+import base64
 from backend.app.llm.provider import UnifiedLLMClient, ModelConfig, LLMResponseChunk
 from backend.app.tools.registry import registry
 from backend.app.storage.database import db
+
+VISION_MODEL_KEYWORDS = [
+    "vl", "vision", "llava", "bakllava", "qwen2.5-vl", "qwen-vl", 
+    "minicpm-v", "llama3.2-vision", "moondream", "gemini", "gpt-4o", 
+    "gpt-4-vision", "claude-3"
+]
+
+def is_vision_model(model_name: str, provider: str = "") -> bool:
+    name = (model_name or "").lower()
+    prov = (provider or "").lower()
+    if prov in ["gemini"]:
+        return True
+    return any(k in name for k in VISION_MODEL_KEYWORDS)
 
 class AgentOrchestrator:
     def __init__(self, config: ModelConfig, persona_id: str = "assistant"):
@@ -159,36 +173,99 @@ class AgentOrchestrator:
         messages.append({"role": "user", "content": user_prompt})
         return messages
 
+    async def _extract_vision_description(self, clean_b64: str) -> str:
+        """
+        Background visual feature and structure extraction for pure-text models (Track B):
+        1. Checks local Ollama for any multimodal vision model (qwen2.5-vl, llava, etc.)
+        2. Fallbacks to native Windows OCR engine (Windows.Media.Ocr via tool_ocr_extractor)
+        """
+        # 1. Probe local Ollama for an installed vision model
+        try:
+            import httpx
+            base_url = getattr(self.config, "base_url", "http://localhost:11434")
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                tags_resp = await client.get(f"{base_url.rstrip('/')}/api/tags")
+                if tags_resp.status_code == 200:
+                    tags_data = tags_resp.json()
+                    installed = [m.get("name") for m in tags_data.get("models", []) if m.get("name")]
+                    vision_candidate = next((m for m in installed if is_vision_model(m)), None)
+                    if vision_candidate:
+                        prompt = (
+                            "請以繁體中文深度且結構化解析這張圖片：\n"
+                            "1. 圖像主題、場景與主體描述\n"
+                            "2. 圖片中的所有可見文字、標籤與數值\n"
+                            "3. 介面結構、圖表或關鍵細節\n"
+                            "4. 核心資訊重點摘要"
+                        )
+                        chat_payload = {
+                            "model": vision_candidate,
+                            "messages": [{
+                                "role": "user",
+                                "content": prompt,
+                                "images": [clean_b64]
+                            }],
+                            "stream": False
+                        }
+                        chat_resp = await client.post(f"{base_url.rstrip('/')}/api/chat", json=chat_payload, timeout=60.0)
+                        if chat_resp.status_code == 200:
+                            desc = chat_resp.json().get("message", {}).get("content", "").strip()
+                            if desc:
+                                return f"【後台視覺模型 ({vision_candidate}) 結構化解析】:\n{desc}"
+        except Exception:
+            pass
+
+        # 2. Fallback to Windows native high-precision OCR engine
+        try:
+            from backend.app.config import settings
+            workspace_dir = settings.workspace_dir.resolve()
+            img_bytes = base64.b64decode(clean_b64)
+            temp_img_name = f"uploaded_img_{int(time.time()*1000)}.png"
+            temp_img_path = workspace_dir / temp_img_name
+            with open(temp_img_path, "wb") as f:
+                f.write(img_bytes)
+            
+            ocr_tool = registry._tools.get("ocr_extractor")
+            if ocr_tool:
+                ocr_result = ocr_tool(path=temp_img_name, max_chars=5000, extract_structure=True)
+                return f"【原生視覺文字識別 (Windows OCR) 提取內容】:\n{ocr_result}\n- 圖像檔案已安全儲存於工作區: `{temp_img_name}`"
+        except Exception as e:
+            return f"【視覺提取提示】: 收到圖片 (長度 {len(clean_b64)} 字元)，但解析時發生異常: {str(e)}"
+        
+        return "【視覺提取提示】: 收到圖片，但未檢測到可用的後台視覺模型或 OCR 引擎。"
+
     async def run_stream(
         self,
         session_id: str,
         user_prompt: str,
         user_message_id: Optional[str] = None,
-        assistant_message_id: Optional[str] = None
+        assistant_message_id: Optional[str] = None,
+        images: Optional[List[str]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
         """
-        Execute agent reasoning loop with SSE events:
-        - {"type": "session_info", ...}
-        - {"type": "thought", "content": ...}
-        - {"type": "tool_start", "name": ..., "args": ...}
-        - {"type": "tool_result", "name": ..., "output": ..., "duration": ...}
-        - {"type": "token", "content": ...}
-        - {"type": "done", "message_id": ...}
-        - {"type": "error", "error": ...}
+        Execute agent reasoning loop with SSE events and Dual-Track Vision Perception.
         """
-        # Save user message to database with pre-assigned ID if provided
+        # Clean images (strip data:image/...;base64, prefix)
+        clean_images = []
+        if images:
+            for img in images:
+                if img and isinstance(img, str):
+                    c = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", img).strip()
+                    if c:
+                        clean_images.append(c)
+
+        # Save user message to database with pre-assigned ID and images
         user_msg = db.add_message(
             session_id=session_id,
             role="user",
             content=user_prompt,
-            msg_id=user_message_id
+            msg_id=user_message_id,
+            images=clean_images
         )
 
-        # Retrieve session context and build safe conversation history
-        history = db.get_messages(session_id)
-        messages = self._build_conversation_context(history, user_prompt)
+        effective_prompt = user_prompt
+        is_multimodal = is_vision_model(self.config.model, self.config.provider)
 
-        # Immediately emit session info and thinking status so client starts feedback cycle right away
+        # Immediately emit session info so client starts message lifecycle right away
         yield {
             "type": "session_info",
             "session_id": session_id,
@@ -196,11 +273,56 @@ class AgentOrchestrator:
             "assistant_message_id": assistant_message_id
         }
 
-        yield {
-            "type": "status",
-            "stage": "thinking",
-            "text": "正在深度推理與檢索知識庫..."
-        }
+        # Dual-track vision processing:
+        if clean_images:
+            if is_multimodal:
+                # Track A: Active model is multimodal (qwen2.5-vl, llava, gemini, etc.)
+                yield {
+                    "type": "status",
+                    "stage": "thinking",
+                    "text": f"偵測到多模態視覺模型 ({self.config.model})，正在發送圖像進行端對端視覺認知..."
+                }
+            else:
+                # Track B: Active model is pure-text (llama3, deepseek, etc.)
+                # Extract structured visual description in background first!
+                yield {
+                    "type": "status",
+                    "stage": "thinking",
+                    "text": "檢測到純文字模型，正在後台調用視覺認知引擎提取圖片細節與結構化資訊..."
+                }
+                vision_reports = []
+                for idx, c_img in enumerate(clean_images):
+                    report = await self._extract_vision_description(c_img)
+                    vision_reports.append(f"### [圖片 #{idx+1} 分析與文字結構]\n{report}")
+                
+                combined_vision_report = "\n\n".join(vision_reports)
+                prompt_text = user_prompt.strip() if user_prompt.strip() else "請根據上述圖片分析結果進行深度解讀、摘要重點與解答。"
+                effective_prompt = (
+                    f"【🖼️ 視覺認知系統 - 圖像結構化分析報告】\n"
+                    f"系統已在後台為您預先解析使用者隨訊息附加的圖片：\n\n"
+                    f"{combined_vision_report}\n\n"
+                    f"============================================================\n"
+                    f"【使用者指令與提問】：\n{prompt_text}"
+                )
+                yield {
+                    "type": "status",
+                    "stage": "thinking",
+                    "text": "視覺特徵已結構化提取完成，正在結合問題進行深度推論..."
+                }
+        else:
+            yield {
+                "type": "status",
+                "stage": "thinking",
+                "text": "正在深度推理與檢索知識庫..."
+            }
+
+        # Retrieve session context and build safe conversation history
+        history = db.get_messages(session_id)
+        messages = self._build_conversation_context(history, effective_prompt)
+
+        # If multimodal model, attach clean_images directly to the current user turn
+        if clean_images and is_multimodal and messages:
+            messages[-1]["images"] = clean_images
 
         # Get enabled tools filtered by active persona
         allowed_tools = self._get_persona_enabled_tools()

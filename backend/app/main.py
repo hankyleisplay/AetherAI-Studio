@@ -50,6 +50,7 @@ class ChatRequest(BaseModel):
     model_config_override: Optional[ModelConfig] = None
     user_message_id: Optional[str] = None
     assistant_message_id: Optional[str] = None
+    images: Optional[List[str]] = None
 
 class SessionCreate(BaseModel):
     title: Optional[str] = "新對話"
@@ -174,7 +175,8 @@ async def chat_stream(request: ChatRequest):
                 session_id=session_id,
                 user_prompt=request.message,
                 user_message_id=request.user_message_id,
-                assistant_message_id=request.assistant_message_id
+                assistant_message_id=request.assistant_message_id,
+                images=request.images
             ):
                 ev_type = ev.get("type", "message")
                 yield {
