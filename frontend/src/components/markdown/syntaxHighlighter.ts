@@ -117,6 +117,9 @@ export function highlightLine(line: string, lang: string): HighlightedSpan[] {
   let lastIndex = 0;
 
   while ((match = tokenRegex.exec(line)) !== null) {
+    if (match.index === tokenRegex.lastIndex) {
+      tokenRegex.lastIndex++;
+    }
     const token = match[0];
 
     // Comments

@@ -154,7 +154,8 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code }) => {
       layers.push(roots.length > 0 ? roots : [nodeIds[0]]);
 
       const placed = new Set<string>(layers[0]);
-      while (placed.size < nodeIds.length) {
+      let maxIterations = nodeIds.length * 2 + 10;
+      while (placed.size < nodeIds.length && maxIterations-- > 0) {
         const nextLayer: string[] = [];
         for (const e of edges) {
           if (placed.has(e.from) && !placed.has(e.to)) {
