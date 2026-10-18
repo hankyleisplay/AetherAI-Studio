@@ -9,7 +9,6 @@ import {
   Zap, 
   Loader2,
   Download,
-  PanelLeftClose,
   PanelLeftOpen,
   ChevronDown,
   Check,
@@ -140,18 +139,16 @@ export const Header: React.FC<HeaderProps> = ({
     <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 z-20 shrink-0">
       {/* Left: Sidebar Toggle & Persona Title */}
       <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
-        <button
-          onClick={onToggleSidebar}
-          className="p-2 rounded-xl glass-button text-slate-300 hover:text-white transition-all hover:border-cyan-400/30 shrink-0"
-          title={isSidebarOpen ? t('collapse_sidebar', '收合側邊欄') : t('expand_sidebar', '展開側邊欄')}
-          aria-label={isSidebarOpen ? t('collapse_sidebar', '收合側邊欄') : t('expand_sidebar', '展開側邊欄')}
-        >
-          {isSidebarOpen ? (
-            <PanelLeftClose className="w-4 h-4 text-cyan-300" />
-          ) : (
+        {!isSidebarOpen && (
+          <button
+            onClick={onToggleSidebar}
+            className="p-2 rounded-xl glass-button text-slate-300 hover:text-white transition-all hover:border-cyan-400/30 shrink-0"
+            title={t('expand_sidebar', '展開側邊欄')}
+            aria-label={t('expand_sidebar', '展開側邊欄')}
+          >
             <PanelLeftOpen className="w-4 h-4 text-slate-300" />
-          )}
-        </button>
+          </button>
+        )}
 
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-xs font-semibold text-white/90 truncate max-w-[110px] sm:max-w-[170px] xl:max-w-[240px]">
@@ -250,7 +247,7 @@ export const Header: React.FC<HeaderProps> = ({
               type="button"
               onClick={onOpenSettings}
               className="px-2 py-1.5 border-l border-white/10 text-slate-400 hover:text-cyan-400 hover:bg-white/10 transition-colors shrink-0"
-              title={t('settings_center', 'AetherAI Studio 設定中心')}
+              title={t('settings_center', 'Aether AI Studio 設定中心')}
             >
               <Settings2 className="w-3.5 h-3.5" />
             </button>

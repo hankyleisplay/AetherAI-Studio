@@ -7,7 +7,7 @@ export interface TranslationRecord {
 export const translations: Record<Language, TranslationRecord> = {
   'zh-TW': {
     // Brand & System
-    'brand_name': 'AetherAI Studio 3.0',
+    'brand_name': 'Aether AI Studio 3.0',
     'brand_subtitle': '次世代桌面版 • 企業級自主智能體系統',
     'system_title': '次世代桌面版雙模自主智能體系統 • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': '已就緒支援 Ollama 本地開源模型與各主流雲端 LLM 引擎。',
@@ -74,7 +74,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'speak_not_supported': '您的瀏覽器不支援語音朗讀功能',
 
     // Settings Modal
-    'settings_center': 'AetherAI Studio 設定中心',
+    'settings_center': 'Aether AI Studio 設定中心',
     'settings_sub': '自訂本地/雲端模型端點與社群橋接器 (Telegram)',
     'tab_llm': '模型端點與引擎 (LLM)',
     'tab_telegram': 'Telegram 橋接 (Bot Bridge)',
@@ -235,7 +235,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
   'zh-CN': {
     // Brand & System
-    'brand_name': 'AetherAI Studio 3.0',
+    'brand_name': 'Aether AI Studio 3.0',
     'brand_subtitle': '次世代桌面版 • 企业级自主智能体系统',
     'system_title': '次世代桌面版双模自主智能体系统 • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': '已就绪支持 Ollama 本地开源模型与各主流云端 LLM 引擎。',
@@ -302,7 +302,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'speak_not_supported': '您的浏览器不支持语音朗读功能',
 
     // Settings Modal
-    'settings_center': 'AetherAI Studio 设置中心',
+    'settings_center': 'Aether AI Studio 设置中心',
     'settings_sub': '自定义本地/云端模型端点与社区桥接器 (Telegram)',
     'tab_llm': '模型端点与引擎 (LLM)',
     'tab_telegram': 'Telegram 桥接 (Bot Bridge)',
@@ -463,7 +463,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
   'en': {
     // Brand & System
-    'brand_name': 'AetherAI Studio 3.0',
+    'brand_name': 'Aether AI Studio 3.0',
     'brand_subtitle': 'Next-Gen Desktop Edition • Autonomous AI Workstation',
     'system_title': 'Next-Gen Desktop Autonomous AI Agent System • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': 'Engineered for Ollama local models and major cloud LLM providers.',
@@ -530,7 +530,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'speak_not_supported': 'Your browser does not support speech synthesis.',
 
     // Settings Modal
-    'settings_center': 'AetherAI Studio Settings Center',
+    'settings_center': 'Aether AI Studio Settings Center',
     'settings_sub': 'Configure Local/Cloud LLM Endpoints & Community Bridges (Telegram)',
     'tab_llm': 'LLM Engines & Endpoints',
     'tab_telegram': 'Telegram Bridge',
@@ -691,7 +691,7 @@ export const translations: Record<Language, TranslationRecord> = {
 
   'ja': {
     // Brand & System
-    'brand_name': 'AetherAI Studio 3.0',
+    'brand_name': 'Aether AI Studio 3.0',
     'brand_subtitle': '次世代デスクトップ版 • 企業級自律型AIシステム',
     'system_title': '次世代デスクトップ版 自律型 AI エージェントシステム • Liquid Glass 3.0 先進オプティクス',
     'system_desc': 'Ollama ローカルモデルおよび主要クラウド LLM エンジンに対応しています。',
@@ -758,7 +758,7 @@ export const translations: Record<Language, TranslationRecord> = {
     'speak_not_supported': 'お使いのブラウザは音声合成に対応していません。',
 
     // Settings Modal
-    'settings_center': 'AetherAI Studio 設定センター',
+    'settings_center': 'Aether AI Studio 設定センター',
     'settings_sub': 'ローカル/クラウド LLM エンドポイントと Telegram 連携を設定',
     'tab_llm': 'LLM エンジン設定',
     'tab_telegram': 'Telegram 連携 (Bot Bridge)',

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * AetherAI Studio 2.0 (AetherAgent) - CLI Launcher
+ * Aether AI Studio 3.0 (AetherAgent) - CLI Launcher
  * Cross-platform entry point for npm / npx
  */
 
@@ -49,7 +49,7 @@ const py = getPythonCommand();
 
 if (!py) {
   console.error('\n\x1b[31m[❌ 錯誤] 未檢測到 Python 3.10+ 執行環境！\x1b[0m');
-  console.error('AetherAI Studio 2.0 (AetherAgent) 後端核心需要 Python >= 3.10。');
+  console.error('Aether AI Studio 3.0 (AetherAgent) 後端核心需要 Python >= 3.10。');
   console.error('請前往 https://www.python.org/downloads/ 安裝 Python 3 後再次執行。\n');
   process.exit(1);
 }

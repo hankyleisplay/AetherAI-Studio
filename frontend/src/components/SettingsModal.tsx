@@ -268,7 +268,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">{t('settings_center', 'AetherAI Studio 設定中心')}</h3>
+              <h3 className="text-base font-bold text-white">{t('settings_center', 'Aether AI Studio 設定中心')}</h3>
               <p className="text-xs text-slate-400">{t('settings_sub', '自訂本地/雲端模型端點與社群橋接器 (Telegram)')}</p>
             </div>
           </div>

@@ -86,17 +86,26 @@ export const ChatView: React.FC<ChatViewProps> = ({
       recognition.continuous = false;
       recognition.interimResults = true;
 
+      const baseText = inputText;
+
       recognition.onstart = () => {
         setIsListening(true);
       };
 
       recognition.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = event.resultIndex; i < event.results.length; ++i) {
-          transcript += event.results[i][0].transcript;
+        let finalTranscript = '';
+        let interimTranscript = '';
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalTranscript += item[0].transcript;
+          } else {
+            interimTranscript += item[0].transcript;
+          }
         }
-        if (transcript) {
-          setInputText(prev => prev ? `${prev} ${transcript}` : transcript);
+        const spoken = (finalTranscript + interimTranscript).trim();
+        if (spoken) {
+          setInputText(baseText.trim() ? `${baseText.trim()} ${spoken}` : spoken);
         }
       };
 
@@ -294,7 +303,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             </div>
 
             <h2 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent mb-2">
-              {t('brand_name', 'AetherAI Studio 2.0')} ({t('brand_subtitle', 'AetherAgent 企業級自主系統')})
+              {t('brand_name', 'Aether AI Studio 3.0')} ({t('brand_subtitle', 'AetherAgent 企業級自主系統')})
             </h2>
             <p className="text-sm text-slate-400 max-w-md mb-8 leading-relaxed">
               {t('system_desc', '企業級本地與雲端雙模自主智能體系統 • Liquid Glass Optical Aesthetics。已就緒支援 Ollama 本地開源模型與各主流雲端 LLM 引擎。')}

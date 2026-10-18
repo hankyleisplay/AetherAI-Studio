@@ -1,5 +1,5 @@
-﻿# ==========================================================================
-# AetherAI Studio 2.0 (AetherAgent) - Windows Installer
+# ==========================================================================
+# Aether AI Studio 3.0 (AetherAgent) - Windows Installer
 # Automated Setup for Python, Dependencies, Frontend & Desktop Shortcut
 # ==========================================================================
 
@@ -9,7 +9,7 @@ $ErrorActionPreference = "Stop"
 Clear-Host
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "      AetherAI Studio 2.0 (AetherAgent) 自動安裝精靈" -ForegroundColor Cyan
+Write-Host "      Aether AI Studio 3.0 (AetherAgent) 自動安裝精靈" -ForegroundColor Cyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""
 
@@ -97,13 +97,13 @@ if (-not (Test-Path $distIndex)) {
 Write-Host "[4/4] 建立 Windows 桌面捷徑..." -ForegroundColor Cyan
 try {
     $desktopPath = [System.Environment]::GetFolderPath("Desktop")
-    $shortcutFile = Join-Path $desktopPath "AetherAI Studio 2.0.lnk"
+    $shortcutFile = Join-Path $desktopPath "Aether AI Studio 3.0.lnk"
     $wscriptShell = New-Object -ComObject WScript.Shell
     $shortcut = $wscriptShell.CreateShortcut($shortcutFile)
     $shortcut.TargetPath = "powershell.exe"
     $shortcut.Arguments = "-NoExit -ExecutionPolicy Bypass -File `"$ScriptDir\run.ps1`""
     $shortcut.WorkingDirectory = $ScriptDir
-    $shortcut.Description = "啟動 AetherAI Studio 2.0 (AetherAgent)"
+    $shortcut.Description = "啟動 Aether AI Studio 3.0 (AetherAgent)"
     $shortcut.Save()
     Write-Host " [+] 桌面捷徑已建立：$shortcutFile" -ForegroundColor Green
 } catch {
@@ -111,6 +111,6 @@ try {
 }
 
 Write-Host ""
-Write-Host "AetherAI Studio 2.0 安裝程序完成！" -ForegroundColor Green
-Write-Host "您可以隨時透過雙擊 run.bat、桌面的「AetherAI Studio 2.0」捷徑，或在終端機執行 .\run.ps1 啟動系統。" -ForegroundColor Cyan
+Write-Host "Aether AI Studio 3.0 安裝程序完成！" -ForegroundColor Green
+Write-Host "您可以隨時透過雙擊 run.bat、桌面的「Aether AI Studio 3.0」捷徑，或在終端機執行 .\run.ps1 啟動系統。" -ForegroundColor Cyan
 Write-Host ""

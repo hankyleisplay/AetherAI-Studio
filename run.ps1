@@ -1,5 +1,5 @@
 # ==========================================================================
-# AetherAI Studio 2.0 (AetherAgent) - Windows Universal Launcher
+# Aether AI Studio 3.0 (AetherAgent) - Windows Universal Launcher
 # Liquid Glass Aesthetics | Local & Cloud Dual-Mode Agent Framework
 # ==========================================================================
 
@@ -22,7 +22,7 @@ if (-not $Check) {
 }
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          AetherAI Studio 3.0 (AetherAgent)" -ForegroundColor Cyan
+Write-Host "          Aether AI Studio 3.0 (AetherAgent)" -ForegroundColor Cyan
 Write-Host "    Liquid Glass 3.0 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -149,7 +149,7 @@ if ($Check) {
     exit $LASTEXITCODE
 }
 
-Write-Host "[5/5] 啟動 AetherAI Studio 3.0 (AetherAgent)..." -ForegroundColor Green
+Write-Host "[5/5] 啟動 Aether AI Studio 3.0 (AetherAgent)..." -ForegroundColor Green
 $url = "http://${HostIP}:${Port}"
 Write-Host ""
 Write-Host " 伺服器正在啟動，訪問網址: $url" -ForegroundColor Cyan

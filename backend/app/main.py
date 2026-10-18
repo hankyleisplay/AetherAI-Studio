@@ -281,7 +281,7 @@ async def export_session(session_id: str, format: str = "markdown"):
         ""
     ]
     for m in messages:
-        role_label = "👤 使用者" if m["role"] == "user" else "💧 AetherAI Studio 2.0 (AetherAgent)"
+        role_label = "👤 使用者" if m["role"] == "user" else "💧 Aether AI Studio 3.0 (AetherAgent)"
         lines.append(f"### {role_label}")
         if m.get("thought"):
             lines.append(f"> 💭 **思維鏈過程**:\n> {m['thought'].replace(chr(10), chr(10) + '> ')}")

@@ -24,7 +24,7 @@ class AgentOrchestrator:
         if persona:
             base_prompt = persona.get("system_prompt", "")
         else:
-            base_prompt = "你是 AetherAI Studio 2.0 (AetherAgent) 智能助理。"
+            base_prompt = "你是 Aether AI Studio 3.0 (AetherAgent) 智能助理。"
 
         developer_identity = (
             "### 開發者與身分認證 (Developer Identity & Authorship):\n"

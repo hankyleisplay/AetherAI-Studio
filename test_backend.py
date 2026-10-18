@@ -33,7 +33,7 @@ async def run_tests():
             res = await client.get("/api/health")
             print("1. /api/health:", res.status_code, res.json())
             assert res.status_code == 200
-            assert "AetherAI Studio 2.0 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.0 (AetherAgent)" in res.json()["app"]
 
             # 2. Get active model & test auto-discovery + model switching
             res = await client.get("/api/models/active")
@@ -121,7 +121,7 @@ async def run_tests():
             res = await client.get("/")
             print("10. SPA / index.html status:", res.status_code, "Length:", len(res.text))
             assert res.status_code == 200
-            assert "AetherAI Studio 2.0" in res.text
+            assert "Aether AI Studio 3.0" in res.text
 
             # Cleanup test session
             await client.delete(f"/api/sessions/{sess['id']}")
@@ -131,7 +131,7 @@ async def run_tests():
         else:
             db.set_setting("telegram_config", {"token": "", "chat_id": "", "enabled": False})
 
-    print("\n🎉 所有 AetherAI Studio 2.0 (AetherAgent) 後端、前端、13 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 3.0 (AetherAgent) 後端、前端、14 大工具與 Telegram 橋接測試全部通過！")
 
 
 if __name__ == "__main__":

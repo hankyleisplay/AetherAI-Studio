@@ -952,13 +952,34 @@ def code_linter_analyzer(path: str, language: Optional[str] = None) -> str:
     },
     required=["path"]
 )
-def tool_ocr_extractor(path: str, max_chars: int = 5000, extract_structure: bool = True) -> str:
+def tool_ocr_extractor(
+    path: Optional[str] = None,
+    image_path: Optional[str] = None,
+    file_path: Optional[str] = None,
+    filePath: Optional[str] = None,
+    filename: Optional[str] = None,
+    file: Optional[str] = None,
+    image: Optional[str] = None,
+    input: Optional[str] = None,
+    max_chars: int = 5000,
+    extract_structure: bool = True,
+    **kwargs: Any
+) -> str:
     """Execute high-precision OCR on an image located inside workspace."""
-    if not path or not isinstance(path, str):
-        return "❌ 錯誤: 請提供有效的圖像檔案路徑 (path)。"
+    resolved_input = path or image_path or file_path or filePath or filename or file or image or input
+    if not resolved_input:
+        for k in ("path", "image_path", "file_path", "filePath", "filename", "file", "image", "img"):
+            if k in kwargs and kwargs[k]:
+                resolved_input = str(kwargs[k])
+                break
+
+    if not resolved_input or not isinstance(resolved_input, str):
+        return "❌ 錯誤: 請提供有效的圖像檔案路徑 (path 或 image_path)。"
+
+    target_path_str = resolved_input.strip()
 
     workspace_dir = settings.workspace_dir.resolve()
-    clean_path = path.strip().replace("\\", "/").lstrip("/")
+    clean_path = target_path_str.replace("\\", "/").lstrip("/")
 
     # Resolve target image file location
     candidate = (workspace_dir / clean_path).resolve()

@@ -53,7 +53,7 @@ class TelegramBridgeService:
                 # 2. If chat_id provided, send a test ping message
                 if chat_id:
                     ping_text = (
-                        "🌟 *AetherAI Studio 2.0 (AetherAgent)*\n\n"
+                        "🌟 *Aether AI Studio 3.0 (AetherAgent)*\n\n"
                         "✅ *連線測試成功！*\n"
                         "本地 Agent 橋接服務已就緒，您可以隨時在 Telegram 直接發送指令或問題。"
                     )
@@ -71,7 +71,7 @@ class TelegramBridgeService:
                             f"https://api.telegram.org/bot{token}/sendMessage",
                             json={
                                 "chat_id": chat_id,
-                                "text": "🌟 AetherAI Studio 2.0 (AetherAgent) 連線測試成功！"
+                                "text": "🌟 Aether AI Studio 3.0 (AetherAgent) 連線測試成功！"
                             }
                         )
 
@@ -219,7 +219,7 @@ class TelegramBridgeService:
         # 1. Built-in Commands
         if text.startswith("/start") or text.startswith("/help"):
             welcome = (
-                "💧 *歡迎使用 AetherAI Studio 2.0 (AetherAgent)* 💧\n"
+                "💧 *歡迎使用 Aether AI Studio 3.0 (AetherAgent)* 💧\n"
                 "═══════════════════════\n"
                 "您的 Liquid Glass 本地/雲端雙模智能代理已就緒！\n\n"
                 "👨‍💻 *開發團隊*: `hankyledevteam` (主要由 `Hanson Lee` 開發打造)\n"
@@ -228,7 +228,7 @@ class TelegramBridgeService:
                 "*支援指令：*\n"
                 "• `/help` - 顯示本說明選單\n"
                 "• `/status` - 查看系統負載與運行狀態\n"
-                "• `/tools` - 列出當前啟用的 13 大 Agent 工具\n"
+                "• `/tools` - 列出當前啟用的 14 大 Agent 工具\n"
                 "• `/new` - 清空記憶並建立新對話\n\n"
                 "💬 直接傳送任何訊息，Agent 將自動進行深度思考並視需求調用工具執行！"
             )
@@ -250,7 +250,7 @@ class TelegramBridgeService:
             model_name = active_model.get("model", "llama3:latest")
             provider = active_model.get("provider", "ollama")
             status_text = (
-                "⚡ *AetherAI Studio 2.0 系統狀態* ⚡\n"
+                "⚡ *Aether AI Studio 3.0 系統狀態* ⚡\n"
                 "═══════════════════════\n"
                 f"• *使用中模型*: `{model_name}`\n"
                 f"• *供應商*: `{provider}`\n"
