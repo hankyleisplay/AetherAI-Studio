@@ -52,7 +52,7 @@ def print_banner():
         r" / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / " "\n"
         r"/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  " "\n"
         "\n"
-        "      Liquid Glass 3.0 • Next-Gen Desktop Autonomous AI Agent System (Preview)\n"
+        "      Liquid Glass 3.0 • Next-Gen Desktop Autonomous AI Agent System (Official Release)\n"
         "\033[0m"
     )
     print(banner)
@@ -204,7 +204,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     model = active_cfg.get("model", "預設")
 
     url = f"http://localhost:{port}"
-    print("\033[1;32m🚀 AetherAI Studio 3.0 (Preview) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 AetherAI Studio 3.0 (Official Release) 服務就緒！\033[0m")
     if desktop:
         print("\033[1;35m🖥️  已啟用原生獨立桌面視窗模式 (Standalone Desktop Mode)\033[0m")
     print(f"📡 訪問網址: \033[1;36m{url}\033[0m")

@@ -44,6 +44,28 @@ class AgentOrchestrator:
             if t.get("enabled") and (allowed_tools is None or t["name"] in allowed_tools):
                 tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
         
+        from backend.app.config import settings
+        workspace_dir = settings.workspace_dir
+        recent_files = []
+        if workspace_dir.exists():
+            try:
+                for f in sorted(workspace_dir.rglob("*"), key=lambda x: x.stat().st_mtime if x.is_file() else 0, reverse=True):
+                    if f.is_file() and not f.name.startswith(".") and not f.name.endswith(".sqlite") and not f.name.endswith(".db"):
+                        rel = str(f.relative_to(workspace_dir)).replace("\\", "/")
+                        recent_files.append(rel)
+                        if len(recent_files) >= 12:
+                            break
+            except Exception:
+                pass
+
+        workspace_context = ""
+        if recent_files:
+            workspace_context = (
+                f"\n\n### Current Workspace Files (工作區現有檔案):\n"
+                f"目前工作區中存在的檔案: {', '.join(recent_files)}。\n"
+                "- 當用戶詢問或提及上述檔案、圖片、截圖或上傳項目時，請直接調用相應工具讀取與分析（圖像使用 `ocr_extractor`，代碼與文字檔案使用 `file_system` 或 `document_text_extractor`）。"
+            )
+
         system_instruction = (
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"
@@ -52,7 +74,9 @@ class AgentOrchestrator:
             "1. When asked to use Python sandbox (Python 沙盒), execute code, run calculations, or benchmark algorithms, proactively call the `python_eval` tool to compute real results and performance metrics.\n"
             "2. When tools return results, provide a comprehensive, fully written final answer in Traditional Chinese with code, output metrics, and deep technical synthesis.\n"
             "3. If tool calls fail, analyze the error and try an alternative approach or report to the user.\n"
-            "4. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!"
+            "4. Multimodal & OCR: When the user asks about an image or visual file (.png, .jpg, .jpeg, .webp), proactively call the `ocr_extractor` tool with the image path to extract and understand its text and data.\n"
+            "5. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!"
+            f"{workspace_context}"
         )
         return system_instruction
 

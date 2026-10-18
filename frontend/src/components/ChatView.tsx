@@ -211,8 +211,33 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   const handleSubmit = () => {
-    if (!inputText.trim() || isStreaming) return;
-    onSendMessage(inputText.trim());
+    if (isStreaming) return;
+    const trimmedInput = inputText.trim();
+
+    // If there is an uploaded file attached
+    if (uploadedFile) {
+      let finalMessage = '';
+      if (!trimmedInput) {
+        finalMessage = `請幫我分析工作區檔案 ${uploadedFile.path} (${uploadedFile.name}) 的內容與重點摘要。`;
+      } else {
+        // If user typed custom instructions without the path/name, explicitly append the attached file
+        if (!trimmedInput.includes(uploadedFile.path) && !trimmedInput.includes(uploadedFile.name)) {
+          finalMessage = `${trimmedInput}\n\n[附加工作區檔案: ${uploadedFile.path} (${uploadedFile.name})]`;
+        } else {
+          finalMessage = trimmedInput;
+        }
+      }
+      onSendMessage(finalMessage);
+      setInputText('');
+      setUploadedFile(null);
+      if (textareaRef.current) {
+        textareaRef.current.style.height = 'auto';
+      }
+      return;
+    }
+
+    if (!trimmedInput) return;
+    onSendMessage(trimmedInput);
     setInputText('');
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
@@ -416,17 +441,23 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
           {/* Uploaded File Chip */}
           {uploadedFile && (
-            <div className="mb-2 flex items-center gap-2 p-1.5 px-2.5 rounded-xl bg-cyan-500/15 border border-cyan-500/30 text-xs text-cyan-200 w-fit">
-              <FileText className="w-3.5 h-3.5 text-cyan-400" />
-              <span className="font-mono truncate max-w-[220px]">{uploadedFile.name}</span>
-              <span className="text-[10px] text-cyan-400/70 font-mono">({uploadedFile.path})</span>
+            <div className="mb-2.5 flex items-center justify-between gap-2 p-2 px-3 rounded-xl bg-cyan-500/20 border border-cyan-400/40 text-xs text-cyan-100 shadow-[0_0_12px_rgba(0,242,254,0.15)] w-full max-w-md backdrop-blur-md">
+              <div className="flex items-center gap-2 overflow-hidden">
+                <div className="w-6 h-6 rounded-lg bg-cyan-500/30 flex items-center justify-center shrink-0 border border-cyan-400/30">
+                  <FileText className="w-3.5 h-3.5 text-cyan-300" />
+                </div>
+                <div className="flex flex-col min-w-0">
+                  <span className="font-semibold text-white truncate">{uploadedFile.name}</span>
+                  <span className="text-[10px] text-cyan-300/80 font-mono truncate">{uploadedFile.path} (工作區已掛載)</span>
+                </div>
+              </div>
               <button
                 type="button"
                 onClick={() => setUploadedFile(null)}
-                className="hover:text-white ml-1"
-                title="移除檔案"
+                className="hover:text-rose-300 text-slate-400 p-1 rounded-lg hover:bg-white/10 transition-colors shrink-0"
+                title="移除附加檔案"
               >
-                <X className="w-3 h-3" />
+                <X className="w-3.5 h-3.5" />
               </button>
             </div>
           )}
@@ -437,7 +468,11 @@ export const ChatView: React.FC<ChatViewProps> = ({
             value={inputText}
             onChange={handleInputResize}
             onKeyDown={handleKeyDown}
-            placeholder={t('chat_placeholder', '請輸入指令或問題... (可拖曳代碼/文字/數據檔案至此，Enter 發送)')}
+            placeholder={
+              uploadedFile 
+                ? `已附加「${uploadedFile.name}」，直接按 Enter 發送或輸入自訂分析要求...`
+                : t('chat_placeholder', '請輸入指令或問題... (可拖曳代碼/文字/數據檔案至此，Enter 發送)')
+            }
             disabled={isStreaming}
             className="w-full bg-transparent px-3 py-1.5 text-sm md:text-[15px] text-slate-100 placeholder-slate-500 focus:outline-none resize-none max-h-44 overflow-y-auto font-sans"
           />
@@ -498,9 +533,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
             ) : (
               <button
                 onClick={handleSubmit}
-                disabled={!inputText.trim()}
+                disabled={!inputText.trim() && !uploadedFile}
                 className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
-                  inputText.trim()
+                  (inputText.trim() || uploadedFile)
                     ? 'glass-button-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.3)]'
                     : 'bg-white/[0.04] text-slate-500 border border-white/5 cursor-not-allowed'
                 }`}

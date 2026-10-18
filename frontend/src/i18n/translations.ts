@@ -8,7 +8,7 @@ export const translations: Record<Language, TranslationRecord> = {
   'zh-TW': {
     // Brand & System
     'brand_name': 'AetherAI Studio 3.0',
-    'brand_subtitle': '次世代桌面版 • 前瞻實驗測試階段',
+    'brand_subtitle': '次世代桌面版 • 企業級自主智能體系統',
     'system_title': '次世代桌面版雙模自主智能體系統 • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': '已就緒支援 Ollama 本地開源模型與各主流雲端 LLM 引擎。',
 
@@ -236,7 +236,7 @@ export const translations: Record<Language, TranslationRecord> = {
   'zh-CN': {
     // Brand & System
     'brand_name': 'AetherAI Studio 3.0',
-    'brand_subtitle': '次世代桌面版 • 前瞻实验测试阶段',
+    'brand_subtitle': '次世代桌面版 • 企业级自主智能体系统',
     'system_title': '次世代桌面版双模自主智能体系统 • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': '已就绪支持 Ollama 本地开源模型与各主流云端 LLM 引擎。',
 
@@ -464,7 +464,7 @@ export const translations: Record<Language, TranslationRecord> = {
   'en': {
     // Brand & System
     'brand_name': 'AetherAI Studio 3.0',
-    'brand_subtitle': 'Next-Gen Desktop Edition • Alpha Preview',
+    'brand_subtitle': 'Next-Gen Desktop Edition • Autonomous AI Workstation',
     'system_title': 'Next-Gen Desktop Autonomous AI Agent System • Liquid Glass 3.0 Avant-Garde Optics',
     'system_desc': 'Engineered for Ollama local models and major cloud LLM providers.',
 
@@ -692,7 +692,7 @@ export const translations: Record<Language, TranslationRecord> = {
   'ja': {
     // Brand & System
     'brand_name': 'AetherAI Studio 3.0',
-    'brand_subtitle': '次世代デスクトップ版 • 先行テストプレビュー',
+    'brand_subtitle': '次世代デスクトップ版 • 企業級自律型AIシステム',
     'system_title': '次世代デスクトップ版 自律型 AI エージェントシステム • Liquid Glass 3.0 先進オプティクス',
     'system_desc': 'Ollama ローカルモデルおよび主要クラウド LLM エンジンに対応しています。',
 

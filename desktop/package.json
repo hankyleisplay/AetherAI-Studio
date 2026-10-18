@@ -1,7 +1,7 @@
 {
   "name": "@hankyleisplay/aetherai-studio-desktop",
-  "version": "3.0.0-preview",
-  "description": "AetherAI Studio 3.0 - Native Cross-Platform Desktop Client (Experimental Alpha)",
+  "version": "3.0.0",
+  "description": "AetherAI Studio 3.0 - Native Cross-Platform Desktop Client (Official Release)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",

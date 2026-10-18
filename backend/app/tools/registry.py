@@ -928,3 +928,170 @@ def code_linter_analyzer(path: str, language: Optional[str] = None) -> str:
 
     return "\n".join(results)
 
+
+# ==============================================================================
+# Tool 14: ocr_extractor (Image to Text & Layout Structure Recognition)
+# ==============================================================================
+
+@registry.register(
+    name="ocr_extractor",
+    description="High-precision Optical Character Recognition (OCR) and visual text extraction tool. Analyzes image files (.png, .jpg, .jpeg, .webp, .bmp) in the workspace or uploads directory to extract textual content, document structures, titles, tables, and code snippets into clean markdown.",
+    parameters={
+        "path": {
+            "type": "string",
+            "description": "Relative path of the target image file in workspace or uploads (e.g. 'Rainmeter_Xc5SwdQGti.png' or 'uploads/sample.png')."
+        },
+        "max_chars": {
+            "type": "integer",
+            "description": "Maximum number of characters to return (default: 5000)."
+        },
+        "extract_structure": {
+            "type": "boolean",
+            "description": "If True, outputs structured layouts, paragraphs, and detected sections (default: True)."
+        }
+    },
+    required=["path"]
+)
+def tool_ocr_extractor(path: str, max_chars: int = 5000, extract_structure: bool = True) -> str:
+    """Execute high-precision OCR on an image located inside workspace."""
+    if not path or not isinstance(path, str):
+        return "❌ 錯誤: 請提供有效的圖像檔案路徑 (path)。"
+
+    workspace_dir = settings.workspace_dir.resolve()
+    clean_path = path.strip().replace("\\", "/").lstrip("/")
+
+    # Resolve target image file location
+    candidate = (workspace_dir / clean_path).resolve()
+    if not candidate.exists():
+        # Check inside uploads subfolder
+        candidate = (workspace_dir / "uploads" / Path(clean_path).name).resolve()
+    if not candidate.exists():
+        # Search workspace recursively by filename
+        target_name = Path(clean_path).name
+        for match in workspace_dir.rglob(target_name):
+            candidate = match.resolve()
+            break
+
+    # Security boundary check
+    if not str(candidate).startswith(str(workspace_dir)):
+        return "❌ 安全拒絕: 禁止存取超出工作區 (workspace) 範圍的外部路徑。"
+
+    if not candidate.exists() or not candidate.is_file():
+        available_images = []
+        for ext in [".png", ".jpg", ".jpeg", ".webp", ".bmp"]:
+            available_images.extend([f.name for f in workspace_dir.rglob(f"*{ext}")])
+        hint = f"目前工作區內的圖像檔案包含: {', '.join(available_images[:5])}" if available_images else "目前工作區中尚未找到任何圖像檔案。"
+        return f"❌ 找不到指定的圖像檔案 '{clean_path}'。\n💡 提示: {hint}"
+
+    valid_exts = {".png", ".jpg", ".jpeg", ".webp", ".bmp", ".tiff"}
+    if candidate.suffix.lower() not in valid_exts:
+        return f"❌ 不支援的檔案格式 '{candidate.suffix}'。支援格式為: {', '.join(valid_exts)}"
+
+    file_size_kb = round(candidate.stat().st_size / 1024, 2)
+    rel_display_path = str(candidate.relative_to(workspace_dir)).replace("\\", "/")
+
+    # Execute OCR
+    extracted_text = ""
+    language = "auto"
+    line_count = 0
+
+    # 1. Primary engine for Windows: Windows.Media.Ocr
+    if sys.platform == "win32":
+        ps_script = Path(__file__).resolve().parent / "ocr_runner.ps1"
+        if ps_script.exists():
+            try:
+                cmd = [
+                    "powershell",
+                    "-NoProfile",
+                    "-ExecutionPolicy",
+                    "Bypass",
+                    "-File",
+                    str(ps_script),
+                    "-ImagePath",
+                    str(candidate)
+                ]
+                if extract_structure:
+                    cmd.append("-ExtractStructure")
+
+                res = subprocess.run(
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    encoding="utf-8",
+                    timeout=30
+                )
+                if res.returncode == 0 and res.stdout.strip():
+                    data = json.loads(res.stdout.strip())
+                    if data.get("success"):
+                        extracted_text = data.get("text", "")
+                        language = data.get("language", "zh-Hant-TW")
+                        line_count = data.get("line_count", 0)
+                    else:
+                        err_msg = data.get("error", "未知 OCR 錯誤")
+                        return f"❌ Windows 原生 OCR 識別失敗: {err_msg}"
+            except Exception as e:
+                extracted_text = ""
+
+    # 2. Secondary fallback: pytesseract if installed
+    if not extracted_text:
+        try:
+            import pytesseract
+            from PIL import Image
+            img = Image.open(candidate)
+            extracted_text = pytesseract.image_to_string(img, lang="chi_tra+chi_sim+eng")
+            line_count = len([l for l in extracted_text.splitlines() if l.strip()])
+            language = "tesseract-multi"
+        except Exception:
+            pass
+
+    # 3. Tertiary fallback: tesseract CLI in system PATH
+    if not extracted_text:
+        try:
+            tess_res = subprocess.run(
+                ["tesseract", str(candidate), "stdout", "-l", "chi_tra+chi_sim+eng"],
+                capture_output=True,
+                text=True,
+                timeout=20
+            )
+            if tess_res.returncode == 0 and tess_res.stdout.strip():
+                extracted_text = tess_res.stdout.strip()
+                line_count = len([l for l in extracted_text.splitlines() if l.strip()])
+                language = "tesseract-cli"
+        except Exception:
+            pass
+
+    if not extracted_text:
+        return (
+            f"❌ 無法對圖像 '{rel_display_path}' 提取文字。\n"
+            f"原因: 該圖片可能未包含足夠解析度的文字，或系統 OCR 引擎無法解碼該圖像格式。\n"
+            f"檔案大小: {file_size_kb} KB。"
+        )
+
+    # Clean and limit text
+    if len(extracted_text) > max_chars:
+        extracted_text = (
+            extracted_text[:max_chars]
+            + f"\n\n*(已達文字長度上限 {max_chars} 字元，其餘內容已截斷)*"
+        )
+
+    return (
+        f"### 📷 OCR 圖像文字辨識成功 (Optical Character Recognition)\n"
+        f"- **檔案名稱**: `{candidate.name}`\n"
+        f"- **工作區路徑**: `{rel_display_path}` ({file_size_kb} KB)\n"
+        f"- **辨識語系**: `{language}`\n"
+        f"- **辨識行數**: {line_count} 行\n\n"
+        f"#### 📝 提取之文字與結構內容:\n\n"
+        f"```text\n{extracted_text}\n```\n\n"
+        f"> 💡 **AetherAgent 提示**: 以上為自圖像精準提取的結構化文字數據。你可以直接基於上述文字進行深入分析、翻譯、數據提取或代碼重構。"
+    )
+
+
+# Register image_to_text as alias
+registry.register(
+    name="image_to_text",
+    description="Alias of ocr_extractor. High-precision Optical Character Recognition (OCR) and visual text extraction tool.",
+    parameters=registry._definitions["ocr_extractor"].parameters,
+    required=["path"]
+)(tool_ocr_extractor)
+
+

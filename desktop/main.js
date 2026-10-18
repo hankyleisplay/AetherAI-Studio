@@ -112,6 +112,63 @@ ipcMain.on('window-close', () => {
   if (mainWindow) mainWindow.close();
 });
 
+function createTray() {
+  const iconPath = path.join(PROJECT_ROOT, 'assets', 'icon.svg');
+  let trayIcon;
+  try {
+    trayIcon = nativeImage.createFromPath(iconPath);
+  } catch (e) {
+    trayIcon = nativeImage.createEmpty();
+  }
+
+  tray = new Tray(trayIcon);
+  const contextMenu = Menu.buildFromTemplate([
+    {
+      label: '顯示 AetherAI Studio 3.0',
+      click: () => {
+        if (mainWindow) {
+          mainWindow.show();
+          mainWindow.focus();
+        } else {
+          createWindow();
+        }
+      }
+    },
+    {
+      label: '開啟工作區目錄 (Workspace)',
+      click: () => {
+        shell.openPath(path.join(PROJECT_ROOT, 'backend', 'workspace'));
+      }
+    },
+    { type: 'separator' },
+    {
+      label: 'GitHub 專案開源庫',
+      click: () => {
+        shell.openExternal('https://github.com/hankyleisplay/AetherAI-Studio');
+      }
+    },
+    { type: 'separator' },
+    {
+      label: '結束程式 (Quit)',
+      click: () => {
+        app.quit();
+      }
+    }
+  ]);
+
+  tray.setToolTip('AetherAI Studio 3.0 (AetherAgent)');
+  tray.setContextMenu(contextMenu);
+  tray.on('double-click', () => {
+    if (mainWindow) {
+      if (mainWindow.isVisible()) mainWindow.hide();
+      else {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    }
+  });
+}
+
 // App Lifecycle
 const gotTheLock = app.requestSingleInstanceLock();
 
@@ -121,6 +178,7 @@ if (!gotTheLock) {
   app.on('second-instance', () => {
     if (mainWindow) {
       if (mainWindow.isMinimized()) mainWindow.restore();
+      mainWindow.show();
       mainWindow.focus();
     }
   });
@@ -129,6 +187,22 @@ if (!gotTheLock) {
     await ensureBackendRunning();
     await waitForBackend();
     createWindow();
+    createTray();
+
+    // Register global shortcut to toggle desktop window: Ctrl+Shift+A (or Cmd+Shift+A)
+    const { globalShortcut } = require('electron');
+    try {
+      globalShortcut.register('CommandOrControl+Shift+A', () => {
+        if (mainWindow) {
+          if (mainWindow.isVisible()) {
+            mainWindow.hide();
+          } else {
+            mainWindow.show();
+            mainWindow.focus();
+          }
+        }
+      });
+    } catch (e) {}
 
     app.on('activate', () => {
       if (BrowserWindow.getAllWindows().length === 0) {
