@@ -229,4 +229,60 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
+/* ==========================================================================
+   AetherAI Studio 3.0 Avant-Garde Futuristic Liquid Glass Additions
+   ========================================================================== */
+
+/* Liquid Aurora Border Pulse */
+@keyframes aurora-border-flow {
+  0% {
+    border-color: rgba(0, 242, 254, 0.35);
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  }
+  50% {
+    border-color: rgba(168, 85, 247, 0.45);
+    box-shadow: 0 0 24px rgba(168, 85, 247, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.3);
+  }
+  100% {
+    border-color: rgba(0, 242, 254, 0.35);
+    box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
+  }
+}
+
+.glass-aurora-active {
+  animation: aurora-border-flow 4s ease-in-out infinite;
+}
+
+/* Futuristic HUD Panel with Corner Accents */
+.glass-hud-card {
+  position: relative;
+  background: rgba(15, 22, 38, 0.65);
+  backdrop-filter: blur(28px) saturate(210%);
+  -webkit-backdrop-filter: blur(28px) saturate(210%);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.15),
+    0 20px 40px -15px rgba(0, 0, 0, 0.7);
+  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.glass-hud-card:hover {
+  border-color: rgba(0, 242, 254, 0.4);
+  transform: translateY(-2px);
+  box-shadow: 
+    inset 0 1px 2px rgba(255, 255, 255, 0.25),
+    0 24px 48px -12px rgba(0, 242, 254, 0.2);
+}
+
+/* Desktop App Drag Region for frameless desktop clients */
+.desktop-drag-region {
+  -webkit-app-region: drag;
+  user-select: none;
+}
+
+.desktop-no-drag {
+  -webkit-app-region: no-drag;
+}
+
+
 

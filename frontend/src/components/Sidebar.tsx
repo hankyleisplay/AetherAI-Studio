@@ -151,11 +151,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <Sparkles className="w-4 h-4 text-white" />
               </div>
               <div className="overflow-hidden">
-                <h1 className="text-sm font-extrabold bg-gradient-to-r from-white via-cyan-200 to-indigo-400 bg-clip-text text-transparent truncate">
-                  {t('brand_name', 'AetherAI Studio 2.0')}
-                </h1>
+                <div className="flex items-center gap-1.5">
+                  <h1 className="text-sm font-extrabold bg-gradient-to-r from-white via-cyan-200 to-indigo-300 bg-clip-text text-transparent truncate">
+                    {t('brand_name', 'AetherAI Studio 3.0')}
+                  </h1>
+                  <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 uppercase tracking-widest font-mono font-bold animate-pulse shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0">
+                    PREVIEW
+                  </span>
+                </div>
                 <span className="text-[10px] text-cyan-400/90 font-mono tracking-wider truncate block">
-                  {t('brand_subtitle', 'AetherAgent 企業級自主系統')}
+                  {t('brand_subtitle', '次世代桌面版 • 前瞻實驗測試階段')}
                 </span>
               </div>
             </div>

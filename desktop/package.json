@@ -1,0 +1,46 @@
+{
+  "name": "@hankyleisplay/aetherai-studio-desktop",
+  "version": "3.0.0-preview",
+  "description": "AetherAI Studio 3.0 - Native Cross-Platform Desktop Client (Experimental Alpha)",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder"
+  },
+  "keywords": [
+    "aetherai",
+    "desktop",
+    "electron",
+    "ai-agent",
+    "liquid-glass",
+    "autonomous-ai"
+  ],
+  "author": "hankyleisplay <hankyleisplay@gmail.com>",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^30.0.0",
+    "electron-builder": "^24.13.3"
+  },
+  "build": {
+    "appId": "com.hankyleisplay.aetherai.studio",
+    "productName": "AetherAI Studio 3.0",
+    "directories": {
+      "output": "dist-electron"
+    },
+    "win": {
+      "target": "nsis",
+      "icon": "../assets/icon.svg"
+    },
+    "mac": {
+      "target": "dmg",
+      "category": "public.app-category.productivity",
+      "icon": "../assets/icon.svg"
+    },
+    "linux": {
+      "target": "AppImage",
+      "category": "Utility",
+      "icon": "../assets/icon.svg"
+    }
+  }
+}

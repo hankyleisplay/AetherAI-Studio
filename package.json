@@ -18,6 +18,7 @@
     "start": "node cli.js",
     "dev": "node cli.js --dev",
     "check": "node cli.js --check",
+    "desktop": "node cli.js --desktop",
     "build:frontend": "cd frontend && node ./node_modules/vite/bin/vite.js build"
   },
   "engines": {

@@ -52,7 +52,7 @@ def print_banner():
         r" / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / " "\n"
         r"/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  " "\n"
         "\n"
-        "      Liquid Glass • Local & Cloud Autonomous AI Agent System v2.0\n"
+        "      Liquid Glass 3.0 • Next-Gen Desktop Autonomous AI Agent System (Preview)\n"
         "\033[0m"
     )
     print(banner)
@@ -139,7 +139,58 @@ def ensure_shortcuts():
             pass
 
 
-def start_prod_mode(port: int, host: str, no_browser: bool):
+def launch_desktop_window(url: str):
+    """
+    Launch native desktop window using Chrome/Edge in standalone app mode.
+    Falls back to system default browser if neither is available.
+    """
+    import shutil
+
+    candidates = []
+    if sys.platform == "win32":
+        candidates = [
+            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
+            os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+        ]
+    elif sys.platform == "darwin":
+        candidates = [
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
+            "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
+        ]
+    else:  # Linux / Unix
+        for bin_name in ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium", "microsoft-edge"]:
+            p = shutil.which(bin_name)
+            if p:
+                candidates.append(p)
+
+    for exe in candidates:
+        if exe and os.path.exists(exe):
+            try:
+                cmd = [
+                    exe,
+                    f"--app={url}",
+                    "--window-size=1360,900",
+                    "--window-position=center",
+                    "--user-data-dir=" + str(PROJECT_ROOT / "backend" / "data" / "desktop_profile"),
+                    "--app-id=aetherai_studio_3",
+                    "--disable-extensions",
+                ]
+                return subprocess.Popen(cmd)
+            except Exception:
+                continue
+
+    # Fallback to standard browser
+    webbrowser.open(url)
+    return None
+
+
+def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = False):
     """Launch single-port unified FastAPI + built SPA mode."""
     check_frontend_dist()
     ensure_shortcuts()
@@ -153,14 +204,22 @@ def start_prod_mode(port: int, host: str, no_browser: bool):
     model = active_cfg.get("model", "預設")
 
     url = f"http://localhost:{port}"
-    print("\033[1;32m🚀 AetherAI Studio 2.0 (AetherAgent) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 AetherAI Studio 3.0 (Preview) 服務就緒！\033[0m")
+    if desktop:
+        print("\033[1;35m🖥️  已啟用原生獨立桌面視窗模式 (Standalone Desktop Mode)\033[0m")
     print(f"📡 訪問網址: \033[1;36m{url}\033[0m")
     print(f"🧠 當前模型: \033[1;33m{provider}\033[0m ({model})")
     print(f"🛠️ 啟用工具: {tool_count} 個企業級工程工具")
     print(f"📂 工作區目錄: {PROJECT_ROOT / 'backend' / 'workspace'}\n")
     print("\033[90m(按 Ctrl+C 可停止伺服器)\033[0m\n")
 
-    if not no_browser:
+    if desktop:
+        def open_desktop():
+            time.sleep(1.2)
+            launch_desktop_window(url)
+        import threading
+        threading.Thread(target=open_desktop, daemon=True).start()
+    elif not no_browser:
         def open_browser():
             time.sleep(1.2)
             webbrowser.open(url)
@@ -178,7 +237,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool):
             log_level="info"
         )
     except KeyboardInterrupt:
-        print("\n\033[32m[✓] AetherAI Studio 2.0 服務已安全結束。\033[0m")
+        print("\n\033[32m[✓] AetherAI Studio 3.0 服務已安全結束。\033[0m")
 
 
 def main():
@@ -186,6 +245,7 @@ def main():
     parser.add_argument("--port", type=int, default=8000, help="服務監聽連接埠 (預設: 8000)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="監聽主機 IP (預設: 0.0.0.0)")
     parser.add_argument("--dev", action="store_true", help="啟用前端 Vite 熱重載開發模式")
+    parser.add_argument("--desktop", action="store_true", help="以原生獨立桌面視窗模式執行 (AetherAI Studio 3.0 桌面版)")
     parser.add_argument("--no-browser", action="store_true", help="啟動時不自動開啟瀏覽器")
     parser.add_argument("--check", action="store_true", help="執行系統依賴與整合檢驗後離開")
     args = parser.parse_args()
@@ -204,7 +264,7 @@ def main():
     if args.dev:
         start_dev_mode(args.port, args.host)
     else:
-        start_prod_mode(args.port, args.host, args.no_browser)
+        start_prod_mode(args.port, args.host, args.no_browser, desktop=args.desktop)
 
 
 if __name__ == "__main__":
