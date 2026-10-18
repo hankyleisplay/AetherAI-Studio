@@ -83,10 +83,17 @@ class ToolRegistry:
         if name in self._definitions:
             self._definitions[name].enabled = enabled
 
-    async def execute(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
+    async def execute(self, name: str, args: Any) -> Dict[str, Any]:
         if name not in self._tools:
             return {"error": f"Tool '{name}' not found."}
         func = self._tools[name]
+        if isinstance(args, str):
+            try:
+                args = json.loads(args)
+            except Exception:
+                args = {"query": args} if name == "web_search" else {"input": args}
+        if not isinstance(args, dict):
+            args = {}
         try:
             start_time = time.time()
             if inspect.iscoroutinefunction(func):
@@ -110,31 +117,192 @@ registry = ToolRegistry()
 
 # ================= Built-in Tools =================
 
+_SEARCH_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept-Language": "zh-TW,zh;q=0.9,en-US;q=0.8,en;q=0.7",
+}
+
+def _search_duckduckgo_html(query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    from lxml.html import document_fromstring
+    from urllib.parse import unquote
+    results = []
+    with httpx.Client(timeout=8.0, follow_redirects=True, headers=_SEARCH_HEADERS) as client:
+        resp = client.post("https://html.duckduckgo.com/html/", data={"q": query})
+        if resp.status_code != 200:
+            return []
+        tree = document_fromstring(resp.text)
+        for r in tree.xpath("//div[contains(@class, 'result__body')]"):
+            h2_a = r.xpath(".//h2//a")
+            if not h2_a:
+                continue
+            title = "".join(h2_a[0].itertext()).strip()
+            raw_href = h2_a[0].get("href", "").strip()
+
+            href = raw_href
+            if "uddg=" in raw_href:
+                try:
+                    part = raw_href.split("uddg=")[1].split("&")[0]
+                    href = unquote(part)
+                except Exception:
+                    pass
+            elif raw_href.startswith("//"):
+                href = "https:" + raw_href
+
+            snippet_nodes = r.xpath(".//a[contains(@class, 'result__snippet')]")
+            snippet = "".join(snippet_nodes[0].itertext()).strip() if snippet_nodes else ""
+
+            if href and title:
+                results.append({"title": title, "href": href, "body": snippet})
+                if len(results) >= max_results:
+                    break
+    return results
+
+def _search_bing_direct(query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    import base64
+    from urllib.parse import urlparse, parse_qs
+    from lxml.html import document_fromstring
+    results = []
+    cache = set()
+    with httpx.Client(timeout=8.0, follow_redirects=True, headers=_SEARCH_HEADERS) as client:
+        resp = client.get("https://www.bing.com/search", params={"q": query})
+        if resp.status_code != 200:
+            return []
+        tree = document_fromstring(resp.text)
+        for li in tree.xpath("//li[contains(@class, 'b_algo')]"):
+            h2 = li.xpath(".//h2")
+            if not h2:
+                continue
+            a_tags = h2[0].xpath(".//a[@href]")
+            if not a_tags:
+                continue
+            a = a_tags[0]
+            href = a.get("href", "").strip()
+            title = "".join(a.itertext()).strip()
+
+            if href and "bing.com/ck/a?" in href:
+                u_param = parse_qs(urlparse(href).query).get("u", [""])[0]
+                if u_param and len(u_param) > 2:
+                    try:
+                        b = u_param[2:]
+                        decoded = base64.urlsafe_b64decode(b + "=" * ((-len(b)) % 4)).decode("utf-8", errors="ignore")
+                        if decoded.startswith("http"):
+                            href = decoded
+                    except Exception:
+                        pass
+
+            snippet_parts = []
+            for p in li.xpath(".//div[contains(@class, 'b_caption')]//p | .//p"):
+                text = "".join(p.itertext()).strip()
+                if text:
+                    snippet_parts.append(text)
+            body = " ".join(snippet_parts).strip()
+
+            if href and title and href not in cache:
+                cache.add(href)
+                results.append({"title": title, "href": href, "body": body})
+                if len(results) >= max_results:
+                    break
+    return results
+
+def _search_duckduckgo_lite(query: str, max_results: int = 5) -> List[Dict[str, str]]:
+    from lxml.html import document_fromstring
+    results = []
+    with httpx.Client(timeout=8.0, follow_redirects=True, headers=_SEARCH_HEADERS) as client:
+        resp = client.post("https://lite.duckduckgo.com/lite/", data={"q": query})
+        if resp.status_code != 200:
+            return []
+        tree = document_fromstring(resp.text)
+        tables = tree.xpath("//table")
+        if len(tables) >= 3:
+            links = tables[2].xpath(".//a[contains(@class, 'result-link')]")
+            snippets = tables[2].xpath(".//td[contains(@class, 'result-snippet')]")
+            for idx, a in enumerate(links):
+                href = a.get("href", "")
+                title = "".join(a.itertext()).strip()
+                body = "".join(snippets[idx].itertext()).strip() if idx < len(snippets) else ""
+                if href and title:
+                    results.append({"title": title, "href": href, "body": body})
+                    if len(results) >= max_results:
+                        break
+    return results
+
 @registry.register(
     name="web_search",
-    description="Search the web for real-time information, news, documentation or answers using DuckDuckGo.",
+    description="Search the web for real-time information, news, documentation or answers using DuckDuckGo & Bing.",
     parameters={
         "query": {"type": "string", "description": "The search query keywords."},
         "max_results": {"type": "integer", "description": "Number of results to return (default: 5)."}
     },
     required=["query"]
 )
-def web_search(query: str, max_results: int = 5) -> str:
+def web_search(query: str = "", max_results: int = 5, **kwargs) -> str:
+    # Resolve parameter aliases from various LLMs (query, q, keywords, search_query, input)
+    clean_query = str(
+        query
+        or kwargs.get("q")
+        or kwargs.get("keywords")
+        or kwargs.get("keyword")
+        or kwargs.get("search_query")
+        or kwargs.get("text")
+        or kwargs.get("input")
+        or ""
+    ).strip()
+
+    if not clean_query:
+        return "Search failed: Empty search query provided."
+
+    results: List[Dict[str, str]] = []
+    errors: List[str] = []
+
+    # 1. Primary Engine: DuckDuckGo HTML
     try:
-        from duckduckgo_search import DDGS
-        with DDGS() as ddgs:
-            results = list(ddgs.text(query, max_results=max_results))
-        if not results:
-            return f"No search results found for query: '{query}'."
-        formatted = []
-        for i, r in enumerate(results, 1):
-            title = r.get("title", "")
-            href = r.get("href", "")
-            body = r.get("body", "")
-            formatted.append(f"[{i}] {title}\nURL: {href}\nSnippet: {body}\n")
-        return "\n".join(formatted)
+        results = _search_duckduckgo_html(clean_query, max_results=max_results)
     except Exception as e:
-        return f"Web search failed or network restricted: {str(e)}"
+        errors.append(f"DDG-HTML: {str(e)}")
+
+    # 2. Secondary Engine: Bing Direct
+    if not results:
+        try:
+            results = _search_bing_direct(clean_query, max_results=max_results)
+        except Exception as e:
+            errors.append(f"Bing: {str(e)}")
+
+    # 3. Tertiary Engine: DuckDuckGo Lite
+    if not results:
+        try:
+            results = _search_duckduckgo_lite(clean_query, max_results=max_results)
+        except Exception as e:
+            errors.append(f"DDG-Lite: {str(e)}")
+
+    # 4. Quaternary Engine: ddgs / duckduckgo_search library
+    if not results:
+        try:
+            from duckduckgo_search import DDGS
+            with DDGS() as ddgs:
+                ddg_list = list(ddgs.text(clean_query, max_results=max_results))
+                if ddg_list:
+                    for item in ddg_list:
+                        results.append({
+                            "title": item.get("title", ""),
+                            "href": item.get("href", ""),
+                            "body": item.get("body", "")
+                        })
+        except Exception as e:
+            errors.append(f"DDGS: {str(e)}")
+
+    if not results:
+        err_detail = f" ({'; '.join(errors)})" if errors else ""
+        return f"No search results found for query: '{clean_query}'.{err_detail}"
+
+    formatted = []
+    for i, r in enumerate(results, 1):
+        title = r.get("title", "").replace("\xa0", " ").strip()
+        href = r.get("href", "").strip()
+        body = r.get("body", "").replace("\xa0", " ").strip()
+        formatted.append(f"[{i}] {title}\nURL: {href}\nSnippet: {body}\n")
+
+    return "\n".join(formatted)
 
 @registry.register(
     name="python_eval",

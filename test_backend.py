@@ -62,6 +62,13 @@ async def run_tests():
             print("3. /api/tools count:", len(tools), [t["name"] for t in tools])
             assert len(tools) >= 13
 
+            # 3b. Verify web_search execution directly
+            from backend.app.tools.registry import registry
+            search_res = await registry.execute("web_search", {"query": "Python programming", "max_results": 2})
+            print("3b. web_search execution:", search_res["success"], "Results found:", "URL:" in str(search_res.get("output", "")))
+            assert search_res["success"] is True
+            assert "URL:" in search_res["output"]
+
             # 4. List personas
             res = await client.get("/api/personas")
             personas = res.json()
