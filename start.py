@@ -233,7 +233,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     model = active_cfg.get("model", "預設")
 
     url = f"http://localhost:{port}"
-    print("\033[1;32m🚀 Aether AI Studio 3.0 (Official Release) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 Aether AI Studio 3.5 (Experimental Preview) 服務就緒！\033[0m")
     if desktop:
         print("\033[1;35m🖥️  已啟用原生獨立桌面視窗模式 (Standalone Desktop Mode)\033[0m")
     print(f"📡 訪問網址: \033[1;36m{url}\033[0m")
@@ -265,7 +265,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
             log_level="info"
         )
     except KeyboardInterrupt:
-        print("\n\033[32m[✓] Aether AI Studio 3.0 服務已安全結束。\033[0m")
+        print("\n\033[32m[✓] Aether AI Studio 3.5 服務已安全結束。\033[0m")
 
 
 def main():
@@ -273,7 +273,7 @@ def main():
     parser.add_argument("--port", type=int, default=8000, help="服務監聽連接埠 (預設: 8000)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="監聽主機 IP (預設: 0.0.0.0)")
     parser.add_argument("--dev", action="store_true", help="啟用前端 Vite 熱重載開發模式")
-    parser.add_argument("--desktop", action="store_true", help="以原生獨立桌面視窗模式執行 (Aether AI Studio 3.0 桌面版)")
+    parser.add_argument("--desktop", action="store_true", help="以原生獨立桌面視窗模式執行 (Aether AI Studio 3.5 桌面版)")
     parser.add_argument("--no-browser", action="store_true", help="啟動時不自動開啟瀏覽器")
     parser.add_argument("--check", action="store_true", help="執行系統依賴與整合檢驗後離開")
     args = parser.parse_args()

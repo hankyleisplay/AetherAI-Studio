@@ -1,5 +1,5 @@
-﻿# ==========================================================================
-# Aether AI Studio 3.0 (AetherAgent) - Windows Universal Launcher
+# ==========================================================================
+# Aether AI Studio 3.5 (AetherAgent) - Windows Universal Launcher
 # Liquid Glass Aesthetics | Local & Cloud Dual-Mode Agent Framework
 # ==========================================================================
 
@@ -27,18 +27,18 @@ if (-not $Check) {
 }
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          Aether AI Studio 3.0 (AetherAgent)" -ForegroundColor Cyan
-Write-Host "    Liquid Glass 3.0 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
+Write-Host "          Aether AI Studio 3.5 (AetherAgent) Preview" -ForegroundColor Cyan
+Write-Host "    Liquid Glass 3.5 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""
 
 if ($Help) {
     Write-Host "使用說明 / Usage:" -ForegroundColor Yellow
     Write-Host "  .\run.ps1                   啟動 AetherAI 伺服器並開啟瀏覽器" -ForegroundColor White
-    Write-Host "  .\run.ps1 -Desktop          以原生獨立桌面視窗模式啟動 (Desktop App)" -ForegroundColor White
+    Write-Host "  .\run.ps1 -Desktop          以原生獨立桌面視窗模式啟動 (Aether AI Studio 3.5 桌面版)" -ForegroundColor White
     Write-Host "  .\run.ps1 -Port 8888        指定連接埠啟動 (預設: 8000)" -ForegroundColor White
     Write-Host "  .\run.ps1 -Dev              同時啟動 FastAPI 與 Vite 開發熱重載模式" -ForegroundColor White
-    Write-Host "  .\run.ps1 -Check            執行全系統環境與 14 大工具健康診斷" -ForegroundColor White
+    Write-Host "  .\run.ps1 -Check            執行全系統環境與 22 大工具健康診斷" -ForegroundColor White
     Write-Host "  .\run.ps1 -NoBrowser        啟動伺服器但不自動開啟瀏覽器" -ForegroundColor White
     Write-Host "  .\run.ps1 -Help             顯示此說明" -ForegroundColor White
     exit 0
@@ -168,7 +168,7 @@ if ($Check) {
     exit $LASTEXITCODE
 }
 
-Write-Host "[5/5] 啟動 Aether AI Studio 3.0 (AetherAgent)..." -ForegroundColor Green
+Write-Host "[5/5] 啟動 Aether AI Studio 3.5 (AetherAgent)..." -ForegroundColor Green
 $url = "http://${HostIP}:${Port}"
 Write-Host ""
 Write-Host " 伺服器正在啟動，訪問網址: $url" -ForegroundColor Cyan
