@@ -18,8 +18,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   const renderInline = (text: string): React.ReactNode => {
     if (!text) return null;
 
-    // Tokenize inline markdown: links [text](url), images ![alt](url), math $...$, code `...`, bold **...**, strikethrough ~~...~~, italic *...*
-    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:`[^`\n]+?`)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/g;
+    // Tokenize inline markdown: links [text](url), images ![alt](url), math $...$ or \(...\), code `...`, bold **...**, strikethrough ~~...~~, italic *...*
+    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:`[^`\n]+?`)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/g;
 
     const parts = text.split(inlineRegex);
 
@@ -63,9 +63,12 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
         }
       }
 
-      // Inline LaTeX Math: $...$
-      if (part.startsWith('$') && part.endsWith('$') && part.length > 2 && !part.slice(1, -1).includes('$')) {
-        const formula = part.slice(1, -1);
+      // Inline LaTeX Math: $...$ or \(...\)
+      if (
+        (part.startsWith('$') && part.endsWith('$') && part.length > 2 && !part.slice(1, -1).includes('$')) ||
+        (part.startsWith('\\(') && part.endsWith('\\)') && part.length > 4)
+      ) {
+        const formula = part.startsWith('\\(') ? part.slice(2, -2) : part.slice(1, -1);
         return (
           <span
             key={idx}
@@ -157,7 +160,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           }
 
           case 'code_block':
-            return <CodeBlock key={tIdx} lang={token.lang} code={token.code} />;
+            return <CodeBlock key={tIdx} lang={token.lang} code={token.code} isStreaming={isStreaming} />;
 
           case 'table':
             return (

@@ -21,10 +21,16 @@ export const App: React.FC = () => {
   const [agentState, setAgentState] = useState<AgentState>('idle');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
+  const [settingsTab, setSettingsTab] = useState<'model' | 'telegram' | 'tools'>('model');
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
   const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
+
+  const handleOpenSettings = (tab: 'model' | 'telegram' | 'tools' = 'model') => {
+    setSettingsTab(tab);
+    setIsSettingsOpen(true);
+  };
 
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
     provider: 'ollama',
@@ -664,7 +670,7 @@ export const App: React.FC = () => {
         selectedPersonaId={selectedPersonaId}
         onSelectPersona={handleSelectPersona}
         onOpenNewPersona={() => setIsPersonaModalOpen(true)}
-        onOpenSettings={() => setIsSettingsOpen(true)}
+        onOpenSettings={() => handleOpenSettings('model')}
         isOpen={isSidebarOpen}
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
         bookmarkVersion={bookmarkVersion}
@@ -682,7 +688,7 @@ export const App: React.FC = () => {
           agentState={agentState}
           tools={tools}
           onToggleTool={handleToggleTool}
-          onOpenSettings={() => setIsSettingsOpen(true)}
+          onOpenSettings={handleOpenSettings}
           onExportSession={handleExportSession}
           onOpenWorkspace={() => setIsWorkspaceDrawerOpen(true)}
           onOpenSwarm={() => setIsSwarmModalOpen(true)}
@@ -715,6 +721,10 @@ export const App: React.FC = () => {
         config={modelConfig}
         onSaveConfig={handleSaveModelConfig}
         onModelsDetected={setAvailableModels}
+        tools={tools}
+        onToggleTool={handleToggleTool}
+        onRefreshTools={fetchTools}
+        initialTab={settingsTab}
       />
 
       {/* Custom Persona Builder Modal */}

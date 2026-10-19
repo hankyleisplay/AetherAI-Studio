@@ -15,9 +15,10 @@ import { MermaidRenderer } from './MermaidRenderer';
 interface CodeBlockProps {
   lang: string;
   code: string;
+  isStreaming?: boolean;
 }
 
-export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code }) => {
+export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = false }) => {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
 
@@ -30,8 +31,9 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code }) => {
 
   const lines = code.split('\n');
   const lineCount = lines.length;
-  const isLongCode = lineCount > 22;
-  const displayedLines = isLongCode && !isExpanded ? lines.slice(0, 18) : lines;
+  // Keep code expanded while streaming or if code is under 60 lines
+  const isLongCode = lineCount > 60 && !isStreaming;
+  const displayedLines = isLongCode && !isExpanded ? lines.slice(0, 45) : lines;
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);

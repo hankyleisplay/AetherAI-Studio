@@ -14,7 +14,8 @@ import {
   Check,
   Users,
   RefreshCw,
-  Cpu
+  Cpu,
+  Wrench
 } from 'lucide-react';
 import { ModelConfig, ToolDefinition, AgentState, Persona } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -26,7 +27,7 @@ interface HeaderProps {
   agentState: AgentState;
   tools: ToolDefinition[];
   onToggleTool: (name: string, enabled: boolean) => void;
-  onOpenSettings: () => void;
+  onOpenSettings: (tab?: 'model' | 'telegram' | 'tools') => void;
   onExportSession?: () => void;
   onOpenWorkspace?: () => void;
   onOpenSwarm?: () => void;
@@ -177,7 +178,28 @@ export const Header: React.FC<HeaderProps> = ({
               <span className="text-[11px]">{tool.name}</span>
             </button>
           ))}
+
+          <button
+            onClick={() => onOpenSettings('tools')}
+            title="開啟完整工具箱設定 (管理 22 大工具)"
+            className="px-2 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 shadow-sm"
+          >
+            <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+            <span className="text-[11px] font-semibold">
+              全部 ({tools.filter(t => t.enabled).length}/{tools.length})
+            </span>
+          </button>
         </div>
+
+        {/* Compact Tool Manager Button for smaller viewports */}
+        <button
+          onClick={() => onOpenSettings('tools')}
+          title="開啟工具箱設定 (22 大工具管理)"
+          className={`${isSidebarOpen ? '2xl:hidden' : 'xl:hidden'} flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
+        >
+          <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+          <span className="text-xs font-semibold">{tools.filter(t => t.enabled).length}/{tools.length}</span>
+        </button>
 
         {/* Multi-Language Selector Capsule */}
         <div className="relative shrink-0" ref={langDropdownRef}>
@@ -245,7 +267,7 @@ export const Header: React.FC<HeaderProps> = ({
 
             <button
               type="button"
-              onClick={onOpenSettings}
+              onClick={() => onOpenSettings('model')}
               className="px-2 py-1.5 border-l border-white/10 text-slate-400 hover:text-cyan-400 hover:bg-white/10 transition-colors shrink-0"
               title={t('settings_center', 'Aether AI Studio 設定中心')}
             >

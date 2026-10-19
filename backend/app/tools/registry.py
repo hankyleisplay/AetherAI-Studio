@@ -83,9 +83,26 @@ class ToolRegistry:
         if name in self._definitions:
             self._definitions[name].enabled = enabled
 
+    def load_persisted_state(self, disabled_tools: List[str]):
+        """Sync enabled states with persistent database settings."""
+        disabled_set = set(disabled_tools or [])
+        for name, defn in self._definitions.items():
+            defn.enabled = name not in disabled_set
+
     async def execute(self, name: str, args: Any) -> Dict[str, Any]:
         if name not in self._tools:
-            return {"error": f"Tool '{name}' not found."}
+            return {"success": False, "error": f"Tool '{name}' not found."}
+        
+        defn = self._definitions.get(name)
+        if defn and not defn.enabled:
+            err_msg = f"❌ 【工具停用攔截】：工具 '{name}' 目前已被使用者或系統設定停用。你目前完全無法使用此工具，請明確向使用者說明此工具已被停用，切勿宣稱能執行它。"
+            return {
+                "success": False,
+                "error": err_msg,
+                "output": err_msg,
+                "duration_seconds": 0
+            }
+
         func = self._tools[name]
         if isinstance(args, str):
             try:
@@ -107,9 +124,11 @@ class ToolRegistry:
                 "duration_seconds": duration
             }
         except Exception as e:
+            err_msg = f"Execution error in {name}: {str(e)}"
             return {
                 "success": False,
-                "error": f"Execution error in {name}: {str(e)}",
+                "error": err_msg,
+                "output": err_msg,
                 "duration_seconds": round(time.time() - start_time, 3) if 'start_time' in locals() else 0
             }
 

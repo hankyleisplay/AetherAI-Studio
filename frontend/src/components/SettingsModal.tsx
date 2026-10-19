@@ -15,9 +15,23 @@ import {
   Send,
   ShieldCheck,
   ExternalLink,
-  Radio
+  Radio,
+  Wrench,
+  Search,
+  GitBranch,
+  Database,
+  Binary,
+  FileCode2,
+  Archive,
+  Globe,
+  FileSearch,
+  BarChart3,
+  Network,
+  FileText,
+  Terminal,
+  Code2
 } from 'lucide-react';
-import { ModelConfig } from '../types';
+import { ModelConfig, ToolDefinition } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 
 interface SettingsModalProps {
@@ -26,6 +40,10 @@ interface SettingsModalProps {
   config: ModelConfig;
   onSaveConfig: (config: ModelConfig) => Promise<void>;
   onModelsDetected?: (models: string[]) => void;
+  tools?: ToolDefinition[];
+  onToggleTool?: (name: string, enabled: boolean) => Promise<void>;
+  onRefreshTools?: () => Promise<void>;
+  initialTab?: 'model' | 'telegram' | 'tools';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -33,10 +51,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onClose,
   config,
   onSaveConfig,
-  onModelsDetected
+  onModelsDetected,
+  tools = [],
+  onToggleTool,
+  onRefreshTools,
+  initialTab = 'model'
 }) => {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'model' | 'telegram'>('model');
+  const [activeTab, setActiveTab] = useState<'model' | 'telegram' | 'tools'>(initialTab);
+  const [toolSearch, setToolSearch] = useState('');
+  const [isBatchToggling, setIsBatchToggling] = useState(false);
   const [formData, setFormData] = useState<ModelConfig>({ ...config });
   const [showKey, setShowKey] = useState(false);
   const [isTesting, setIsTesting] = useState(false);
@@ -104,9 +128,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
-  // Sync formData and auto-probe models when modal opens
+  // Sync formData, tab and auto-probe models when modal opens
   useEffect(() => {
     if (isOpen) {
+      if (initialTab) {
+        setActiveTab(initialTab);
+      }
       const initialConfig = { ...config };
       setFormData(initialConfig);
       probeModelsForConfig(initialConfig);
@@ -123,7 +150,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         })
         .catch((err) => console.error('Failed to fetch telegram status:', err));
     }
-  }, [isOpen, config]);
+  }, [isOpen, config, initialTab]);
 
   if (!isOpen) return null;
 
@@ -257,9 +284,96 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const getToolMeta = (name: string) => {
+    switch (name) {
+      case 'bash_executor':
+        return { icon: <Terminal className="w-4 h-4 text-emerald-400" />, category: '系統終端', bg: 'bg-emerald-500/15 border-emerald-500/30' };
+      case 'system_status':
+        return { icon: <Server className="w-4 h-4 text-emerald-400" />, category: '系統指標', bg: 'bg-emerald-500/15 border-emerald-500/30' };
+      case 'python_eval':
+        return { icon: <Code2 className="w-4 h-4 text-cyan-400" />, category: '代碼執行', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+      case 'code_linter_analyzer':
+        return { icon: <FileCode2 className="w-4 h-4 text-cyan-400" />, category: '代碼分析', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+      case 'git_version_control':
+        return { icon: <GitBranch className="w-4 h-4 text-orange-400" />, category: '版本控制', bg: 'bg-orange-500/15 border-orange-500/30' };
+      case 'database_sqlite_inspector':
+        return { icon: <Database className="w-4 h-4 text-blue-400" />, category: '資料庫', bg: 'bg-blue-500/15 border-blue-500/30' };
+      case 'file_system':
+        return { icon: <HardDrive className="w-4 h-4 text-amber-400" />, category: '檔案操作', bg: 'bg-amber-500/15 border-amber-500/30' };
+      case 'archive_compressor':
+        return { icon: <Archive className="w-4 h-4 text-amber-400" />, category: '壓縮歸檔', bg: 'bg-amber-500/15 border-amber-500/30' };
+      case 'document_text_extractor':
+        return { icon: <FileText className="w-4 h-4 text-indigo-400" />, category: '文檔提取', bg: 'bg-indigo-500/15 border-indigo-500/30' };
+      case 'web_search':
+        return { icon: <Search className="w-4 h-4 text-cyan-400" />, category: '網路檢索', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+      case 'read_url':
+        return { icon: <ExternalLink className="w-4 h-4 text-cyan-400" />, category: '網頁閱讀', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+      case 'http_request_api':
+        return { icon: <Globe className="w-4 h-4 text-teal-400" />, category: 'API 呼叫', bg: 'bg-teal-500/15 border-teal-500/30' };
+      case 'network_dns_whois_lookup':
+        return { icon: <Network className="w-4 h-4 text-teal-400" />, category: '網路診斷', bg: 'bg-teal-500/15 border-teal-500/30' };
+      case 'ocr_extractor':
+      case 'image_to_text':
+        return { icon: <Eye className="w-4 h-4 text-pink-400" />, category: '多模態視覺', bg: 'bg-pink-500/15 border-pink-500/30' };
+      case 'generate_chart':
+        return { icon: <BarChart3 className="w-4 h-4 text-purple-400" />, category: '圖表繪製', bg: 'bg-purple-500/15 border-purple-500/30' };
+      case 'mermaid_generator':
+        return { icon: <Sliders className="w-4 h-4 text-purple-400" />, category: '架構圖繪製', bg: 'bg-purple-500/15 border-purple-500/30' };
+      case 'regex_pattern_matcher':
+        return { icon: <FileSearch className="w-4 h-4 text-yellow-400" />, category: '正則表達式', bg: 'bg-yellow-500/15 border-yellow-500/30' };
+      case 'hash_crypto_inspector':
+        return { icon: <Binary className="w-4 h-4 text-red-400" />, category: '加密哈希', bg: 'bg-red-500/15 border-red-500/30' };
+      case 'data_transformer_converter':
+        return { icon: <RefreshCw className="w-4 h-4 text-violet-400" />, category: '資料轉換', bg: 'bg-violet-500/15 border-violet-500/30' };
+      case 'datetime_calc':
+        return { icon: <Activity className="w-4 h-4 text-sky-400" />, category: '時間計算', bg: 'bg-sky-500/15 border-sky-500/30' };
+      case 'knowledge_memory':
+        return { icon: <Sparkles className="w-4 h-4 text-amber-400" />, category: '知識記憶', bg: 'bg-amber-500/15 border-amber-500/30' };
+      default:
+        return { icon: <Wrench className="w-4 h-4 text-slate-400" />, category: '通用工具', bg: 'bg-slate-500/15 border-slate-500/30' };
+    }
+  };
+
+  const handleBatchToggle = async (enabled: boolean) => {
+    setIsBatchToggling(true);
+    try {
+      await fetch('/api/tools/batch/toggle-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      if (onRefreshTools) {
+        await onRefreshTools();
+      }
+    } catch (e) {
+      console.error('Batch toggle failed:', e);
+    } finally {
+      setIsBatchToggling(false);
+    }
+  };
+
+  const handleToggle = async (name: string, enabled: boolean) => {
+    if (onToggleTool) {
+      await onToggleTool(name, enabled);
+    } else {
+      await fetch(`/api/tools/${name}/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      if (onRefreshTools) await onRefreshTools();
+    }
+  };
+
+  const filteredTools = tools.filter((tool) => {
+    if (!toolSearch.trim()) return true;
+    const query = toolSearch.toLowerCase();
+    return tool.name.toLowerCase().includes(query) || tool.description.toLowerCase().includes(query);
+  });
+
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-      <div className="w-full max-w-2xl glass-panel rounded-3xl border border-white/15 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+      <div className="w-full max-w-3xl glass-panel rounded-3xl border border-white/15 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Modal Header */}
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">
@@ -269,7 +383,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div>
               <h3 className="text-base font-bold text-white">{t('settings_center', 'Aether AI Studio 設定中心')}</h3>
-              <p className="text-xs text-slate-400">{t('settings_sub', '自訂本地/雲端模型端點與社群橋接器 (Telegram)')}</p>
+              <p className="text-xs text-slate-400">{t('settings_sub', '自訂本地/雲端模型端點、22 大工具箱權限與社群橋接器')}</p>
             </div>
           </div>
 
@@ -293,6 +407,25 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <Server className="w-3.5 h-3.5" />
             <span>{t('tab_llm', '模型端點與引擎 (LLM)')}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('tools')}
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'tools'
+                ? 'border-cyan-400 text-cyan-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Wrench className="w-3.5 h-3.5 text-amber-400" />
+            <span>{t('tab_tools', '工具箱管理 (22 大工具)')}</span>
+            <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+              tools.filter(t => t.enabled).length > 0
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
+                : 'bg-rose-500/20 text-rose-300 border border-rose-500/30'
+            }`}>
+              {tools.filter(t => t.enabled).length}/{tools.length}
+            </span>
           </button>
 
           <button
@@ -733,6 +866,177 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               >
                 {isSavingTelegram ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
                 <span>{t('tg_save', '儲存 Telegram 設定')}</span>
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Content Body: Tab 3 - Tools Management */}
+        {activeTab === 'tools' && (
+          <div className="p-6 space-y-4 max-h-[72vh] flex flex-col overflow-hidden">
+            {/* Top Toolbar: Search & Batch Actions */}
+            <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between pb-3 border-b border-white/10 shrink-0">
+              {/* Search Box */}
+              <div className="relative flex-1">
+                <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={toolSearch}
+                  onChange={(e) => setToolSearch(e.target.value)}
+                  placeholder={t('tools_search_placeholder', '搜尋工具名稱或功能描述...')}
+                  className="w-full pl-9 pr-8 py-2 rounded-xl glass-input text-xs font-mono text-slate-100 placeholder:text-slate-500"
+                />
+                {toolSearch && (
+                  <button
+                    onClick={() => setToolSearch('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+
+              {/* Action Buttons & Counter */}
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                <span className="text-xs font-mono px-2.5 py-1.5 rounded-xl bg-white/[0.04] border border-white/10 text-cyan-300">
+                  {tools.filter(t => t.enabled).length} / {tools.length} {t('tools_enabled_count', '已啟用')}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => handleBatchToggle(true)}
+                  disabled={isBatchToggling}
+                  className="px-2.5 py-1.5 rounded-xl bg-cyan-500/15 hover:bg-cyan-500/25 border border-cyan-500/30 text-cyan-300 text-xs font-medium transition-all flex items-center gap-1"
+                >
+                  <Check className="w-3 h-3" />
+                  <span>{t('tools_all_enable', '全部啟用')}</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => handleBatchToggle(false)}
+                  disabled={isBatchToggling}
+                  className="px-2.5 py-1.5 rounded-xl bg-rose-500/15 hover:bg-rose-500/25 border border-rose-500/30 text-rose-300 text-xs font-medium transition-all flex items-center gap-1"
+                >
+                  <X className="w-3 h-3" />
+                  <span>{t('tools_all_disable', '全部停用')}</span>
+                </button>
+
+                {onRefreshTools && (
+                  <button
+                    type="button"
+                    onClick={onRefreshTools}
+                    className="p-1.5 rounded-xl glass-button text-slate-400 hover:text-cyan-300 transition-colors"
+                    title={t('refresh', '重新整理')}
+                  >
+                    <RefreshCw className={`w-3.5 h-3.5 ${isBatchToggling ? 'animate-spin' : ''}`} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Tool List Grid */}
+            <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 min-h-[300px]">
+              {filteredTools.length === 0 ? (
+                <div className="text-center py-12 text-slate-400 text-xs">
+                  找不到符合「{toolSearch}」的工具
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {filteredTools.map((tool) => {
+                    const meta = getToolMeta(tool.name);
+                    const isSensitive = ['bash_executor', 'file_system', 'database_sqlite_inspector'].includes(tool.name);
+                    return (
+                      <div
+                        key={tool.name}
+                        className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                          tool.enabled
+                            ? 'bg-cyan-950/20 border-cyan-500/30 shadow-[0_0_15px_rgba(6,182,212,0.06)]'
+                            : 'bg-white/[0.02] border-white/5 opacity-60 hover:opacity-85'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center justify-between gap-2 mb-1.5">
+                            <div className="flex items-center gap-2 min-w-0">
+                              <div className={`w-7 h-7 rounded-lg border flex items-center justify-center shrink-0 ${meta.bg}`}>
+                                {meta.icon}
+                              </div>
+                              <div className="min-w-0">
+                                <span className={`text-xs font-mono font-bold truncate block ${tool.enabled ? 'text-white' : 'text-slate-400'}`}>
+                                  {tool.name}
+                                </span>
+                                <span className="text-[10px] text-slate-400 block -mt-0.5">
+                                  {meta.category}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Toggle Switch */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggle(tool.name, !tool.enabled)}
+                              className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                                tool.enabled ? 'bg-cyan-500 shadow-[0_0_10px_rgba(6,182,212,0.4)]' : 'bg-slate-700'
+                              }`}
+                            >
+                              <span
+                                className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                  tool.enabled ? 'translate-x-4' : 'translate-x-0'
+                                }`}
+                              />
+                            </button>
+                          </div>
+
+                          <p className="text-[11px] text-slate-300/80 line-clamp-2 leading-relaxed">
+                            {tool.description}
+                          </p>
+                        </div>
+
+                        {/* Badges footer */}
+                        <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                          <span className="text-slate-400 font-mono">
+                            {Object.keys(tool.parameters || {}).length} 參數
+                            {tool.required && tool.required.length > 0 && ` (${tool.required.length} 必要)`}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            {isSensitive && (
+                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 border border-amber-500/30 text-amber-300">
+                                系統權限
+                              </span>
+                            )}
+                            <span className={`px-1.5 py-0.5 rounded font-mono ${
+                              tool.enabled
+                                ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'
+                                : 'bg-rose-500/15 text-rose-300 border border-rose-500/25'
+                            }`}>
+                              {tool.enabled ? '已授權' : '已停用'}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Bottom Security / Interception Tip */}
+            <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-xs text-cyan-200/90 flex items-start gap-2 shrink-0">
+              <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
+              <div className="text-[11px] leading-relaxed text-slate-300">
+                <span className="font-semibold text-cyan-300">安全合規與精準攔截：</span>
+                {t('tools_tip', '停用的工具將從模型 Schema 中移除，且 Agent 內部決策與 ReAct 引擎將全面攔截調用，並主動告知使用者該工具目前已被停用。')}
+              </div>
+            </div>
+
+            {/* Close footer button */}
+            <div className="pt-1 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-slate-300 hover:text-white"
+              >
+                {t('close', '關閉')}
               </button>
             </div>
           </div>

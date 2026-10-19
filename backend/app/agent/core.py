@@ -33,6 +33,27 @@ class AgentOrchestrator:
             return set(persona["enabled_tools"])
         return None
 
+    def _get_tools_partition(self) -> tuple[List[Dict[str, Any]], List[str], List[str]]:
+        """Returns (active_definitions, active_tool_names, disabled_tool_names)."""
+        allowed_tools = self._get_persona_enabled_tools()
+        raw_tools = registry.get_raw_definitions()
+        active_defs = []
+        active_names = []
+        disabled_names = []
+
+        for t in raw_tools:
+            name = t["name"]
+            is_globally_enabled = t.get("enabled", True)
+            is_persona_allowed = (allowed_tools is None) or (name in allowed_tools)
+
+            if is_globally_enabled and is_persona_allowed:
+                active_defs.append(t)
+                active_names.append(name)
+            else:
+                disabled_names.append(name)
+
+        return active_defs, active_names, disabled_names
+
     def _get_system_prompt(self) -> str:
         persona = db.get_persona(self.persona_id)
         if persona:
@@ -50,13 +71,12 @@ class AgentOrchestrator:
             "  * npm 官方主頁 / 套件庫: https://www.npmjs.com/~hankyleisplay 或 https://github.com/hankyleisplay/AetherAI-Studio/pkgs/npm/aetherai-studio\n"
         )
 
-        allowed_tools = self._get_persona_enabled_tools()
+        active_defs, active_names, disabled_names = self._get_tools_partition()
+
         # Add ReAct guidance for models that might use text-based reasoning/actions
         tool_desc_list = []
-        raw_tools = registry.get_raw_definitions()
-        for t in raw_tools:
-            if t.get("enabled") and (allowed_tools is None or t["name"] in allowed_tools):
-                tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
+        for t in active_defs:
+            tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
         
         from backend.app.config import settings
         workspace_dir = settings.workspace_dir
@@ -80,17 +100,47 @@ class AgentOrchestrator:
                 "- 當用戶詢問或提及上述檔案、圖片、截圖或上傳項目時，請直接調用相應工具讀取與分析（圖像使用 `ocr_extractor`，代碼與文字檔案使用 `file_system` 或 `document_text_extractor`）。"
             )
 
+        disabled_directive = ""
+        if disabled_names:
+            disabled_directive = (
+                "### ⛔ 嚴格禁止與已停用工具清單 (STRICTLY DISABLED TOOLS):\n"
+                f"【目前已被停用或未獲授權的工具 ({len(disabled_names)} 個)】: {', '.join(disabled_names)}。\n"
+                "【強制遵守的拒絕與回答原則 (MANDATORY RULES)】:\n"
+                "1. 你【完全沒有】上述已停用工具的調用權限，後端系統已鎖定並會直接攔截。\n"
+                "2. 當使用者詢問「你能不能用某某工具」、「你具備哪些工具」或要求你使用已停用工具時，你【必須誠實且明確告知】該工具目前已被停用或未獲授權，【絕對不可】宣稱自己可以使用、不可回答「我有某工具」或假裝能執行！\n"
+                "3. 你的回答必須精準反映當前僅能使用的工具清單（即下方 Available Tools 中列出的已授權工具）。\n"
+                "4. 即使系統預設角色描述或先前的對話提及某工具，只要它出現在上述停用名單中，必須以【最新停用狀態】為絕對最高準則！\n\n"
+            )
+
+        available_section = "### Available Tools (目前已授權可用工具):\n"
+        if tool_desc_list:
+            available_section += "\n".join(tool_desc_list) + "\n\n"
+        else:
+            available_section += "（目前無可用工具，所有工具均已停用）\n\n"
+
+        guidelines = ["### Behavioral Guidelines & Tool Calling:"]
+        if "python_eval" in active_names:
+            guidelines.append("1. When asked to use Python sandbox (Python 沙盒), execute code, run calculations, or benchmark algorithms, proactively call the `python_eval` tool to compute real results and performance metrics.")
+        else:
+            guidelines.append("1. Python sandbox (`python_eval`) is currently DISABLED. If asked to run Python code or sandbox calculations, clearly explain that python_eval is currently disabled by user configuration and cannot be executed.")
+
+        guidelines.append("2. When tools return results, provide a comprehensive, fully written final answer in Traditional Chinese with code, output metrics, and deep technical synthesis.")
+        guidelines.append("3. If tool calls fail, analyze the error and try an alternative approach or report to the user.")
+
+        if "ocr_extractor" in active_names or "image_to_text" in active_names:
+            guidelines.append("4. Multimodal & OCR: When the user asks about an image or visual file (.png, .jpg, .jpeg, .webp), proactively call the `ocr_extractor` tool with the image path to extract and understand its text and data.")
+        else:
+            guidelines.append("4. Image OCR (`ocr_extractor`) is currently DISABLED. If asked about analyzing image files via OCR, explain that ocr_extractor is disabled by user configuration.")
+
+        guidelines.append("5. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!")
+
         system_instruction = (
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"
-            f"### Available Tools:\n" + "\n".join(tool_desc_list) + "\n\n"
-            "### Behavioral Guidelines & Tool Calling:\n"
-            "1. When asked to use Python sandbox (Python 沙盒), execute code, run calculations, or benchmark algorithms, proactively call the `python_eval` tool to compute real results and performance metrics.\n"
-            "2. When tools return results, provide a comprehensive, fully written final answer in Traditional Chinese with code, output metrics, and deep technical synthesis.\n"
-            "3. If tool calls fail, analyze the error and try an alternative approach or report to the user.\n"
-            "4. Multimodal & OCR: When the user asks about an image or visual file (.png, .jpg, .jpeg, .webp), proactively call the `ocr_extractor` tool with the image path to extract and understand its text and data.\n"
-            "5. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!"
-            f"{workspace_context}"
+            f"{disabled_directive}"
+            f"{available_section}"
+            + "\n".join(guidelines)
+            + f"{workspace_context}"
         )
         return system_instruction
 
@@ -100,6 +150,9 @@ class AgentOrchestrator:
         action_match = re.search(r"Action:\s*([a-zA-Z0-9_]+)", text, re.IGNORECASE)
         if action_match:
             tool_name = action_match.group(1).strip()
+            _, active_names, _ = self._get_tools_partition()
+            if tool_name not in active_names:
+                return None
             args = {}
             input_match = re.search(r"Action Input:\s*(\{.*?\}|\[.*?\]|.*)", text, re.IGNORECASE | re.DOTALL)
             if input_match:
@@ -324,11 +377,11 @@ class AgentOrchestrator:
         if clean_images and is_multimodal and messages:
             messages[-1]["images"] = clean_images
 
-        # Get enabled tools filtered by active persona
-        allowed_tools = self._get_persona_enabled_tools()
+        # Get enabled tools filtered by active persona and global registry toggle
+        active_defs, active_names, disabled_names = self._get_tools_partition()
         tools_schema = [
             t for t in registry.get_definitions(enabled_only=True)
-            if allowed_tools is None or t["function"]["name"] in allowed_tools
+            if t["function"]["name"] in active_names
         ]
 
         full_thought = ""
@@ -385,7 +438,7 @@ class AgentOrchestrator:
             # Check if text fallback ReAct action is present if no native tool call was detected
             if not current_tool_calls and current_turn_content:
                 fallback = self._parse_text_react_action(current_turn_content)
-                if fallback and fallback["name"] in registry._tools:
+                if fallback and fallback["name"] in active_names:
                     current_tool_calls.append({
                         "id": f"fallback_{int(time.time()*1000)}",
                         "name": fallback["name"],
@@ -422,6 +475,35 @@ class AgentOrchestrator:
                         "name": tool_name,
                         "args": tool_args
                     }
+
+                    # Safety Authorization Check: Intercept disabled or unauthorized tools
+                    if tool_name not in active_names:
+                        duration = 0
+                        output_str = f"❌ 【安全防護攔截】：工具 '{tool_name}' 目前已被使用者或角色設定停用。你目前完全無法使用此工具，請明確向使用者說明此工具已停用。"
+                        tool_record = {
+                            "id": tool_id,
+                            "name": tool_name,
+                            "args": tool_args,
+                            "output": output_str,
+                            "success": False,
+                            "duration": duration
+                        }
+                        executed_tool_calls.append(tool_record)
+                        yield {
+                            "type": "tool_result",
+                            "id": tool_id,
+                            "name": tool_name,
+                            "output": output_str,
+                            "success": False,
+                            "duration": duration
+                        }
+                        messages.append({
+                            "role": "tool",
+                            "tool_call_id": tool_id,
+                            "name": tool_name,
+                            "content": output_str
+                        })
+                        continue
 
                     # Execute tool
                     result = await registry.execute(tool_name, tool_args)

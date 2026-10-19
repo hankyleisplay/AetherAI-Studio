@@ -6,10 +6,12 @@ import {
 } from './types';
 
 /**
- * Checks whether a markdown table delimiter row is valid (e.g. |---|:---:|---:|).
+ * Checks whether a markdown table delimiter row is valid (e.g. |---|:---:|---:| or ---|---).
  */
 export function isTableDelimiter(str: string): boolean {
-  return /^\|?(\s*:?-+:?\s*\|)+\s*$/.test(str.trim());
+  const clean = str.trim();
+  if (!clean.includes('-')) return false;
+  return /^\|?(\s*:?-+:?\s*\|?)+\s*$/.test(clean);
 }
 
 /**
@@ -18,7 +20,7 @@ export function isTableDelimiter(str: string): boolean {
 export function isTableStart(lines: string[], i: number): boolean {
   if (i >= lines.length) return false;
   const line = lines[i].trim();
-  if (!line.startsWith('|') || !line.endsWith('|')) return false;
+  if (!line.includes('|')) return false;
   if (i + 1 >= lines.length) return false;
   const next = lines[i + 1].trim();
   return isTableDelimiter(next);
@@ -66,15 +68,28 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
       continue;
     }
 
-    // 2. Display Math Blocks ($$ ... $$)
-    if (trimmed.startsWith('$$')) {
+    // 2. Display Math Blocks ($$ ... $$ or \[ ... \] or \begin{equation} ... \end{equation})
+    const isMathStart = trimmed.startsWith('$$') || trimmed.startsWith('\\[') || trimmed.startsWith('\\begin{equation}') || trimmed.startsWith('\\begin{align}');
+    if (isMathStart) {
+      let endMarker = '$$';
+      let mathPrefixLen = 2;
+      if (trimmed.startsWith('\\[')) {
+        endMarker = '\\]';
+        mathPrefixLen = 2;
+      } else if (trimmed.startsWith('\\begin{equation}')) {
+        endMarker = '\\end{equation}';
+        mathPrefixLen = 16;
+      } else if (trimmed.startsWith('\\begin{align}')) {
+        endMarker = '\\end{align}';
+        mathPrefixLen = 13;
+      }
+
       const mathLines: string[] = [];
-      const inlineMathAfter = trimmed.slice(2);
-      if (inlineMathAfter.endsWith('$$') && inlineMathAfter.length > 2) {
-        // Single-line $$ formula $$
+      const inlineMathAfter = trimmed.slice(mathPrefixLen);
+      if (inlineMathAfter.endsWith(endMarker) && inlineMathAfter.length >= endMarker.length) {
         tokens.push({
           type: 'math_block',
-          latex: inlineMathAfter.slice(0, -2).trim()
+          latex: inlineMathAfter.slice(0, -endMarker.length).trim()
         });
         i++;
         continue;
@@ -86,8 +101,9 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
       i++;
 
       while (i < lines.length) {
-        if (lines[i].trim().endsWith('$$')) {
-          const content = lines[i].trim().slice(0, -2);
+        const cur = lines[i].trim();
+        if (cur.endsWith(endMarker)) {
+          const content = cur.slice(0, -endMarker.length).trim();
           if (content) mathLines.push(content);
           i++;
           break;
@@ -143,35 +159,41 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
 
     // 5. Tables (| col1 | col2 |)
     if (isTableStart(lines, i)) {
-      // Table detected!
       const headerRow = trimmed;
       const alignRow = lines[i + 1].trim();
 
-      const headers = headerRow
-        .split('|')
-        .slice(1, -1)
-        .map(h => h.trim());
+      const splitCells = (rowStr: string): string[] => {
+        let r = rowStr.trim();
+        if (r.startsWith('|')) r = r.slice(1);
+        if (r.endsWith('|')) r = r.slice(0, -1);
+        return r.split('|').map(c => c.trim());
+      };
 
-      const alignments: TableAlignment[] = alignRow
-        .split('|')
-        .slice(1, -1)
-        .map(a => {
-          const clean = a.trim();
-          if (clean.startsWith(':') && clean.endsWith(':')) return 'center';
-          if (clean.endsWith(':')) return 'right';
-          return 'left';
-        });
+      const headers = splitCells(headerRow);
+      const alignTokens = splitCells(alignRow);
+
+      const alignments: TableAlignment[] = headers.map((_, idx) => {
+        const a = alignTokens[idx] || '';
+        const clean = a.trim();
+        if (clean.startsWith(':') && clean.endsWith(':')) return 'center';
+        if (clean.endsWith(':')) return 'right';
+        return 'left';
+      });
 
       const rows: string[][] = [];
       i += 2;
 
-      while (i < lines.length && lines[i].trim().startsWith('|') && lines[i].trim().endsWith('|')) {
-        const cells = lines[i]
-          .trim()
-          .split('|')
-          .slice(1, -1)
-          .map(c => c.trim());
-        rows.push(cells);
+      while (
+        i < lines.length && 
+        lines[i].includes('|') && 
+        !lines[i].trim().startsWith('```') && 
+        !lines[i].trim().startsWith('#')
+      ) {
+        const rawCells = splitCells(lines[i]);
+        while (rawCells.length < headers.length) {
+          rawCells.push('');
+        }
+        rows.push(rawCells);
         i++;
       }
 

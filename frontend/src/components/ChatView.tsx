@@ -235,16 +235,64 @@ export const ChatView: React.FC<ChatViewProps> = ({
     }
   };
 
-  const isNearBottomRef = useRef(true);
+  const userScrolledUpRef = useRef(false);
+  const prevScrollTopRef = useRef(0);
+  const isAutoScrollingRef = useRef(false);
   const lastScrollTimeRef = useRef(0);
   const scrollRafRef = useRef<number | null>(null);
 
+  // Direct wheel & touch listeners to immediately detect upward user scroll intent
+  useEffect(() => {
+    const container = scrollContainerRef.current;
+    if (!container) return;
+
+    const onWheel = (e: WheelEvent) => {
+      // If user wheels UP (deltaY < 0), immediately lock auto-scroll to allow reading!
+      if (e.deltaY < 0) {
+        userScrolledUpRef.current = true;
+        setShowScrollBottom(true);
+      } else if (e.deltaY > 0) {
+        // Wheeling down: if reaching near bottom, unlock auto-scroll
+        const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+        if (distFromBottom < 40) {
+          userScrolledUpRef.current = false;
+          setShowScrollBottom(false);
+        }
+      }
+    };
+
+    const onTouchMove = () => {
+      const distFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      if (distFromBottom > 60) {
+        userScrolledUpRef.current = true;
+        setShowScrollBottom(true);
+      } else {
+        userScrolledUpRef.current = false;
+        setShowScrollBottom(false);
+      }
+    };
+
+    container.addEventListener('wheel', onWheel, { passive: true });
+    container.addEventListener('touchmove', onTouchMove, { passive: true });
+    return () => {
+      container.removeEventListener('wheel', onWheel);
+      container.removeEventListener('touchmove', onTouchMove);
+    };
+  }, []);
+
   const scrollToBottom = (smooth = true) => {
     if (!scrollContainerRef.current) return;
+    userScrolledUpRef.current = false;
+    setShowScrollBottom(false);
+    isAutoScrollingRef.current = true;
     if (smooth) {
       messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+      setTimeout(() => {
+        isAutoScrollingRef.current = false;
+      }, 400);
     } else {
       scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+      isAutoScrollingRef.current = false;
     }
   };
 
@@ -252,25 +300,30 @@ export const ChatView: React.FC<ChatViewProps> = ({
     if (!scrollContainerRef.current) return;
 
     if (isStreaming) {
-      // Only auto-scroll down if user was already near the bottom (prevents scroll-lock fight)
-      if (!isNearBottomRef.current) return;
+      // If user has intentionally scrolled up to read, DO NOT force auto-scroll down!
+      if (userScrolledUpRef.current) return;
 
+      isAutoScrollingRef.current = true;
       const now = performance.now();
-      if (now - lastScrollTimeRef.current > 75) {
+      if (now - lastScrollTimeRef.current > 60) {
         lastScrollTimeRef.current = now;
         scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
+        isAutoScrollingRef.current = false;
       } else if (!scrollRafRef.current) {
         scrollRafRef.current = requestAnimationFrame(() => {
           scrollRafRef.current = null;
-          if (scrollContainerRef.current && isNearBottomRef.current) {
+          if (scrollContainerRef.current && !userScrolledUpRef.current) {
             scrollContainerRef.current.scrollTop = scrollContainerRef.current.scrollHeight;
             lastScrollTimeRef.current = performance.now();
           }
+          isAutoScrollingRef.current = false;
         });
       }
     } else {
-      // When not streaming (e.g. new user prompt or generation finished), settle smoothly
-      scrollToBottom(true);
+      // When not streaming, smoothly scroll to bottom only if user hasn't explicitly scrolled up
+      if (!userScrolledUpRef.current) {
+        scrollToBottom(true);
+      }
     }
 
     return () => {
@@ -284,9 +337,22 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const handleScroll = () => {
     if (!scrollContainerRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
-    const isFarFromBottom = scrollHeight - scrollTop - clientHeight > 150;
-    isNearBottomRef.current = !isFarFromBottom;
-    setShowScrollBottom(isFarFromBottom);
+    const distFromBottom = scrollHeight - scrollTop - clientHeight;
+
+    if (!isAutoScrollingRef.current) {
+      if (scrollTop < prevScrollTopRef.current - 15) {
+        // User scrolled upward
+        userScrolledUpRef.current = true;
+      }
+    }
+    prevScrollTopRef.current = scrollTop;
+
+    if (distFromBottom > 60) {
+      setShowScrollBottom(true);
+    } else {
+      userScrolledUpRef.current = false;
+      setShowScrollBottom(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -298,6 +364,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
   const handleSubmit = () => {
     if (isStreaming) return;
+    userScrolledUpRef.current = false;
+    setShowScrollBottom(false);
+    setTimeout(() => scrollToBottom(true), 50);
     const trimmedInput = inputText.trim();
     const imagesPayload = attachedImages.map(img => img.base64);
 
@@ -432,9 +501,20 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {showScrollBottom && (
         <button
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-32 right-8 p-2 rounded-full glass-button border border-white/20 text-cyan-300 hover:text-white shadow-xl transition-all animate-bounce z-20"
+          className="absolute bottom-28 right-6 md:right-10 px-3.5 py-2 rounded-full glass-panel border border-cyan-400/40 text-cyan-300 hover:text-white hover:bg-cyan-500/20 shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 z-30 group backdrop-blur-xl bg-black/60"
+          title={t('scroll_to_bottom', '滑至最底部')}
         >
-          <ArrowDown className="w-4 h-4" />
+          <div className="p-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 group-hover:bg-cyan-500/30 transition-all">
+            <ArrowDown className="w-3.5 h-3.5 text-cyan-300 group-hover:translate-y-0.5 transition-transform" />
+          </div>
+          {isStreaming ? (
+            <span className="flex items-center gap-1.5 text-xs font-semibold pr-1">
+              <span className="w-2 h-2 rounded-full bg-cyan-400 animate-ping inline-block" />
+              <span className="text-cyan-200">{t('streaming_generating', 'AI 生成中 (點擊回到底部)')}</span>
+            </span>
+          ) : (
+            <span className="text-xs font-semibold pr-1 text-slate-200">{t('scroll_to_bottom', '回到底部')}</span>
+          )}
         </button>
       )}
 

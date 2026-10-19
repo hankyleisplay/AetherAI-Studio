@@ -19,7 +19,12 @@ from backend.app.services.telegram_bridge import telegram_bridge
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup: Start Telegram Bridge if configured
+    # Startup: Load persisted tool states & start Telegram Bridge if configured
+    try:
+        disabled = db.get_setting("disabled_tools") or []
+        registry.load_persisted_state(disabled)
+    except Exception as e:
+        print(f"[ToolRegistry] Startup warning: {e}")
     try:
         await telegram_bridge.start()
     except Exception as e:
@@ -228,12 +233,24 @@ async def delete_session(session_id: str):
 # Tools Endpoints
 @app.get("/api/tools")
 async def list_tools():
+    disabled = db.get_setting("disabled_tools") or []
+    registry.load_persisted_state(disabled)
     return registry.get_raw_definitions()
 
 @app.post("/api/tools/{name}/toggle")
 async def toggle_tool(name: str, payload: ToolToggle):
     registry.set_tool_enabled(name, payload.enabled)
-    return {"status": "updated", "name": name, "enabled": payload.enabled}
+    disabled = [k for k, v in registry._definitions.items() if not v.enabled]
+    db.set_setting("disabled_tools", disabled)
+    return {"status": "updated", "success": True, "name": name, "enabled": payload.enabled}
+
+@app.post("/api/tools/batch/toggle-all")
+async def batch_toggle_tools(payload: ToolToggle):
+    for name in registry._definitions.keys():
+        registry.set_tool_enabled(name, payload.enabled)
+    disabled = [k for k, v in registry._definitions.items() if not v.enabled]
+    db.set_setting("disabled_tools", disabled)
+    return {"status": "updated", "success": True, "all_enabled": payload.enabled}
 
 # Personas Endpoints
 @app.get("/api/personas")

@@ -96,6 +96,33 @@ async def run_tests():
             assert transformer_res["success"] is True
             assert "version: 3" in str(transformer_res["output"])
 
+            # 3f. Test tool toggle API and interception
+            toggle_off_res = await client.post("/api/tools/bash_executor/toggle", json={"enabled": False})
+            assert toggle_off_res.status_code == 200
+            assert toggle_off_res.json()["enabled"] is False
+
+            # 3g. Verify registry execution intercept when disabled
+            intercept_res = await registry.execute("bash_executor", {"command": "echo test"})
+            print("3g. Disabled tool intercept:", intercept_res["success"] is False, "Reason:", intercept_res.get("output", "")[:40])
+            assert intercept_res["success"] is False
+            assert "【工具停用攔截】" in intercept_res["output"]
+
+            # 3h. Verify prompt generator injects strict prohibition directive
+            from backend.app.agent.core import AgentOrchestrator
+            from backend.app.llm.provider import ModelConfig
+            test_orch = AgentOrchestrator(ModelConfig())
+            sys_prompt = test_orch._get_system_prompt()
+            print("3h. System prompt strict prohibition directive check:", "### ⛔ 嚴格禁止與已停用工具清單" in sys_prompt)
+            assert "### ⛔ 嚴格禁止與已停用工具清單" in sys_prompt
+            assert "bash_executor" in sys_prompt
+
+            # 3i. Test batch toggle API
+            batch_on_res = await client.post("/api/tools/batch/toggle-all", json={"enabled": True})
+            assert batch_on_res.status_code == 200
+            assert batch_on_res.json()["success"] is True
+            assert registry._definitions["bash_executor"].enabled is True
+            print("3i. Batch toggle re-enabled all tools successfully!")
+
             # 4. List personas
             res = await client.get("/api/personas")
             personas = res.json()
