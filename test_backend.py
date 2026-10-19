@@ -123,6 +123,31 @@ async def run_tests():
             assert res.status_code == 200
             assert "Aether AI Studio 3.0" in res.text
 
+            # 11. Verify token truncation notice is appended at the very end (never before headers)
+            from backend.app.llm.provider import LLMResponseChunk, ModelConfig
+            from backend.app.agent.core import AgentOrchestrator
+
+            class MockTruncatedClient:
+                def __init__(self, config):
+                    self.config = config
+                async def stream_chat(self, messages, tools=None):
+                    yield LLMResponseChunk(type="token", content="## 🐍 貪吃蛇遊戲最終總結與交付\n完成所有邏輯。")
+                    yield LLMResponseChunk(type="done", metadata={"finish_reason": "length"})
+
+            orch = AgentOrchestrator(ModelConfig())
+            orch.client = MockTruncatedClient(orch.config)
+            stream_tokens = []
+            async for ev in orch.run_stream(session_id=sess["id"], user_prompt="請幫我完成貪吃蛇遊戲"):
+                if ev.get("type") == "token":
+                    stream_tokens.append(ev.get("content", ""))
+            
+            full_delivered = "".join(stream_tokens)
+            print("11. Truncation placement test full delivery length:", len(full_delivered))
+            assert full_delivered.startswith("## 🐍 貪吃蛇遊戲最終總結與交付"), "Header must not have notice injected in front!"
+            assert "⚠️ **提示**：模型生成已達本次最大長度上限" in full_delivered
+            assert full_delivered.strip().endswith("請輸入「請繼續」。"), "Notice must be placed at the very end!"
+            print("11b. Truncation placement verification passed successfully!")
+
             # Cleanup test session
             await client.delete(f"/api/sessions/{sess['id']}")
     finally:

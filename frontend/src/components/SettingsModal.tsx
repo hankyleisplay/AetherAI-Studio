@@ -507,8 +507,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 <input
                   type="range"
                   min="512"
-                  max="8192"
-                  step="256"
+                  max="16384"
+                  step="512"
                   value={formData.max_tokens}
                   onChange={(e) => setFormData({ ...formData, max_tokens: parseInt(e.target.value) })}
                   className="w-full accent-cyan-400 cursor-pointer"

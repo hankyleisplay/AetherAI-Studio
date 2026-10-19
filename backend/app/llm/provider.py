@@ -10,7 +10,7 @@ class ModelConfig(BaseModel):
     api_key: Optional[str] = None
     model: str = "llama3:latest"
     temperature: float = 0.7
-    max_tokens: int = 4096
+    max_tokens: int = 8192
     context_window: int = 16384
 
 class LLMResponseChunk(BaseModel):
@@ -260,6 +260,7 @@ class UnifiedLLMClient:
                         yield LLMResponseChunk(type="error", content=f"API Error ({response.status_code}): {err_text.decode('utf-8', errors='ignore')}")
                         return
 
+                    last_finish_reason: Optional[str] = None
                     async for line in response.aiter_lines():
                         if not line or not line.startswith("data: "):
                             continue
@@ -277,11 +278,8 @@ class UnifiedLLMClient:
                             continue
 
                         finish_reason = choices[0].get("finish_reason")
-                        if finish_reason == "length":
-                            yield LLMResponseChunk(
-                                type="token",
-                                content="\n\n*(⚠️ 提示：模型已達本次最大生成長度上限。如需接續，請輸入「請繼續」)*"
-                            )
+                        if finish_reason:
+                            last_finish_reason = finish_reason
 
                         delta = choices[0].get("delta", {})
 
@@ -354,7 +352,10 @@ class UnifiedLLMClient:
                         tool_call_id=tc_data["id"]
                     )
 
-                yield LLMResponseChunk(type="done")
+                yield LLMResponseChunk(
+                    type="done",
+                    metadata={"finish_reason": last_finish_reason or "stop"}
+                )
 
             except Exception as e:
                 yield LLMResponseChunk(type="error", content=f"Network/Stream error: {str(e)}")
@@ -393,11 +394,11 @@ class UnifiedLLMClient:
         # Explicitly configure num_ctx to prevent Ollama from defaulting to 2048/4096 tokens,
         # which causes premature cutoff in long multi-turn sessions.
         ctx_size = getattr(self.config, "context_window", None) or 16384
-        min_ctx = (self.config.max_tokens or 4096) + 4096
+        min_ctx = (self.config.max_tokens or 8192) + 4096
         options["num_ctx"] = max(ctx_size, min_ctx)
 
         if self.config.max_tokens:
-            options["num_predict"] = self.config.max_tokens
+            options["num_predict"] = max(self.config.max_tokens, 8192)
 
         payload = {
             "model": self.config.model,
@@ -474,12 +475,11 @@ class UnifiedLLMClient:
                                 yield LLMResponseChunk(type="token", content=content)
 
                         if data.get("done"):
-                            if data.get("done_reason") == "length":
-                                yield LLMResponseChunk(
-                                    type="token",
-                                    content="\n\n*(⚠️ 提示：模型已達本次最大生成長度上限。如需接續，請輸入「請繼續」)*"
-                                )
-                            yield LLMResponseChunk(type="done")
+                            done_reason = data.get("done_reason") or "stop"
+                            yield LLMResponseChunk(
+                                type="done",
+                                metadata={"finish_reason": done_reason}
+                            )
                             break
 
                 async with client.stream("POST", url, json=payload) as response:
@@ -563,6 +563,7 @@ class UnifiedLLMClient:
                     current_tool_id = None
                     current_tool_name = None
                     current_tool_args_str = ""
+                    last_stop_reason = None
 
                     async for line in response.aiter_lines():
                         if not line or not line.startswith("data: "):
@@ -601,8 +602,15 @@ class UnifiedLLMClient:
                                     tool_call_id=current_tool_id
                                 )
                                 current_tool_name = None
+                        elif ev_type == "message_delta":
+                            delta = ev.get("delta", {})
+                            if delta.get("stop_reason"):
+                                last_stop_reason = delta.get("stop_reason")
                         elif ev_type == "message_stop":
-                            yield LLMResponseChunk(type="done")
+                            yield LLMResponseChunk(
+                                type="done",
+                                metadata={"finish_reason": "length" if last_stop_reason == "max_tokens" else "stop"}
+                            )
 
             except Exception as e:
                 yield LLMResponseChunk(type="error", content=f"Anthropic stream error: {str(e)}")
@@ -719,6 +727,7 @@ class UnifiedLLMClient:
                             yield LLMResponseChunk(type="error", content=f"Gemini Error ({response.status_code}): {err_str}")
                         return
 
+                    last_finish_reason = "stop"
                     async for line in response.aiter_lines():
                         if not line or not line.startswith("data: "):
                             continue
@@ -730,6 +739,9 @@ class UnifiedLLMClient:
 
                         candidates = data.get("candidates", [])
                         if candidates:
+                            fr = candidates[0].get("finishReason")
+                            if fr in ("MAX_TOKENS", "LENGTH"):
+                                last_finish_reason = "length"
                             parts = candidates[0].get("content", {}).get("parts", [])
                             for p in parts:
                                 # Check if part is reasoning / thought
@@ -747,6 +759,9 @@ class UnifiedLLMClient:
                                         tool_call_id=f"gemini_{int(time.time()*1000)}"
                                     )
 
-                    yield LLMResponseChunk(type="done")
+                    yield LLMResponseChunk(
+                        type="done",
+                        metadata={"finish_reason": last_finish_reason}
+                    )
             except Exception as e:
                 yield LLMResponseChunk(type="error", content=f"Gemini stream error: {str(e)}")

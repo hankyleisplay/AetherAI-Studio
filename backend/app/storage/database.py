@@ -125,12 +125,12 @@ class Database:
                 # Insert if missing
                 cursor.execute(
                     "INSERT OR IGNORE INTO personas (id, name, description, icon, system_prompt, enabled_tools) VALUES (?, ?, ?, ?, ?, ?)",
-                    (p["id"], p["name"], p["description"], p["icon"], p["system_prompt"], json.dumps(p["enabled_tools"]))
+                    (p["id"], p["name"], p["description"], p["icon"], p["system_prompt"], json.dumps(p["enabled_tools"], ensure_ascii=False))
                 )
                 # Auto-upgrade existing default persona names to enterprise standards
                 cursor.execute(
                     "UPDATE personas SET name = ?, description = ?, system_prompt = ?, enabled_tools = ? WHERE id = ?",
-                    (p["name"], p["description"], p["system_prompt"], json.dumps(p["enabled_tools"]), p["id"])
+                    (p["name"], p["description"], p["system_prompt"], json.dumps(p["enabled_tools"], ensure_ascii=False), p["id"])
                 )
             conn.commit()
 
@@ -197,8 +197,8 @@ class Database:
     ) -> Dict[str, Any]:
         actual_id = str(msg_id) if msg_id else str(uuid.uuid4())
         now = datetime.now().isoformat()
-        tc_json = json.dumps(tool_calls or [])
-        img_json = json.dumps(images or [])
+        tc_json = json.dumps(tool_calls or [], ensure_ascii=False)
+        img_json = json.dumps(images or [], ensure_ascii=False)
         with self.get_connection() as conn:
             conn.execute(
                 "INSERT INTO messages (id, session_id, role, content, thought, tool_calls, images, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
@@ -309,7 +309,7 @@ class Database:
                     persona["description"],
                     persona.get("icon", "Sparkles"),
                     persona["system_prompt"],
-                    json.dumps(persona.get("enabled_tools", []))
+                    json.dumps(persona.get("enabled_tools", []), ensure_ascii=False)
                 )
             )
             conn.commit()
@@ -329,7 +329,7 @@ class Database:
         with self.get_connection() as conn:
             conn.execute(
                 "INSERT INTO app_settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
-                (key, json.dumps(value))
+                (key, json.dumps(value, ensure_ascii=False))
             )
             conn.commit()
 

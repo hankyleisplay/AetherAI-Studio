@@ -93,6 +93,9 @@ async def health_check():
 async def get_active_model_config():
     saved = db.get_setting("active_model_config")
     if saved:
+        if saved.get("max_tokens") == 4096:
+            saved["max_tokens"] = 8192
+            db.set_setting("active_model_config", saved)
         cfg = ModelConfig(**saved)
     else:
         cfg = ModelConfig(
@@ -100,7 +103,7 @@ async def get_active_model_config():
             base_url="http://localhost:11434",
             model="llama3:latest",
             temperature=0.7,
-            max_tokens=4096
+            max_tokens=8192
         )
 
     # Auto-probe local Ollama if no custom model was saved or if default llama3:latest isn't installed
@@ -151,12 +154,15 @@ async def chat_stream(request: ChatRequest):
     else:
         saved = db.get_setting("active_model_config")
         if saved:
+            if saved.get("max_tokens") == 4096:
+                saved["max_tokens"] = 8192
             active_config = ModelConfig(**saved)
         else:
             active_config = ModelConfig(
                 provider="ollama",
                 base_url="http://localhost:11434",
-                model="llama3:latest"
+                model="llama3:latest",
+                max_tokens=8192
             )
 
     orchestrator = AgentOrchestrator(
@@ -168,7 +174,7 @@ async def chat_stream(request: ChatRequest):
         # First event sends session info
         yield {
             "event": "session_info",
-            "data": json.dumps({"session_id": session_id})
+            "data": json.dumps({"session_id": session_id}, ensure_ascii=False)
         }
         try:
             async for ev in orchestrator.run_stream(
@@ -181,12 +187,12 @@ async def chat_stream(request: ChatRequest):
                 ev_type = ev.get("type", "message")
                 yield {
                     "event": ev_type,
-                    "data": json.dumps(ev)
+                    "data": json.dumps(ev, ensure_ascii=False)
                 }
         except Exception as e:
             yield {
                 "event": "error",
-                "data": json.dumps({"error": str(e)})
+                "data": json.dumps({"error": str(e)}, ensure_ascii=False)
             }
 
     return EventSourceResponse(event_generator())

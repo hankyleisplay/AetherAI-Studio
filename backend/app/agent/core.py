@@ -337,11 +337,13 @@ class AgentOrchestrator:
 
         iteration = 0
         has_emitted_generating = False
+        final_finish_reason: Optional[str] = None
         while iteration < self.max_iterations:
             iteration += 1
             current_turn_content = ""
             current_turn_thought = ""
             current_tool_calls: List[Dict[str, Any]] = []
+            turn_finish_reason: Optional[str] = None
 
             async for chunk in self.client.stream_chat(messages, tools=tools_schema):
                 if chunk.type == "thought" and chunk.content:
@@ -363,6 +365,10 @@ class AgentOrchestrator:
                         "name": chunk.tool_name,
                         "args": chunk.tool_args or {}
                     })
+
+                elif chunk.type == "done":
+                    if chunk.metadata and "finish_reason" in chunk.metadata:
+                        turn_finish_reason = chunk.metadata["finish_reason"]
 
                 elif chunk.type == "error":
                     yield {"type": "error", "error": chunk.content}
@@ -461,7 +467,14 @@ class AgentOrchestrator:
 
             else:
                 # Final response reached
+                final_finish_reason = turn_finish_reason
                 break
+
+        # If terminal response was truncated due to token limit, cleanly append notice at the end
+        if final_finish_reason in ("length", "max_tokens", "MAX_TOKENS"):
+            notice = "\n\n> ⚠️ **提示**：模型生成已達本次最大長度上限（Token Limit）。如需接續未完成內容，請輸入「請繼續」。"
+            full_content += notice
+            yield {"type": "token", "content": notice}
 
         # Ensure full_content is never completely blank if thoughts or tools occurred
         if not full_content.strip():

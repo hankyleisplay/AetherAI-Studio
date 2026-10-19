@@ -15,6 +15,11 @@ param (
 
 $ErrorActionPreference = "Stop"
 [Console]::OutputEncoding = [System.Text.Encoding]::UTF8
+[Console]::InputEncoding = [System.Text.Encoding]::UTF8
+$OutputEncoding = [System.Text.Encoding]::UTF8
+if (Get-Command chcp.com -ErrorAction SilentlyContinue) {
+    & chcp.com 65001 >$null 2>&1
+}
 
 # Title banner
 if (-not $Check) {

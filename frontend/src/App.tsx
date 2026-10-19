@@ -31,7 +31,7 @@ export const App: React.FC = () => {
     base_url: 'http://localhost:11434',
     model: 'llama3:latest',
     temperature: 0.7,
-    max_tokens: 4096,
+    max_tokens: 8192,
     context_window: 16384
   });
   const [availableModels, setAvailableModels] = useState<string[]>([]);
