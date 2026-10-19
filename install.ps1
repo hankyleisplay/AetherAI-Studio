@@ -64,11 +64,10 @@ Write-Host " [+] Python 偵測就緒: $pyVer ($pythonExe)" -ForegroundColor Gree
 # Step 2: Install Backend Packages
 Write-Host "[2/4] 安裝後端核心依賴套件..." -ForegroundColor Cyan
 $reqPath = Join-Path $ScriptDir "backend\requirements.txt"
-$sitePackages = Join-Path $ScriptDir "backend\site-packages"
-& $pythonExe -m pip install --target $sitePackages -r $reqPath
+& $pythonExe -m pip install -r $reqPath
 if ($LASTEXITCODE -ne 0) {
-    Write-Host " [!] --target 安裝返回非零狀態，嘗試標準 pip 安裝..." -ForegroundColor Yellow
-    & $pythonExe -m pip install -r $reqPath
+    Write-Host " [!] 系統 pip 需要使用者權限，正在嘗試 --user 安裝..." -ForegroundColor Yellow
+    & $pythonExe -m pip install --user -r $reqPath
 }
 Write-Host " [+] 後端依賴安裝完成。" -ForegroundColor Green
 

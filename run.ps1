@@ -87,19 +87,33 @@ Write-Host " [+] 偵測到 Python: $pyVersion ($pythonExe)" -ForegroundColor Gre
 Write-Host "[2/5] 檢查依賴環境與套件..." -ForegroundColor Cyan
 $reqFile = Join-Path $ScriptDir "backend\requirements.txt"
 $sitePackages = Join-Path $ScriptDir "backend\site-packages"
-$env:PYTHONPATH = "$sitePackages;$ScriptDir;$env:PYTHONPATH"
+
+# Test if local site-packages is healthy and contains valid pydantic
+$useSitePackages = $false
+if (Test-Path (Join-Path $sitePackages "pydantic\__init__.py")) {
+    $useSitePackages = $true
+}
+
+if ($useSitePackages) {
+    $env:PYTHONPATH = "$sitePackages;$ScriptDir;$env:PYTHONPATH"
+} else {
+    $env:PYTHONPATH = "$ScriptDir;$env:PYTHONPATH"
+}
 $env:PYTHONIOENCODING = "utf-8"
 $env:PYTHONUTF8 = "1"
 
 $prevEAP = $ErrorActionPreference
 $ErrorActionPreference = "Continue"
-& $pythonExe -c "import sys; sys.path.insert(0, r'$sitePackages'); import fastapi, uvicorn, httpx, sse_starlette, psutil" >$null 2>&1
+& $pythonExe -c "import fastapi, uvicorn, httpx, sse_starlette, psutil; from pydantic import BaseModel; from pydantic_settings import BaseSettings" >$null 2>&1
 $depCheckCode = $LASTEXITCODE
 $ErrorActionPreference = $prevEAP
 
 if ($depCheckCode -ne 0) {
     Write-Host " [!] 尚未安裝完整後端套件，正在自動執行安裝..." -ForegroundColor Yellow
-    & $pythonExe -m pip install --target $sitePackages -r $reqFile
+    & $pythonExe -m pip install -r $reqFile
+    if ($LASTEXITCODE -ne 0) {
+        & $pythonExe -m pip install --user -r $reqFile
+    }
 } else {
     Write-Host " [+] 後端核心依賴就緒。" -ForegroundColor Green
 }

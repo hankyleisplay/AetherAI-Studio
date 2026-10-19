@@ -27,14 +27,27 @@ if os.name == "nt":
 PROJECT_ROOT = Path(__file__).resolve().parent
 SITE_PACKAGES = PROJECT_ROOT / "backend" / "site-packages"
 
-# Inject local site-packages and project root into sys.path and PYTHONPATH
+# Inject project root into sys.path
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-if SITE_PACKAGES.exists() and str(SITE_PACKAGES) not in sys.path:
+
+# Safely check if local site-packages is healthy and accessible before prepending to sys.path
+def _is_healthy_site_packages(p: Path) -> bool:
+    if not p.exists():
+        return False
+    try:
+        pyd_init = p / "pydantic" / "__init__.py"
+        return pyd_init.exists() and pyd_init.is_file()
+    except Exception:
+        return False
+
+if _is_healthy_site_packages(SITE_PACKAGES) and str(SITE_PACKAGES) not in sys.path:
     sys.path.insert(0, str(SITE_PACKAGES))
 
 existing_pythonpath = os.environ.get("PYTHONPATH", "")
-pythonpath_parts = [str(SITE_PACKAGES), str(PROJECT_ROOT)]
+pythonpath_parts = [str(PROJECT_ROOT)]
+if _is_healthy_site_packages(SITE_PACKAGES):
+    pythonpath_parts.insert(0, str(SITE_PACKAGES))
 if existing_pythonpath:
     pythonpath_parts.append(existing_pythonpath)
 os.environ["PYTHONPATH"] = os.pathsep.join(pythonpath_parts)
@@ -58,8 +71,8 @@ def print_banner():
     print(banner)
 
 
-def ensure_dependencies():
-    """Verify backend and frontend state before booting."""
+def check_core_dependencies() -> bool:
+    """Check if all critical backend dependencies can be imported cleanly."""
     try:
         import fastapi
         import uvicorn
@@ -67,20 +80,28 @@ def ensure_dependencies():
         import sse_starlette
         import psutil
         import multipart
-    except ImportError:
+        from pydantic import BaseModel
+        from pydantic_settings import BaseSettings
+        return True
+    except Exception:
+        return False
+
+
+def ensure_dependencies():
+    """Verify backend and frontend state before booting."""
+    if not check_core_dependencies():
         print("\033[33m[*] 尚未檢測到完整後端依賴，正在為您自動執行安裝...\033[0m")
         req_file = PROJECT_ROOT / "backend" / "requirements.txt"
-        SITE_PACKAGES.mkdir(parents=True, exist_ok=True)
-        cmd = [
-            sys.executable, "-m", "pip", "install",
-            "--target", str(SITE_PACKAGES),
-            "-r", str(req_file)
-        ]
-        res = subprocess.run(cmd)
-        if res.returncode != 0 and os.name != "nt":
-            subprocess.run(cmd + ["--break-system-packages"], check=False)
-        if str(SITE_PACKAGES) not in sys.path:
-            sys.path.insert(0, str(SITE_PACKAGES))
+        
+        # 1. Standard pip install into current environment
+        cmd_std = [sys.executable, "-m", "pip", "install", "-r", str(req_file)]
+        res = subprocess.run(cmd_std)
+        if res.returncode != 0:
+            # 2. Try with --user flag
+            cmd_user = [sys.executable, "-m", "pip", "install", "--user", "-r", str(req_file)]
+            res = subprocess.run(cmd_user)
+            if res.returncode != 0 and os.name != "nt":
+                subprocess.run(cmd_std + ["--break-system-packages"], check=False)
 
 
 def check_frontend_dist():

@@ -60,10 +60,12 @@ foreach ($name in $candidates) {
 
 if ($pythonExe) {
     $reqFile = Join-Path $ScriptDir "backend\requirements.txt"
-    $sitePackages = Join-Path $ScriptDir "backend\site-packages"
     if (Test-Path $reqFile) {
         Write-Host " [+] 確保最新後端相依套件已就緒..." -ForegroundColor Green
-        & $pythonExe -m pip install --target $sitePackages -r $reqFile --quiet
+        & $pythonExe -m pip install -r $reqFile --quiet
+        if ($LASTEXITCODE -ne 0) {
+            & $pythonExe -m pip install --user -r $reqFile --quiet
+        }
     }
 }
 
