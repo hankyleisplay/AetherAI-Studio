@@ -383,7 +383,7 @@ def bash_executor(command: str) -> str:
         "action": {
             "type": "string",
             "enum": ["read", "write", "list", "delete"],
-            "description": "The file operation to perform."
+            "description": "The file operation to perform ('read', 'write', 'list', 'delete')."
         },
         "path": {
             "type": "string",
@@ -396,53 +396,120 @@ def bash_executor(command: str) -> str:
     },
     required=["action", "path"]
 )
-def file_system(action: str, path: str, content: Optional[str] = None) -> str:
+def file_system(
+    action: Optional[str] = None,
+    path: Optional[str] = None,
+    content: Optional[str] = None,
+    **kwargs: Any
+) -> str:
+    """Read, write, list or delete files safely within the agent workspace."""
+    # 1. Resolve action aliases
+    act = (action or kwargs.get("operation") or kwargs.get("op") or kwargs.get("mode") or "").strip().lower()
+    if act in ["write", "write_file", "save", "save_file", "create", "create_file", "append", "update"]:
+        act = "write"
+    elif act in ["read", "read_file", "view", "cat", "get", "load"]:
+        act = "read"
+    elif act in ["list", "list_files", "ls", "dir", "browse"]:
+        act = "list"
+    elif act in ["delete", "delete_file", "remove", "rm", "del", "unlink"]:
+        act = "delete"
+    else:
+        # Fallback heuristic: if content is provided, action is write; if path is empty/dot, action is list; otherwise read
+        if content is not None or "data" in kwargs or "text" in kwargs or "code" in kwargs:
+            act = "write"
+        elif not path or path in (".", "/", "\\"):
+            act = "list"
+        else:
+            act = "read"
+
+    # 2. Resolve path aliases
+    resolved_path = (
+        path
+        or kwargs.get("file_path")
+        or kwargs.get("filePath")
+        or kwargs.get("filename")
+        or kwargs.get("file")
+        or kwargs.get("target")
+        or kwargs.get("directory")
+        or kwargs.get("dir")
+        or ""
+    )
+    if not isinstance(resolved_path, str):
+        resolved_path = str(resolved_path)
+
+    # 3. Resolve content aliases
+    if content is None:
+        content = (
+            kwargs.get("data")
+            or kwargs.get("text")
+            or kwargs.get("file_content")
+            or kwargs.get("body")
+            or kwargs.get("code")
+            or ""
+        )
+
     base = settings.workspace_dir.resolve()
-    target = (base / path).resolve()
-    
+
+    # 4. Clean path & Prevent Windows / root path escaping
+    clean_p = resolved_path.strip().replace("\\", "/")
+    if Path(clean_p).is_absolute():
+        target = Path(clean_p).resolve()
+    else:
+        while clean_p.startswith("/"):
+            clean_p = clean_p[1:]
+        if clean_p.lower().startswith("workspace/"):
+            clean_p = clean_p[10:]
+        while clean_p.startswith("./"):
+            clean_p = clean_p[2:]
+        target = (base / clean_p).resolve() if clean_p else base
+
     # Path traversal check
-    if not target.is_relative_to(base):
-        return f"Access Denied: Path '{path}' escapes workspace directory."
+    if not str(target).startswith(str(base)):
+        return f"Access Denied: Path '{resolved_path}' escapes workspace directory."
+
+    display_rel = str(target.relative_to(base)).replace("\\", "/") if target != base else "."
 
     try:
-        if action == "read":
+        if act == "read":
             if not target.exists():
-                return f"File '{path}' does not exist."
+                return f"File '{display_rel}' does not exist in workspace."
             if not target.is_file():
-                return f"Path '{path}' is a directory, not a file."
+                return f"Path '{display_rel}' is a directory, not a file. Use action='list' to inspect directory contents."
             return target.read_text(encoding="utf-8", errors="replace")
 
-        elif action == "write":
+        elif act == "write":
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content or "", encoding="utf-8")
-            return f"Successfully wrote {len(content or '')} characters to '{path}'."
+            return f"Successfully saved {len(content or '')} characters to workspace file '{display_rel}'."
 
-        elif action == "list":
+        elif act == "list":
             if not target.exists():
-                return f"Directory '{path}' does not exist."
+                return f"Directory '{display_rel}' does not exist."
             if not target.is_dir():
-                return f"Path '{path}' is not a directory."
+                return f"Path '{display_rel}' is a file, not a directory."
             items = []
             for item in sorted(target.iterdir()):
                 rel = item.relative_to(base).as_posix()
                 prefix = "[DIR] " if item.is_dir() else "[FILE]"
                 size = f"({item.stat().st_size} bytes)" if item.is_file() else ""
                 items.append(f"{prefix} {rel} {size}")
-            return "\n".join(items) if items else "(Directory is empty)"
+            return "\n".join(items) if items else f"(Directory '{display_rel}' is empty)"
 
-        elif action == "delete":
+        elif act == "delete":
             if not target.exists():
-                return f"Path '{path}' does not exist."
+                return f"Path '{display_rel}' does not exist."
+            if target == base:
+                return "Cannot delete the root workspace directory."
             if target.is_file():
                 target.unlink()
-                return f"File '{path}' deleted."
+                return f"File '{display_rel}' deleted from workspace."
             elif target.is_dir():
                 import shutil
                 shutil.rmtree(target)
-                return f"Directory '{path}' and all contents deleted."
+                return f"Directory '{display_rel}' and all contents deleted."
 
         else:
-            return f"Unknown action: '{action}'. Must be one of ['read', 'write', 'list', 'delete']."
+            return f"Unknown action: '{act}'. Must be one of ['read', 'write', 'list', 'delete']."
 
     except Exception as e:
         return f"File system error: {str(e)}"

@@ -6,8 +6,8 @@ powershell -NoProfile -ExecutionPolicy Bypass -Command ^
   "$ws = New-Object -ComObject WScript.Shell; " ^
   "$desktop = [System.Environment]::GetFolderPath('Desktop'); " ^
   "$shortcut = $ws.CreateShortcut(\"$desktop\AetherAI Studio 3.0.lnk\"); " ^
-  "$shortcut.TargetPath = 'node.exe'; " ^
-  "$shortcut.Arguments = \"\"\"%~dp0cli.js\"\"\" --desktop; " ^
+  "$shortcut.TargetPath = 'powershell.exe'; " ^
+  "$shortcut.Arguments = '-NoProfile -ExecutionPolicy Bypass -File \"\"\"%~dp0run.ps1\"\"\" -Desktop'; " ^
   "$shortcut.WorkingDirectory = \"%~dp0\"; " ^
   "$shortcut.Description = 'AetherAI Studio 3.0 - Next-Gen Autonomous AI Agent Desktop'; " ^
   "$shortcut.Save(); " ^

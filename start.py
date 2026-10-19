@@ -103,9 +103,17 @@ def start_dev_mode(port: int, host: str):
     print(f"後端端點: http://localhost:{port}")
     print("前端熱重載: http://localhost:5173\n")
 
-    # Start FastAPI backend process
+    # Start FastAPI backend process (watching only backend/app, ignoring workspace and data)
     backend_proc = subprocess.Popen(
-        [sys.executable, "-m", "uvicorn", "backend.app.main:app", "--host", host, "--port", str(port), "--reload"],
+        [
+            sys.executable, "-m", "uvicorn", "backend.app.main:app",
+            "--host", host,
+            "--port", str(port),
+            "--reload",
+            "--reload-dir", str(PROJECT_ROOT / "backend" / "app"),
+            "--reload-exclude", "*workspace*",
+            "--reload-exclude", "*data*"
+        ],
         cwd=str(PROJECT_ROOT),
         env=os.environ.copy()
     )
@@ -232,8 +240,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
             "backend.app.main:app",
             host=host,
             port=port,
-            reload=True,
-            reload_dirs=[str(PROJECT_ROOT / "backend")],
+            reload=False,
             log_level="info"
         )
     except KeyboardInterrupt:

@@ -14,7 +14,7 @@ git clone https://github.com/hankyleisplay/AetherAI-Studio.git
 cd AetherAI-Studio
 ```
 
-啟動互動式導航（會主動詢問您要啟動「獨立桌面視窗版」或「一般網頁瀏覽器版」）：
+啟動互動式導航（會主動詢問您要啟動「獨立桌面視窗版」、「一般網頁瀏覽器版」或「檢查並更新至最新版本」）：
 
 ```cmd
 .\launch.bat
@@ -29,8 +29,43 @@ cd AetherAI-Studio
 > 💡 **啟動腳本將引導您選擇**：
 > - `[1] 獨立桌面視窗版 (Desktop App)`：啟動原生獨立應用程式視窗，享受無邊框 Liquid Glass 沉浸體驗 (`.\run.ps1 -Desktop`)。
 > - `[2] 一般網頁瀏覽器版 (Web Browser)`：在預設瀏覽器分頁開啟 Web 介面 (`.\run.ps1`)。
+> - `[3] 檢查並更新至最新版本 (Update to Latest Version)`：自動拉取遠端最新版本，並保護本機對話與工作區資料不衝突。
 >
 > 亦可建立桌面專屬圖示捷徑：雙擊執行 `create_desktop_shortcut.bat`。
+
+---
+
+## 🔄 系統一鍵更新 (Smart Auto-Update)
+
+如果您已經 Clone 過專案，當有新版本發布時，請**不要再次 `git clone`**（Git 會因目錄非空而報錯），您可以使用以下任一方式極速更新：
+
+### 方法一：專屬一鍵更新腳本（最簡單推薦）
+在專案根目錄下直接雙擊或執行：
+```cmd
+.\update.bat
+```
+或在 PowerShell 執行：
+```powershell
+.\update.ps1
+```
+*(腳本會自動保護您的工作區與資料庫、拉取 GitHub 最新程式碼、自動配置新依賴，並詢問是否立即啟動！)*
+
+### 方法二：在啟動選單中直接選擇更新
+執行 `.\launch.bat` 或 `.\launch.ps1`，輸入 `[3]` 即可一鍵檢查並升級至最新版。
+
+### 方法三：全自動智慧指令（已下載則自動更新，未下載則自動 Clone）
+* **Windows PowerShell**:
+  ```powershell
+  if (Test-Path AetherAI-Studio) { cd AetherAI-Studio; .\update.ps1 } else { git clone https://github.com/hankyleisplay/AetherAI-Studio.git; cd AetherAI-Studio; .\launch.ps1 }
+  ```
+* **Windows CMD**:
+  ```cmd
+  if exist AetherAI-Studio (cd AetherAI-Studio && update.bat) else (git clone https://github.com/hankyleisplay/AetherAI-Studio.git && cd AetherAI-Studio && launch.bat)
+  ```
+* **Linux / macOS**:
+  ```bash
+  if [ -d "AetherAI-Studio" ]; then cd AetherAI-Studio && ./update.sh; else git clone https://github.com/hankyleisplay/AetherAI-Studio.git && cd AetherAI-Studio && ./run.sh; fi
+  ```
 
 ---
 
