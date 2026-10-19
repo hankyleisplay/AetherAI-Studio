@@ -7,10 +7,12 @@ import {
   ChevronUp, 
   Terminal, 
   FileCode, 
-  Code2 
+  Code2,
+  Sparkles
 } from 'lucide-react';
 import { highlightLine, normalizeLanguage } from './syntaxHighlighter';
 import { MermaidRenderer } from './MermaidRenderer';
+import { CanvasPreviewModal } from '../CanvasPreviewModal';
 
 interface CodeBlockProps {
   lang: string;
@@ -21,6 +23,7 @@ interface CodeBlockProps {
 export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = false }) => {
   const [copied, setCopied] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [isCanvasOpen, setIsCanvasOpen] = useState(false);
 
   const normLang = normalizeLanguage(lang);
 
@@ -34,6 +37,19 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = 
   // Keep code expanded while streaming or if code is under 60 lines
   const isLongCode = lineCount > 60 && !isStreaming;
   const displayedLines = isLongCode && !isExpanded ? lines.slice(0, 45) : lines;
+
+  const isCanvasCompatible = React.useMemo(() => {
+    const trimmed = code.trim();
+    return (
+      normLang === 'html' || 
+      normLang === 'svg' || 
+      normLang === 'xml' ||
+      trimmed.startsWith('<svg') ||
+      trimmed.startsWith('<!DOCTYPE') ||
+      trimmed.startsWith('<html') ||
+      (normLang === 'javascript' && (trimmed.includes('document.createElement') || trimmed.includes('getContext(')))
+    );
+  }, [normLang, code]);
 
   const handleCopy = () => {
     navigator.clipboard.writeText(code);
@@ -104,6 +120,16 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = 
 
         {/* Action Controls */}
         <div className="flex items-center gap-1.5">
+          {isCanvasCompatible && (
+            <button
+              onClick={() => setIsCanvasOpen(true)}
+              className="px-2.5 py-1 rounded-lg bg-gradient-to-r from-cyan-500/20 via-indigo-500/20 to-purple-500/20 hover:from-cyan-500/30 hover:to-indigo-500/30 border border-cyan-400/40 text-cyan-300 hover:text-white transition-all flex items-center gap-1.5 shadow-[0_0_12px_rgba(0,242,254,0.2)]"
+              title="在安全沙盒中即時預覽互動畫布與組件"
+            >
+              <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+              <span className="text-[11px] font-semibold">即時畫布</span>
+            </button>
+          )}
           <button
             onClick={handleDownload}
             className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors"
@@ -179,6 +205,15 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = 
           </div>
         )}
       </div>
+
+      {isCanvasCompatible && (
+        <CanvasPreviewModal
+          isOpen={isCanvasOpen}
+          onClose={() => setIsCanvasOpen(false)}
+          code={code}
+          lang={normLang}
+        />
+      )}
     </div>
   );
 };

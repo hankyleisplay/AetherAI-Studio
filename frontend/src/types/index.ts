@@ -10,6 +10,15 @@ export interface ToolCall {
   isRunning?: boolean;
 }
 
+export interface MessageTelemetry {
+  tokens?: number;
+  duration_s?: number;
+  tokens_per_second?: number;
+  ttft_ms?: number;
+  temperature?: number;
+  model?: string;
+}
+
 export interface Message {
   id: string;
   session_id?: string;
@@ -23,6 +32,7 @@ export interface Message {
   persona_id?: string;
   status_text?: string;
   images?: string[];
+  telemetry?: MessageTelemetry;
 }
 
 export interface WorkspaceFile {

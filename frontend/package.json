@@ -1,7 +1,7 @@
 {
   "name": "@hankyleisplay/aetherai-studio",
   "private": true,
-  "version": "3.0.0",
+  "version": "3.5.0-preview",
   "type": "module",
   "scripts": {
     "dev": "node ./node_modules/vite/bin/vite.js",

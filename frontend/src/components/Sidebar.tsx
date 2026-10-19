@@ -153,14 +153,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="overflow-hidden">
                 <div className="flex items-center gap-1.5">
                   <h1 className="text-sm font-extrabold bg-gradient-to-r from-white via-cyan-200 to-indigo-300 bg-clip-text text-transparent truncate">
-                    {t('brand_name', 'Aether AI Studio 3.0')}
+                    {t('brand_name', 'Aether AI Studio 3.5')}
                   </h1>
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 uppercase tracking-widest font-mono font-bold shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0">
-                    v3.0
+                    v3.5-Preview
                   </span>
                 </div>
                 <span className="text-[10px] text-cyan-400/90 font-mono tracking-wider truncate block">
-                  {t('brand_subtitle', '次世代桌面版 • 企業級自主智能體系統')}
+                  {t('brand_subtitle', '次世代桌面版 • 企業級自主智能體系統 (3.5 Preview)')}
                 </span>
               </div>
             </div>

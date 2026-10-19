@@ -83,6 +83,11 @@ class SwarmRequest(BaseModel):
     rounds: Optional[int] = 1
     model_config_override: Optional[ModelConfig] = None
 
+class PromptEnhanceRequest(BaseModel):
+    prompt: str
+    temperature: Optional[float] = 0.7
+    persona_id: Optional[str] = "assistant"
+
 # Health Check
 @app.get("/api/health")
 async def health_check():
@@ -91,6 +96,49 @@ async def health_check():
         "app": settings.app_name,
         "version": settings.version,
         "workspace": str(settings.workspace_dir)
+    }
+
+# AI Prompt Enhancer Endpoint (3.5 Preview)
+@app.post("/api/prompt/enhance")
+async def enhance_prompt_endpoint(req: PromptEnhanceRequest):
+    raw_prompt = req.prompt.strip()
+    if not raw_prompt:
+        raise HTTPException(status_code=400, detail="Prompt cannot be empty")
+
+    temp = float(req.temperature if req.temperature is not None else 0.7)
+    if temp <= 0.3:
+        enhanced = (
+            f"【🎯 精確嚴謹模式 (Precise & Rigorous)】請針對以下工程需求進行全方位架構拆解與可驗證實作：\n"
+            f"1. 核心目標與邊界條件 (Scope & Strict Boundary Constraints)\n"
+            f"2. 嚴密邏輯推論、演算法設計與極限邊界案例 (Edge Cases & Invariants)\n"
+            f"3. 完整技術實作、型別安全定義與驗證測試步驟 (Types, Code & Tests)\n\n"
+            f"原始需求指令：\n{raw_prompt}\n\n"
+            f"請輸出具備高確定性、零假設、可直接部署驗證的工業級方案。"
+        )
+    elif temp >= 0.9:
+        enhanced = (
+            f"【🎨 發散創意模式 (Creative & Visionary)】請針對以下創意靈感進行跨界探索與前瞻性架構延伸：\n"
+            f"1. 顛覆性概念設計與未來感視覺/互動體驗 (Avant-Garde Architecture & UX)\n"
+            f"2. 多維度創新方案探索與彩蛋驚喜構思 (Novel Variations & Easter Eggs)\n"
+            f"3. 具備視覺魅力、生動細膩且引人入勝的完整實作藍圖 (Vibrant & Expressive Implementation)\n\n"
+            f"原始需求靈感：\n{raw_prompt}\n\n"
+            f"請發揮最高想像力與聯想力，帶來超乎預期的驚艷技術與藝術交付！"
+        )
+    else:
+        enhanced = (
+            f"【⚖️ 標準平衡模式 (Balanced)】請針對以下需求提供高規格、結構化且具備深度實踐價值的解答：\n"
+            f"1. 需求分析與最佳實踐架構設計\n"
+            f"2. 模組化程式碼實作與關鍵註解說明\n"
+            f"3. 潛在風險排查與效能優化建議\n\n"
+            f"原始需求：\n{raw_prompt}\n\n"
+            f"請輸出結構清晰、條理分明、兼顧理論深度與工程可維護性的高品質回覆。"
+        )
+
+    return {
+        "success": True,
+        "enhanced_prompt": enhanced,
+        "original_prompt": raw_prompt,
+        "temperature": temp
     }
 
 # Active Model Config API

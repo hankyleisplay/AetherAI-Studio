@@ -66,11 +66,51 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const [attachedImages, setAttachedImages] = useState<AttachedImage[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [isEnhancing, setIsEnhancing] = useState(false);
+  const [prevPromptBeforeEnhance, setPrevPromptBeforeEnhance] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const handleEnhancePrompt = async () => {
+    if (!inputText.trim() || isEnhancing || isStreaming) return;
+    setIsEnhancing(true);
+    setPrevPromptBeforeEnhance(inputText);
+    try {
+      const res = await fetch('/api/prompt/enhance', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          prompt: inputText,
+          temperature: temperature,
+          persona_id: activePersona?.id || 'assistant'
+        })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.enhanced_prompt) {
+          setInputText(data.enhanced_prompt);
+          if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 180)}px`;
+          }
+        }
+      }
+    } catch (e) {
+      console.error('Failed to enhance prompt:', e);
+    } finally {
+      setIsEnhancing(false);
+    }
+  };
+
+  const handleUndoEnhance = () => {
+    if (prevPromptBeforeEnhance !== null) {
+      setInputText(prevPromptBeforeEnhance);
+      setPrevPromptBeforeEnhance(null);
+    }
+  };
 
   const toggleListening = () => {
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -733,6 +773,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
                 <span className="hidden sm:inline text-[11px]">{isListening ? t('voice_listening', '聆聽中...') : t('voice_input', '語音輸入')}</span>
               </button>
+
+              {/* Prompt Enhancer Button (3.5 Preview) */}
+              <button
+                type="button"
+                onClick={handleEnhancePrompt}
+                disabled={!inputText.trim() || isEnhancing || isStreaming}
+                className={`p-1.5 rounded-lg glass-button transition-all flex items-center gap-1 text-xs ${
+                  inputText.trim() && !isStreaming
+                    ? 'text-cyan-300 hover:text-white border-cyan-400/30 hover:border-cyan-400/60 shadow-[0_0_10px_rgba(0,242,254,0.15)]'
+                    : 'text-slate-500 opacity-50 cursor-not-allowed'
+                }`}
+                title={
+                  temperature <= 0.3 
+                    ? '根據精確嚴謹模式 (0.2) 深度擴展 Prompt 架構與邊界約束' 
+                    : temperature >= 0.9 
+                      ? '根據發散創意模式 (1.1) 激發前瞻性創新與視覺/體驗靈感' 
+                      : '結構化潤色並擴展提示詞'
+                }
+              >
+                {isEnhancing ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin text-cyan-400" />
+                ) : (
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400 animate-pulse" />
+                )}
+                <span className="hidden sm:inline text-[11px] font-semibold">
+                  {isEnhancing ? '優化中...' : '提示詞優化'}
+                </span>
+              </button>
+
+              {prevPromptBeforeEnhance !== null && (
+                <button
+                  type="button"
+                  onClick={handleUndoEnhance}
+                  className="p-1.5 rounded-lg glass-button text-amber-300 hover:text-white text-xs flex items-center gap-1 transition-all"
+                  title="復原為優化前的原始提示詞"
+                >
+                  <X className="w-3 h-3 text-amber-400" />
+                  <span className="text-[11px]">復原</span>
+                </button>
+              )}
 
               <div className="flex items-center gap-1.5 text-[11px] text-slate-400 font-mono ml-1">
                 <span>{inputText.length} {t('characters', '字元')}</span>

@@ -33,7 +33,8 @@ async def run_tests():
             res = await client.get("/api/health")
             print("1. /api/health:", res.status_code, res.json())
             assert res.status_code == 200
-            assert "Aether AI Studio 3.0 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.5 (AetherAgent)" in res.json()["app"]
+            assert res.json()["version"] == "3.5.0-preview"
 
             # 2. Get active model & test auto-discovery + model switching
             res = await client.get("/api/models/active")
@@ -127,6 +128,32 @@ async def run_tests():
             new_sys_prompt = test_orch._get_system_prompt()
             assert "🎭 互動趣味防雷與劇透/暴雷標籤支援" in new_sys_prompt
             print("3j. Interactive spoiler & easter egg guideline verified in system prompt!")
+
+            # 3k. Verify temperature calibration & cognitive directives
+            precise_orch = AgentOrchestrator(ModelConfig(temperature=0.2))
+            precise_prompt = precise_orch._get_system_prompt()
+            assert "🎯 認知與推論調優指令：【精確嚴謹模式 (Precise & Rigorous)】" in precise_prompt
+            assert "零假設" in precise_prompt
+
+            creative_orch = AgentOrchestrator(ModelConfig(temperature=1.1))
+            creative_prompt = creative_orch._get_system_prompt()
+            assert "🎨 認知與推論調優指令：【發散創意模式 (Creative & Visionary)】" in creative_prompt
+            assert "打破常規框架" in creative_prompt
+
+            balanced_orch = AgentOrchestrator(ModelConfig(temperature=0.7))
+            balanced_prompt = balanced_orch._get_system_prompt()
+            assert "⚖️ 認知與推論調優指令：【標準平衡模式 (Balanced)】" in balanced_prompt
+            print("3k. Dynamic temperature calibration & cognitive directives verified successfully!")
+
+            # 3l. Test Prompt Enhancer API (3.5 Preview)
+            enh_res = await client.post("/api/prompt/enhance", json={"prompt": "編寫一個貪吃蛇遊戲", "temperature": 0.2})
+            assert enh_res.status_code == 200
+            assert "🎯 精確嚴謹模式" in enh_res.json()["enhanced_prompt"]
+
+            enh_creative = await client.post("/api/prompt/enhance", json={"prompt": "設計一個魔幻時鐘", "temperature": 1.1})
+            assert enh_creative.status_code == 200
+            assert "🎨 發散創意模式" in enh_creative.json()["enhanced_prompt"]
+            print("3l. AI Prompt Enhancer API verified across temperature modes!")
 
             # 4. List personas
             res = await client.get("/api/personas")

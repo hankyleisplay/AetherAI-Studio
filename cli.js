@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 /**
- * Aether AI Studio 3.0 (AetherAgent) - CLI Launcher
+ * Aether AI Studio 3.5 (AetherAgent) - CLI Launcher
  * Cross-platform entry point for npm / npx
  */
 

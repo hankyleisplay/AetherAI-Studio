@@ -49,6 +49,9 @@ export const App: React.FC = () => {
   const streamingSessionIdRef = useRef<string | null>(null);
   const tokenBufferRef = useRef<{ [msgId: string]: string }>({});
   const tokenRafRef = useRef<number | null>(null);
+  const streamStartTimeRef = useRef<number>(0);
+  const firstTokenTimeRef = useRef<number | null>(null);
+  const streamTokenCountRef = useRef<number>(0);
 
   const flushTokenBuffer = () => {
     const buffers = tokenBufferRef.current;
@@ -63,7 +66,21 @@ export const App: React.FC = () => {
       const next = prev.map(m => {
         if (copy[m.id]) {
           changed = true;
-          return { ...m, content: m.content + copy[m.id] };
+          const elapsed = Math.max(0.01, (performance.now() - streamStartTimeRef.current) / 1000);
+          const tps = streamTokenCountRef.current / elapsed;
+          const ttft = firstTokenTimeRef.current ? Math.round(firstTokenTimeRef.current - streamStartTimeRef.current) : undefined;
+          return { 
+            ...m, 
+            content: m.content + copy[m.id],
+            telemetry: {
+              tokens: streamTokenCountRef.current,
+              duration_s: Number(elapsed.toFixed(2)),
+              tokens_per_second: Number(tps.toFixed(1)),
+              ttft_ms: ttft,
+              temperature: modelConfig.temperature,
+              model: modelConfig.model
+            }
+          };
         }
         return m;
       });
@@ -418,6 +435,9 @@ export const App: React.FC = () => {
     isStreamingRef.current = true;
     setIsStreaming(true);
     setAgentState('thinking');
+    streamStartTimeRef.current = performance.now();
+    firstTokenTimeRef.current = null;
+    streamTokenCountRef.current = 0;
 
     const controller = new AbortController();
     abortControllerRef.current = controller;
@@ -554,8 +574,12 @@ export const App: React.FC = () => {
                   });
                 });
               } else if (currentEvent === 'token' || data.type === 'token') {
+                if (firstTokenTimeRef.current === null) {
+                  firstTokenTimeRef.current = performance.now();
+                }
                 setAgentState('generating');
                 const chunk = data.content || '';
+                streamTokenCountRef.current += Math.max(1, Math.ceil(chunk.length / 2.8));
                 tokenBufferRef.current[assistantMsgId] = (tokenBufferRef.current[assistantMsgId] || '') + chunk;
                 if (!tokenRafRef.current) {
                   tokenRafRef.current = requestAnimationFrame(() => {
@@ -572,6 +596,19 @@ export const App: React.FC = () => {
                 isStreamingRef.current = false;
                 setAgentState('idle');
                 setIsStreaming(false);
+
+                const finalElapsed = Math.max(0.01, (performance.now() - streamStartTimeRef.current) / 1000);
+                const finalTps = streamTokenCountRef.current / finalElapsed;
+                const finalTtft = firstTokenTimeRef.current ? Math.round(firstTokenTimeRef.current - streamStartTimeRef.current) : undefined;
+                const finalTelemetry = {
+                  tokens: streamTokenCountRef.current,
+                  duration_s: Number(finalElapsed.toFixed(2)),
+                  tokens_per_second: Number(finalTps.toFixed(1)),
+                  ttft_ms: finalTtft,
+                  temperature: modelConfig.temperature,
+                  model: modelConfig.model
+                };
+
                 setMessages(prev => {
                   const exists = prev.some(m => m.id === assistantMsgId);
                   if (!exists && (data.content || data.thought)) {
@@ -584,7 +621,8 @@ export const App: React.FC = () => {
                         thought: data.thought || '',
                         tool_calls: [],
                         persona_id: selectedPersonaId,
-                        created_at: new Date().toISOString()
+                        created_at: new Date().toISOString(),
+                        telemetry: finalTelemetry
                       }
                     ];
                   }
@@ -595,7 +633,8 @@ export const App: React.FC = () => {
                         id: data.message_id || m.id,
                         content: m.content || data.content || '',
                         thought: m.thought || data.thought || '',
-                        status_text: undefined
+                        status_text: undefined,
+                        telemetry: finalTelemetry
                       };
                     }
                     return m;

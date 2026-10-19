@@ -19,7 +19,8 @@ import {
   ShieldCheck,
   Cpu,
   Loader2,
-  RotateCw
+  RotateCw,
+  Zap
 } from 'lucide-react';
 import { Message, Persona, AgentState } from '../types';
 import { ToolCallCard } from './ToolCallCard';
@@ -369,6 +370,49 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
               </div>
             ) : null}
 
+            {/* Real-time Inference HUD / Performance Telemetry Pill */}
+            {message.telemetry && (message.telemetry.tokens || 0) > 0 && (
+              <div className="mt-3.5 flex flex-wrap items-center gap-2 p-1.5 px-3 rounded-xl bg-gradient-to-r from-cyan-950/40 via-indigo-950/30 to-black/40 border border-cyan-500/25 text-[11px] font-mono text-cyan-300 shadow-sm backdrop-blur-md">
+                <span className="flex items-center gap-1 text-cyan-400 font-bold tracking-tight">
+                  <Zap className="w-3.5 h-3.5 text-cyan-400 fill-cyan-400/40 animate-pulse" />
+                  {message.telemetry.tokens_per_second ? `${message.telemetry.tokens_per_second.toFixed(1)} tok/s` : '0.0 tok/s'}
+                </span>
+                <span className="text-white/20 select-none">•</span>
+                <span className="text-slate-300" title="總生成時間">
+                  ⏱️ {message.telemetry.duration_s ? `${message.telemetry.duration_s.toFixed(2)}s` : '0.00s'}
+                </span>
+                <span className="text-white/20 select-none">•</span>
+                <span className="text-slate-300" title="生成 Token 總數">
+                  📊 {message.telemetry.tokens || 0} tokens
+                </span>
+                {message.telemetry.ttft_ms !== undefined && message.telemetry.ttft_ms > 0 && (
+                  <>
+                    <span className="text-white/20 select-none">•</span>
+                    <span className="text-purple-300" title="首字延遲 (Time To First Token)">
+                      ⚡ TTFT {message.telemetry.ttft_ms}ms
+                    </span>
+                  </>
+                )}
+                {message.telemetry.temperature !== undefined && (
+                  <>
+                    <span className="text-white/20 select-none">•</span>
+                    <span 
+                      className={`px-1.5 py-0.5 rounded-md text-[10px] border font-bold ${
+                        message.telemetry.temperature <= 0.3 
+                          ? 'bg-blue-500/20 text-blue-300 border-blue-500/40' 
+                          : message.telemetry.temperature >= 0.9 
+                            ? 'bg-amber-500/20 text-amber-300 border-amber-500/40' 
+                            : 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40'
+                      }`}
+                      title="推論採樣溫度與認知指令模式"
+                    >
+                      {message.telemetry.temperature <= 0.3 ? '🎯 精確嚴謹' : message.telemetry.temperature >= 0.9 ? '🎨 發散創意' : '⚖️ 標準平衡'} ({message.telemetry.temperature})
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
             {/* Message Action Footer Toolbar */}
             <div className="mt-4 pt-3 border-t border-white/[0.08] flex items-center justify-between text-xs text-slate-400">
               <span className="text-[11px] text-slate-400 font-mono">
@@ -463,11 +507,13 @@ export const MessageItem = React.memo<MessageItemProps>(
     if (prev.isStreaming !== next.isStreaming) return false;
     if (prev.agentState !== next.agentState) return false;
 
-    // If message content, thought or status changed, re-render
+    // If message content, thought, status or telemetry changed, re-render
     if (prev.message.id !== next.message.id) return false;
     if (prev.message.content !== next.message.content) return false;
     if (prev.message.thought !== next.message.thought) return false;
     if (prev.message.status_text !== next.message.status_text) return false;
+    if (prev.message.telemetry?.tokens !== next.message.telemetry?.tokens) return false;
+    if (prev.message.telemetry?.tokens_per_second !== next.message.telemetry?.tokens_per_second) return false;
 
     // If bookmark status changed, re-render
     if (Boolean(prev.message.is_bookmarked) !== Boolean(next.message.is_bookmarked)) return false;

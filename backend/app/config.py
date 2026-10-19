@@ -10,8 +10,8 @@ DATA_DIR.mkdir(parents=True, exist_ok=True)
 DB_PATH = DATA_DIR / "agent_store.sqlite"
 
 class Settings(BaseModel):
-    app_name: str = "Aether AI Studio 3.0 (AetherAgent)"
-    version: str = "3.0.0"
+    app_name: str = "Aether AI Studio 3.5 (AetherAgent)"
+    version: str = "3.5.0-preview"
     host: str = "0.0.0.0"
     port: int = 8000
     workspace_dir: Path = WORKSPACE_DIR
