@@ -54,17 +54,41 @@ cd AetherAI-Studio
 執行 `.\launch.bat` 或 `.\launch.ps1`，輸入 `[3]` 即可一鍵檢查並升級至最新版。
 
 ### 方法三：全自動智慧指令（已下載則自動更新，未下載則自動 Clone）
-* **Windows PowerShell**:
+
+* **Windows PowerShell（分行腳本）：**
   ```powershell
-  if (Test-Path AetherAI-Studio) { cd AetherAI-Studio; .\update.ps1 } else { git clone https://github.com/hankyleisplay/AetherAI-Studio.git; cd AetherAI-Studio; .\launch.ps1 }
+  if (Test-Path AetherAI-Studio) {
+      cd AetherAI-Studio
+      .\update.ps1
+  } else {
+      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
+      cd AetherAI-Studio
+      .\launch.ps1
+  }
   ```
-* **Windows CMD**:
+
+* **Windows CMD 批次檔（分行腳本）：**
   ```cmd
-  if exist AetherAI-Studio (cd AetherAI-Studio && update.bat) else (git clone https://github.com/hankyleisplay/AetherAI-Studio.git && cd AetherAI-Studio && launch.bat)
+  if exist AetherAI-Studio (
+      cd AetherAI-Studio
+      call update.bat
+  ) else (
+      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
+      cd AetherAI-Studio
+      call launch.bat
+  )
   ```
-* **Linux / macOS**:
+
+* **Linux / macOS Bash（分行腳本）：**
   ```bash
-  if [ -d "AetherAI-Studio" ]; then cd AetherAI-Studio && ./update.sh; else git clone https://github.com/hankyleisplay/AetherAI-Studio.git && cd AetherAI-Studio && ./run.sh; fi
+  if [ -d "AetherAI-Studio" ]; then
+      cd AetherAI-Studio
+      ./update.sh
+  else
+      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
+      cd AetherAI-Studio
+      ./run.sh
+  fi
   ```
 
 ---
