@@ -11,7 +11,18 @@ import {
   ChevronRight, 
   CheckCircle2, 
   AlertCircle, 
-  Loader2 
+  Loader2,
+  GitBranch,
+  Database,
+  FileCode2,
+  ShieldCheck,
+  Binary,
+  Archive,
+  Globe,
+  FileSearch,
+  BarChart3,
+  Network,
+  FileText
 } from 'lucide-react';
 import { ToolCall } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -38,6 +49,36 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         return <Cpu className="w-4 h-4 text-purple-400" />;
       case 'datetime_calc':
         return <Clock className="w-4 h-4 text-pink-400" />;
+      case 'read_url':
+        return <Globe className="w-4 h-4 text-sky-400" />;
+      case 'knowledge_memory':
+        return <Database className="w-4 h-4 text-indigo-400" />;
+      case 'generate_chart':
+      case 'mermaid_generator':
+        return <BarChart3 className="w-4 h-4 text-teal-400" />;
+      case 'http_request_api':
+        return <Network className="w-4 h-4 text-violet-400" />;
+      case 'document_text_extractor':
+        return <FileText className="w-4 h-4 text-orange-400" />;
+      case 'code_linter_analyzer':
+        return <FileCode2 className="w-4 h-4 text-yellow-400" />;
+      case 'ocr_extractor':
+      case 'image_to_text':
+        return <FileSearch className="w-4 h-4 text-rose-400" />;
+      case 'git_version_control':
+        return <GitBranch className="w-4 h-4 text-orange-500" />;
+      case 'database_sqlite_inspector':
+        return <Database className="w-4 h-4 text-cyan-500" />;
+      case 'data_transformer_converter':
+        return <Binary className="w-4 h-4 text-emerald-400" />;
+      case 'hash_crypto_inspector':
+        return <ShieldCheck className="w-4 h-4 text-green-400" />;
+      case 'regex_pattern_matcher':
+        return <Code2 className="w-4 h-4 text-fuchsia-400" />;
+      case 'archive_compressor':
+        return <Archive className="w-4 h-4 text-amber-500" />;
+      case 'network_dns_whois_lookup':
+        return <Globe className="w-4 h-4 text-blue-400" />;
       default:
         return <Wrench className="w-4 h-4 text-cyan-400" />;
     }

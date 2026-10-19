@@ -9,6 +9,7 @@ venv/
 .venv/
 backend/venv/
 backend/site-packages/
+backend/site-packages*/
 .pytest_cache/
 .coverage
 htmlcov/

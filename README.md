@@ -1,7 +1,7 @@
 # 💧 Aether AI Studio 3.0 (AetherAgent)
 
 > **極致美感 Liquid Glass（流光水感毛玻璃 / Apple VisionOS 前瞻設計風格）本地與雲端雙模自主 AI Agent 系統。**  
-> 全新 3.0 版本升級：原生獨立桌面應用程式 (Desktop App)、Ctrl+V 貼上/拖曳圖片多模態視覺識別、雙軌視覺路由 (Dual-Track Vision Routing)、Windows 本機 OCR 引擎、14 大智慧工具鏈與跨平台免安裝一鍵啟動。
+> 全新 3.0 版本升級：原生獨立桌面應用程式 (Desktop App)、Ctrl+V 貼上/拖曳圖片多模態視覺識別、雙軌視覺路由 (Dual-Track Vision Routing)、Windows 本機 OCR 引擎、22 大智慧工具鏈與跨平台免安裝一鍵啟動。
 
 ---
 
@@ -116,7 +116,7 @@ cd AetherAI-Studio
 
 ### 4. ✈️ Telegram 雙向智能體橋接 (Telegram Bot Bridge)
 * **背景非同步長輪詢守護行程**：基於 Python `asyncio` + `httpx`，無需公網 Webhook，內網或本機環境即可直連 Telegram。
-* **無縫銜接 Agent 核心**：在 Telegram 中傳送文字，Agent 會自動發送 `typing` 打字狀態，自主思考並調用 14 大工具執行任務後回傳。
+* **無縫銜接 Agent 核心**：在 Telegram 中傳送文字，Agent 會自動發送 `typing` 打字狀態，自主思考並調用 22 大企業級工具執行任務後回傳。
 
 ### 5. 📐 科學級 LaTeX 數學公式排版 (LaTeX Math Typesetting)
 * **輕量無依賴公式引擎**：融合數學符號解析系統，自動識別並美化公式。
@@ -126,17 +126,28 @@ cd AetherAI-Studio
 * **原生 Function Calling**：完美對接 GPT-4o、Claude 3.5 Sonnet、Gemini 2.5 Flash、DeepSeek-V3 等雲端高階模型的標準 JSON Tool Calling 協議。
 * **智慧 ReAct 文字推理後備機制（Smart ReAct Fallback）**：針對 7B/8B 本地量化模型（如 Llama 3、Mistral、Qwen 等）不擅長輸出 JSON Schema 的情況，內建文字 ReAct 解析器，讓小參數本地模型也能順暢調用工具！
 
-### 7. 🔌 開箱即用的 14 大強大工具箱（Pluggable Tools）
-* 🔍 **即時網路檢索 (`web_search`)**：免 API Key，直接透過 DuckDuckGo 即時搜尋全網資訊並擷取摘要。
-* 👁️ **光學字符識別 (`ocr_extractor`)**：快速提取工作區圖片文字與排版結構。
-* 🌐 **特定網頁提取器 (`read_url`)**：給定任意 URL，自動解析去除雜訊與廣告，提煉乾淨可讀正文內容。
+### 7. 🔌 開箱即用的 22 大企業級強大工具箱（Pluggable Tools）
+* 🔍 **全網即時檢索 (`web_search`)**：免 API Key，直接透過 DuckDuckGo 即時搜尋全網資訊並擷取權威摘要。
+* 👁️ **光學字符識別 (`ocr_extractor` / `image_to_text`)**：快速提取圖片文字內容、座標排版與表格結構。
+* 🌐 **網頁深度提煉 (`read_url`)**：給定任意 URL，自動解析去除雜訊與廣告，提煉乾淨可讀正文內容。
 * 🧠 **跨會話長效記憶庫 (`knowledge_memory`)**：持久化儲存特定背景、偏好與知識要點，打破會話隔閡。
-* 📊 **視覺化圖表生成器 (`generate_chart`)**：生成長條圖、折線圖與比例圖數據，UI 即時繪製玻璃感動態圖表。
+* 📊 **數據圖表繪製 (`generate_chart`)**：生成長條圖、折線圖與比例圖數據，UI 即時繪製玻璃感動態圖表。
 * 🐍 **Python 沙盒計算機 (`python_eval`)**：即時編譯執行 Python 腳本、數學計算與演算法驗證。
-* 📂 **工作區檔案系統 (`file_system`)**：受沙盒防護的安全本地檔案讀取、寫入、檔案清單檢視與管理。
-* 🖥️ **命令列終端執行器 (`bash_executor`)**：受控執行的 Shell 指令環境（具備危險指令攔截與逾時保護）。
-* 📊 **主機系統狀態診斷 (`system_status`)**：即時讀取 CPU 核心負載、記憶體剩餘、磁碟可用容量與作業系統資訊。
-* ⏰ **日期時間與時區運算 (`datetime_calc`)**：精確的時間日期運算與多時區解析。
+* 📂 **工作區檔案系統 (`file_system`)**：受沙盒防護的安全本地檔案讀取、寫入、追加與檔案清單管理。
+* 🖥️ **命令列終端執行器 (`bash_executor`)**：受控執行的 Shell 指令環境（具備危險指令攔截與逾時保護機制）。
+* 📈 **主機系統狀態診斷 (`system_status`)**：即時讀取 CPU 核心負載、記憶體剩餘、磁碟可用容量與作業系統資訊。
+* ⏰ **日期時間與時區運算 (`datetime_calc`)**：精確的時間日期運算、倒數計時與全球時區解析。
+* 🌐 **外部 API 整合 (`http_request_api`)**：支援 GET, POST, PUT, DELETE 呼叫任意第三方 RESTful API。
+* 📑 **多格式文檔萃取 (`document_text_extractor`)**：直接解析 PDF, DOCX, XLSX, CSV, JSON, TXT, MD 文件文字內容。
+* 📐 **Mermaid 架構圖生成 (`mermaid_generator`)**：自動產出標準流程圖、時序圖、類別圖、狀態圖或實體關聯圖。
+* 🛡️ **代碼品質靜態分析 (`code_linter_analyzer`)**：對 Python、JS、TS 進行語法檢查、安全風險與最佳實踐診斷。
+* 🌿 **Git 版本控制檢視 (`git_version_control`)**：檢視儲存庫狀態、提交紀錄 (`log`)、代碼差異 (`diff`) 與分支詳情。
+* 🗄️ **SQLite 資料庫探查 (`database_sqlite_inspector`)**：自動探索工作區 SQLite 資料庫綱要、資料表取樣與唯讀查詢。
+* 🔄 **資料格式萬能轉換 (`data_transformer_converter`)**：JSON ↔ YAML ↔ CSV ↔ Markdown Table 雙向轉換，Base64/URL 編解碼。
+* 🔐 **密碼學與雜湊校驗 (`hash_crypto_inspector`)**：SHA-256、SHA-512、MD5、CRC32、HMAC 雜湊碼生成與檔案完整性校驗。
+* 🎯 **正則表達式解析與匹配 (`regex_pattern_matcher`)**：正規表示式語法驗證、群組捕獲提取 (`find_all`) 與批次替換 (`replace`)。
+* 📦 **壓縮封包管理器 (`archive_compressor`)**：ZIP、TAR、TGZ 壓縮包解壓與封裝（內建嚴格目錄遍歷 Zip Slip 防禦）。
+* 🌍 **網路與 DNS 診斷探針 (`network_dns_whois_lookup`)**：支援 DNS 解析 (A, AAAA, MX, TXT)、TCP 端口延遲測量與 HTTP 標頭檢驗。
 
 ### 8. 📝 企業級全功能 Markdown 系統 (Powerful Markdown Engine)
 * 📊 **Mermaid 視覺化向量圖表**：支援流程圖（`flowchart TD/LR`）與時序序列圖（`sequenceDiagram`），具備圖表/原始碼雙模式切換、縮放與 SVG 向量圖匯出。

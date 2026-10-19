@@ -92,7 +92,7 @@ class Database:
                 "description": "全功能主控自主決策核心，精通複雜系統規劃與自主工具鏈調度",
                 "icon": "Sparkles",
                 "system_prompt": "你是 Aether AI Studio 3.0 (AetherAgent) 核心自主代理系統。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造，可以去 GitHub (https://github.com/hankyleisplay) 和 npm (https://www.npmjs.com/~hankyleisplay 或 https://github.com/hankyleisplay/AetherAI-Studio/pkgs/npm/aetherai-studio) 查看個人主頁與專案源碼。你具備即時深度思維鏈分析能力與自主工具鏈調度權限。面對複雜工程或研發任務，你將以嚴謹、清晰、高度專業的繁體中文提供深度架構方案與精確執行。",
-                "enabled_tools": ["web_search", "python_eval", "bash_executor", "file_system", "system_status", "datetime_calc", "read_url", "knowledge_memory", "generate_chart", "http_request_api", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "ocr_extractor"]
+                "enabled_tools": ["web_search", "python_eval", "bash_executor", "file_system", "system_status", "datetime_calc", "read_url", "knowledge_memory", "generate_chart", "http_request_api", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "ocr_extractor", "image_to_text", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor", "network_dns_whois_lookup"]
             },
             {
                 "id": "coder",
@@ -100,7 +100,7 @@ class Database:
                 "description": "專精於大型軟體工程、生產級演算法設計、程式碼審查與架構重構",
                 "icon": "Code2",
                 "system_prompt": "你是一位世界級首席軟體系統架構師。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造（GitHub: https://github.com/hankyleisplay）。你熱愛撰寫優雅、模組化、強健且生產級的高效能程式碼。你可以使用 python_eval 驗證演算法，或使用 file_system 在 workspace 中精準架構專案結構。請隨時提供完備且符合行業最佳實踐的程式碼與技術剖析。",
-                "enabled_tools": ["python_eval", "file_system", "bash_executor", "system_status", "generate_chart", "document_text_extractor", "mermaid_generator", "code_linter_analyzer"]
+                "enabled_tools": ["python_eval", "file_system", "bash_executor", "system_status", "generate_chart", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor"]
             },
             {
                 "id": "researcher",
@@ -108,7 +108,7 @@ class Database:
                 "description": "專攻前沿科技全網檢索、跨領域情報交叉驗證與高價值研報產出",
                 "icon": "Search",
                 "system_prompt": "你是一名資深高階技術情報分析研究員。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造（GitHub: https://github.com/hankyleisplay）。你擅長使用 web_search 檢索全球一手科技動態，並對複雜來源資訊進行多維度交叉查核與深度結構化研析。請保持嚴密、客觀、高信息密度並附帶完整參考來源。",
-                "enabled_tools": ["web_search", "read_url", "datetime_calc", "file_system", "knowledge_memory", "http_request_api", "document_text_extractor", "generate_chart"]
+                "enabled_tools": ["web_search", "read_url", "datetime_calc", "file_system", "knowledge_memory", "http_request_api", "document_text_extractor", "generate_chart", "ocr_extractor", "database_sqlite_inspector", "data_transformer_converter", "network_dns_whois_lookup"]
             },
             {
                 "id": "sysadmin",
@@ -116,7 +116,7 @@ class Database:
                 "description": "高可用架構維護、硬體資源監控、自動化維運與系統核心除錯",
                 "icon": "Terminal",
                 "system_prompt": "你是頂尖企業級雲端基礎設施架構師與站點可靠性工程師 (SRE)。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造（GitHub: https://github.com/hankyleisplay）。你可以調用 system_status 檢視主機 CPU/記憶體/儲存健康度，或使用 bash_executor 執行必要維運命令。請時刻保持零失誤的高可靠性與安全防護準則。",
-                "enabled_tools": ["system_status", "bash_executor", "file_system", "datetime_calc", "http_request_api", "code_linter_analyzer"]
+                "enabled_tools": ["system_status", "bash_executor", "file_system", "datetime_calc", "http_request_api", "code_linter_analyzer", "git_version_control", "hash_crypto_inspector", "archive_compressor", "network_dns_whois_lookup"]
             }
         ]
         with self.get_connection() as conn:

@@ -60,7 +60,7 @@ async def run_tests():
             res = await client.get("/api/tools")
             tools = res.json()
             print("3. /api/tools count:", len(tools), [t["name"] for t in tools])
-            assert len(tools) >= 13
+            assert len(tools) >= 22
 
             # 3b. Verify web_search execution directly
             from backend.app.tools.registry import registry
@@ -68,6 +68,33 @@ async def run_tests():
             print("3b. web_search execution:", search_res["success"], "Results found:", "URL:" in str(search_res.get("output", "")))
             assert search_res["success"] is True
             assert "URL:" in search_res["output"]
+
+            # 3c. Verify new enterprise tools execution
+            hash_res = await registry.execute("hash_crypto_inspector", {
+                "action": "hash_text",
+                "text": "AetherAI-Studio",
+                "algorithm": "sha256"
+            })
+            print("3c. hash_crypto_inspector:", hash_res["success"], "Digest output:", "雜湊值" in str(hash_res.get("output", "")))
+            assert hash_res["success"] is True
+            assert "雜湊值" in str(hash_res["output"])
+
+            regex_res = await registry.execute("regex_pattern_matcher", {
+                "action": "find_all",
+                "pattern": r"(\w+)@([a-zA-Z0-9.-]+\.[a-zA-Z]{2,})",
+                "text": "Contact us at support@aetherai.io or team@domain.org"
+            })
+            print("3d. regex_pattern_matcher:", regex_res["success"], "Matches found:", "2 處匹配" in str(regex_res.get("output", "")))
+            assert regex_res["success"] is True
+            assert "2 處匹配" in str(regex_res["output"])
+
+            transformer_res = await registry.execute("data_transformer_converter", {
+                "action": "json_to_yaml",
+                "input_data": '{"name": "Aether", "version": 3}'
+            })
+            print("3e. data_transformer_converter:", transformer_res["success"], "Converted:", "version: 3" in str(transformer_res.get("output", "")))
+            assert transformer_res["success"] is True
+            assert "version: 3" in str(transformer_res["output"])
 
             # 4. List personas
             res = await client.get("/api/personas")
@@ -156,7 +183,7 @@ async def run_tests():
         else:
             db.set_setting("telegram_config", {"token": "", "chat_id": "", "enabled": False})
 
-    print("\n🎉 所有 Aether AI Studio 3.0 (AetherAgent) 後端、前端、14 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 3.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 if __name__ == "__main__":
