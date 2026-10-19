@@ -2,7 +2,8 @@ import {
   MarkdownBlockToken, 
   TableAlignment, 
   AlertType, 
-  ListItem 
+  ListItem,
+  DetailsToken
 } from './types';
 
 /**
@@ -265,7 +266,43 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
       continue;
     }
 
-    // 9. Paragraphs
+    // 9. Details / Accordion Blocks (<details> ... </details>)
+    if (trimmed.toLowerCase().startsWith('<details')) {
+      const detailsLines: string[] = [];
+      let j = i;
+      while (j < lines.length) {
+        detailsLines.push(lines[j]);
+        if (lines[j].toLowerCase().includes('</details>')) {
+          j++;
+          break;
+        }
+        j++;
+      }
+
+      const fullDetailsText = detailsLines.join('\n');
+      const summaryMatch = fullDetailsText.match(/<summary\b[^>]*>([\s\S]*?)<\/summary>/i);
+      const summary = summaryMatch ? summaryMatch[1].trim() : '點擊展開防雷 / 隱藏內容';
+
+      let body = fullDetailsText
+        .replace(/<details\b[^>]*>/i, '')
+        .replace(/<\/details>/i, '');
+      if (summaryMatch) {
+        body = body.replace(summaryMatch[0], '');
+      }
+      body = body.trim();
+
+      tokens.push({
+        type: 'details',
+        summary,
+        body,
+        isOpenDefault: fullDetailsText.toLowerCase().includes('<details open')
+      });
+
+      i = j;
+      continue;
+    }
+
+    // 10. Paragraphs
     if (trimmed === '') {
       i++;
       continue;
@@ -279,6 +316,7 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
       !lines[i].trim().startsWith('```') &&
       !lines[i].trim().startsWith('$$') &&
       !lines[i].trim().startsWith('>') &&
+      !lines[i].trim().toLowerCase().startsWith('<details') &&
       !lines[i].trim().match(/^#{1,6}\s+/) &&
       !lines[i].trim().match(/^[-*+]\s+/) &&
       !lines[i].trim().match(/^\d+\.\s+/) &&

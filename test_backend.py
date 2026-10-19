@@ -123,6 +123,11 @@ async def run_tests():
             assert registry._definitions["bash_executor"].enabled is True
             print("3i. Batch toggle re-enabled all tools successfully!")
 
+            # 3j. Verify interactive spoiler guideline in system prompt
+            new_sys_prompt = test_orch._get_system_prompt()
+            assert "🎭 互動趣味防雷與劇透/暴雷標籤支援" in new_sys_prompt
+            print("3j. Interactive spoiler & easter egg guideline verified in system prompt!")
+
             # 4. List personas
             res = await client.get("/api/personas")
             personas = res.json()

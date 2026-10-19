@@ -13,6 +13,7 @@ import {
   FileText,
   Loader2,
   X,
+  EyeOff,
   Mic,
   MicOff,
   Sliders,
@@ -429,10 +430,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
       prompt: t('sugg_3_prompt', '請在 workspace 目錄中建立系統架構藍圖 architecture.md，結構化定義模組規格與資料流模型，並列出目錄檔案驗證。')
     },
     {
-      icon: <Cpu className="w-4 h-4 text-purple-400" />,
-      title: t('sugg_4_title', '主機硬體健康與資源指標診斷'),
-      desc: t('sugg_4_desc', '深度監控 CPU 運算負載、RAM 使用率與本機推論裕度'),
-      prompt: t('sugg_4_prompt', '請全面診斷當前主機系統的硬體負載指標、記憶體分佈、磁碟空間健康狀態，並評估本機運行大模型推論的資源裕度。')
+      icon: <EyeOff className="w-4 h-4 text-purple-400" />,
+      title: t('sugg_4_title', '反轉神作劇情解密與趣味防雷'),
+      desc: t('sugg_4_desc', '探討經典反轉神作與真相，自動套用 ||黑幕防雷|| 互動解鎖'),
+      prompt: t('sugg_4_prompt', '請推薦三部擁有震撼結局的經典反轉神作，並針對核心大結局真相使用 ||黑幕防雷|| 標籤與 <details> 折疊卡片進行隱藏，讓我親自點擊揭曉！')
     }
   ];
 

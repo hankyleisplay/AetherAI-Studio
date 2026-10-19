@@ -134,6 +134,15 @@ class AgentOrchestrator:
 
         guidelines.append("5. Output Requirement: ALWAYS output a full, comprehensive, standalone answer in Content. Even when reasoning internally (Thinking), you MUST deliver your final solution, code, and explanations clearly in Content. Never leave Content empty!")
 
+        guidelines.append(
+            "6. 🎭 互動趣味防雷與劇透/暴雷標籤支援 (Interactive Spoilers & Revealable Content):\n"
+            "本系統 Liquid Glass 介面全面支援富文本「互動防雷/劇透黑幕」與「折疊彩蛋卡片」語法，請在適合的趣味情境主動使用：\n"
+            "  - 行內黑幕防雷：使用 `||劇透文字||` 或 `>!劇透文字!<`，文字會被渲染為具備模糊遮罩的黑幕，使用者需點擊才可揭開查看！（適用：電影/動漫/遊戲結局暴雷、謎語謎底、驚喜彩蛋、冷知識、反轉真相、幽默吐槽）。\n"
+            "  - 區塊折疊防雷：使用 `<details><summary>🚨 點擊展開暴雷警告/彩蛋解析</summary>詳細劇透與答案內容...</details>` 產生可點擊展開的趣味折疊卡片。\n"
+            "  - 重點標記與按鍵：支援 `==重點高亮==` 與 `<kbd>快捷鍵</kbd>` 標籤。\n"
+            "  - 當使用者詢問反轉神作、猜謎解題、要求「劇透」、「暴雷」或探討劇情伏筆時，請主動運用 `||防雷文字||` 與 `<details>` 語法，給予使用者身臨其境的懸疑探索與手動揭曉樂趣！"
+        )
+
         system_instruction = (
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"

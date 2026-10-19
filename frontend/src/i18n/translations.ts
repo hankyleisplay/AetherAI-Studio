@@ -58,9 +58,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'sugg_3_desc': '安全受控沙盒環境下的工程架構建立與檔案 I/O',
     'sugg_3_prompt': '請在 workspace 目錄中建立系統架構藍圖 architecture.md，結構化定義模組規格與資料流模型，並列出目錄檔案驗證。',
 
-    'sugg_4_title': '主機硬體健康與資源指標診斷',
-    'sugg_4_desc': '深度監控 CPU 運算負載、RAM 使用率與本機推論裕度',
-    'sugg_4_prompt': '請全面診斷當前主機系統的硬體負載指標、記憶體分佈、磁碟空間健康狀態，並評估本機運行大模型推論的資源裕度。',
+    'sugg_4_title': '反轉神作劇情解密與趣味防雷',
+    'sugg_4_desc': '探討經典反轉神作與真相，自動套用 ||黑幕防雷|| 互動解鎖',
+    'sugg_4_prompt': '請推薦三部擁有震撼結局的經典反轉神作，並針對核心大結局真相使用 ||黑幕防雷|| 標籤與 <details> 折疊卡片進行隱藏，讓我親自點擊揭曉！',
 
     // Message Item
     'thinking_process': '思維鏈分析 (Thinking Process)',
@@ -292,9 +292,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'sugg_3_desc': '安全受控沙盒环境下的工程架构建立与文件 I/O',
     'sugg_3_prompt': '请在 workspace 目录中建立系统架构蓝图 architecture.md，结构化定义模块规格与数据流模型，并列出目录文件验证。',
 
-    'sugg_4_title': '主机硬件健康与资源指标诊断',
-    'sugg_4_desc': '深度监控 CPU 计算负载、RAM 使用率与本机推理裕度',
-    'sugg_4_prompt': '请全面诊断当前主机系统的硬件负载指标、内存分布、磁盘空间健康状态，并评估本机运行大模型推理的资源裕度。',
+    'sugg_4_title': '反转神作剧情解密与趣味防雷',
+    'sugg_4_desc': '探讨经典反转神作与真相，自动套用 ||黑幕防雷|| 互动解锁',
+    'sugg_4_prompt': '请推荐三部拥有震撼结局的经典反转神作，并针对核心大结局真相使用 ||黑幕防雷|| 标签与 <details> 折叠卡片进行隐藏，让我亲自点击揭晓！',
 
     // Message Item
     'thinking_process': '思维链分析 (Thinking Process)',
@@ -526,9 +526,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'sugg_3_desc': 'Construct architecture specifications and perform safe file I/O in the sandbox',
     'sugg_3_prompt': 'Please create an architecture blueprint architecture.md in the workspace directory, defining modular microservice specs and data flow models, then list files to verify.',
 
-    'sugg_4_title': 'Host Hardware & Infrastructure Diagnostics',
-    'sugg_4_desc': 'Deeply inspect CPU load, RAM usage, storage health, and local inference headroom',
-    'sugg_4_prompt': 'Please run a comprehensive diagnostic on system hardware load, memory distribution, and storage health, and assess the headroom for running local LLM inference.',
+    'sugg_4_title': 'Plot Twist Decryption & Interactive Spoilers',
+    'sugg_4_desc': 'Explore plot twists with interactive ||spoiler blur|| and collapsible cards',
+    'sugg_4_prompt': 'Please recommend 3 classic movies or anime with mind-blowing plot twists, and conceal the core endings using ||spoiler tags|| and <details> cards so I can click to reveal!',
 
     // Message Item
     'thinking_process': 'Thinking Process (Reasoning Chain)',
@@ -760,9 +760,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'sugg_3_desc': 'サンドボックス環境でのアーキテクチャ構築と安全なファイル I/O',
     'sugg_3_prompt': 'workspace ディレクトリに設計書 architecture.md を作成し、モジュール仕様とデータフローを定義してください。',
 
-    'sugg_4_title': 'ホストハードウェア診断・リソース監視',
-    'sugg_4_desc': 'CPU 負荷、RAM 使用率、ローカル推論のマージンを精密監視',
-    'sugg_4_prompt': '現在のホストシステムのハードウェア負荷、メモリ分布、ストレージ状態を総合診断し、ローカル推論の余裕度を評価してください。',
+    'sugg_4_title': '名作のネタバレ解説とインタラクティブ防雷',
+    'sugg_4_desc': 'どんでん返しの名作の結末を ||ネタバレ防止黒幕|| でクリック解除',
+    'sugg_4_prompt': '衝撃的な結末を持つどんでん返しの名作（映画やアニメ）を3つ推薦し、核心となる結末の真相を ||ネタバレ防止|| タグと <details> カードで隠して、クリックで読めるようにしてください！',
 
     // Message Item
     'thinking_process': '思考プロセス (Reasoning Chain)',

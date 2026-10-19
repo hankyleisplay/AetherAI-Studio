@@ -55,6 +55,13 @@ export interface HorizontalRuleToken {
   type: 'hr';
 }
 
+export interface DetailsToken {
+  type: 'details';
+  summary: string;
+  body: string;
+  isOpenDefault?: boolean;
+}
+
 export interface ParagraphToken {
   type: 'paragraph';
   text: string;
@@ -69,4 +76,5 @@ export type MarkdownBlockToken =
   | ListToken
   | MathBlockToken
   | HorizontalRuleToken
+  | DetailsToken
   | ParagraphToken;

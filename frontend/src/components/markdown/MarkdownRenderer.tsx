@@ -1,5 +1,5 @@
-import React, { useMemo } from 'react';
-import { ExternalLink, CheckSquare, Square } from 'lucide-react';
+import React, { useMemo, useState } from 'react';
+import { ExternalLink, CheckSquare, Square, EyeOff, Eye, Sparkles, ChevronDown } from 'lucide-react';
 import { parseMarkdown } from './parser';
 import { CodeBlock } from './CodeBlock';
 import { TableRenderer } from './TableRenderer';
@@ -11,6 +11,114 @@ interface MarkdownRendererProps {
   isStreaming?: boolean;
 }
 
+/**
+ * Interactive Spoiler Span (防雷 / 劇透黑幕)
+ * Obscures content with blur and dark background until clicked.
+ */
+const SpoilerSpan: React.FC<{
+  content: string;
+  renderInline: (text: string) => React.ReactNode;
+}> = ({ content, renderInline }) => {
+  const [revealed, setRevealed] = useState(false);
+
+  return (
+    <span
+      role="button"
+      tabIndex={0}
+      onClick={(e) => {
+        e.stopPropagation();
+        setRevealed(!revealed);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          e.stopPropagation();
+          setRevealed(!revealed);
+        }
+      }}
+      title={revealed ? '點擊重新隱藏防雷內容 (Click to hide spoiler)' : '🚨 包含暴雷劇透內容，點擊揭示 (Click to reveal spoiler)'}
+      className={`relative inline-flex items-center px-2 py-0.5 my-0.5 mx-0.5 rounded-lg text-xs md:text-sm font-medium transition-all duration-300 cursor-pointer select-none group border ${
+        revealed
+          ? 'bg-amber-500/15 text-amber-200 border-amber-500/40 shadow-[0_0_12px_rgba(245,158,11,0.2)]'
+          : 'bg-[#151926] text-transparent border-amber-500/20 hover:border-amber-400/50 hover:bg-[#1a2032] shadow-inner'
+      }`}
+    >
+      {/* Blurred / Hidden content */}
+      <span
+        className={`transition-all duration-300 ${
+          revealed
+            ? 'filter-none opacity-100 select-text text-amber-100'
+            : 'filter blur-[5px] opacity-25 select-none pointer-events-none'
+        }`}
+      >
+        {renderInline(content)}
+      </span>
+
+      {/* Lock / Reveal Hint Pill Badge when hidden */}
+      {!revealed && (
+        <span className="absolute inset-0 flex items-center justify-center gap-1 text-[11px] font-semibold text-amber-300 pointer-events-none drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
+          <EyeOff className="w-3.5 h-3.5 shrink-0 text-amber-400 animate-pulse" />
+          <span className="bg-black/75 px-1.5 py-0.5 rounded backdrop-blur-md border border-amber-500/30 whitespace-nowrap">
+            劇透預警 • 點擊揭示
+          </span>
+        </span>
+      )}
+
+      {/* Subtle indicator when revealed */}
+      {revealed && (
+        <span className="ml-1.5 text-[10px] text-amber-400/70 border-l border-amber-500/30 pl-1 shrink-0 font-mono select-none">
+          [已防雷]
+        </span>
+      )}
+    </span>
+  );
+};
+
+/**
+ * Interactive Accordion / Folding Card (<details> ... </details>)
+ */
+const DetailsCard: React.FC<{
+  summary: string;
+  body: string;
+  defaultOpen?: boolean;
+  renderInline: (text: string) => React.ReactNode;
+}> = ({ summary, body, defaultOpen = false, renderInline }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+
+  return (
+    <div className="my-3 rounded-2xl glass-panel border border-white/10 overflow-hidden transition-all duration-300 hover:border-amber-400/30">
+      <button
+        type="button"
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full px-4 py-2.5 text-left flex items-center justify-between gap-3 bg-white/[0.03] hover:bg-white/[0.06] transition-colors cursor-pointer"
+      >
+        <div className="flex items-center gap-2.5 text-xs md:text-sm font-semibold text-amber-300">
+          <Sparkles className="w-4 h-4 text-amber-400 shrink-0" />
+          <span>{renderInline(summary)}</span>
+        </div>
+        <div className="flex items-center gap-1.5 text-slate-400 text-xs shrink-0">
+          <span className="text-[11px] font-mono text-slate-400 hidden sm:inline">
+            {isOpen ? '收合內容' : '點擊展開'}
+          </span>
+          <ChevronDown
+            className={`w-4 h-4 transition-transform duration-300 ${isOpen ? 'rotate-180 text-amber-400' : ''}`}
+          />
+        </div>
+      </button>
+
+      {isOpen && (
+        <div className="p-4 border-t border-white/10 bg-black/20 text-xs md:text-sm text-slate-200 space-y-2 leading-relaxed animate-in fade-in duration-200">
+          {body.split('\n\n').map((paragraph, pIdx) => (
+            <p key={pIdx} className="whitespace-pre-line">
+              {renderInline(paragraph)}
+            </p>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming }) => {
   const tokens = useMemo(() => parseMarkdown(content), [content]);
 
@@ -18,8 +126,15 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
   const renderInline = (text: string): React.ReactNode => {
     if (!text) return null;
 
-    // Tokenize inline markdown: links [text](url), images ![alt](url), math $...$ or \(...\), code `...`, bold **...**, strikethrough ~~...~~, italic *...*
-    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:`[^`\n]+?`)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/g;
+    // Tokenize inline markdown:
+    // 1. Spoilers: ||...||, >!...<!, <spoiler>...</spoiler>
+    // 2. Highlights: ==...==
+    // 3. Keycaps: <kbd>...</kbd>
+    // 4. Links: [text](url), Images: ![alt](url)
+    // 5. Math: $...$, \(...\)
+    // 6. Code: `...`
+    // 7. Bold: **...**, Strikethrough: ~~...~~, Italic: *...*, _..._
+    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:`[^`\n]+?`)|(?:\|\|[^|\n]+?\|\|)|(?:>![^!\n]+?!<)|(?:<spoiler>[\s\S]*?<\/spoiler>)|(?:==[^=\n]+?==)|(?:<kbd>[\s\S]*?<\/kbd>)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/gi;
 
     const parts = text.split(inlineRegex);
 
@@ -87,6 +202,43 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           >
             {part.slice(1, -1)}
           </code>
+        );
+      }
+
+      // Spoiler: ||text|| or >!text!< or <spoiler>text</spoiler>
+      if (
+        (part.startsWith('||') && part.endsWith('||') && part.length >= 4) ||
+        (part.startsWith('>!') && part.endsWith('!<') && part.length >= 4) ||
+        (part.toLowerCase().startsWith('<spoiler>') && part.toLowerCase().endsWith('</spoiler>'))
+      ) {
+        let spoilerText = '';
+        if (part.startsWith('||')) {
+          spoilerText = part.slice(2, -2);
+        } else if (part.startsWith('>!')) {
+          spoilerText = part.slice(2, -2);
+        } else {
+          spoilerText = part.slice(9, -10);
+        }
+        return (
+          <SpoilerSpan key={idx} content={spoilerText} renderInline={renderInline} />
+        );
+      }
+
+      // Highlight: ==text==
+      if (part.startsWith('==') && part.endsWith('==') && part.length >= 4) {
+        return (
+          <mark key={idx} className="px-1.5 py-0.5 mx-0.5 rounded-md bg-amber-400/20 text-amber-200 border-b border-amber-400 font-medium">
+            {renderInline(part.slice(2, -2))}
+          </mark>
+        );
+      }
+
+      // Keyboard Keycap: <kbd>text</kbd>
+      if (part.toLowerCase().startsWith('<kbd>') && part.toLowerCase().endsWith('</kbd>')) {
+        return (
+          <kbd key={idx} className="px-2 py-0.5 mx-0.5 rounded-md bg-slate-800 text-cyan-300 font-mono text-[11px] border border-white/20 shadow-[0_2px_0_0_rgba(255,255,255,0.15)] inline-block align-baseline">
+            {part.slice(5, -6)}
+          </kbd>
         );
       }
 
@@ -249,6 +401,17 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
               <hr
                 key={tIdx}
                 className="my-5 border-none h-[1px] bg-gradient-to-r from-transparent via-cyan-500/40 to-transparent"
+              />
+            );
+
+          case 'details':
+            return (
+              <DetailsCard
+                key={tIdx}
+                summary={token.summary}
+                body={token.body}
+                defaultOpen={token.isOpenDefault}
+                renderInline={renderInline}
               />
             );
 
