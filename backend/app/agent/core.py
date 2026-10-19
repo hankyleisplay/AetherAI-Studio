@@ -140,12 +140,31 @@ class AgentOrchestrator:
             "  - 行內黑幕防雷：使用 `||劇透文字||` 或 `>!劇透文字!<`，文字會被渲染為具備模糊遮罩的黑幕，使用者需點擊才可揭開查看！（適用：電影/動漫/遊戲結局暴雷、謎語謎底、驚喜彩蛋、冷知識、反轉真相、幽默吐槽）。\n"
             "  - 區塊折疊防雷：使用 `<details><summary>🚨 點擊展開暴雷警告/彩蛋解析</summary>詳細劇透與答案內容...</details>` 產生可點擊展開的趣味折疊卡片。\n"
             "  - 重點標記與按鍵：支援 `==重點高亮==` 與 `<kbd>快捷鍵</kbd>` 標籤。\n"
-            "  - 當使用者詢問反轉神作、猜謎解題、要求「劇透」、「暴雷」或探討劇情伏筆時，請主動運用 `||防雷文字||` 與 `<details>` 語法，給予使用者身臨其境的懸疑探索與手動揭曉樂趣！"
+            "  - 當使用者詢問反轉神作、猜謎解題、要求「劇透」、「暴雷」或探討劇情伏筆時，請主動運用 `||防雷文字||` 與 `<details>` 語法，給予使用者身臨其境的懸疑探索與手動揭曉樂趣！\n"
         )
+        temp = float(self.config.temperature if self.config.temperature is not None else 0.7)
+        if temp <= 0.3:
+            cognitive_directive = (
+                f"### 🎯 認知與推論調優指令：【精確嚴謹模式 (Precise & Rigorous)】 (Temperature: {temp}):\n"
+                "- 當前推論配置為嚴謹模式。請以高度確定性、縝密的邏輯架構、零假設與邊界條件審查進行推理與代碼構建。\n"
+                "- 拒絕模糊猜測，確保每個技術結論、公式計算與系統命令皆有確鑿依據，精確回答使用者問題。\n\n"
+            )
+        elif temp >= 0.9:
+            cognitive_directive = (
+                f"### 🎨 認知與推論調優指令：【發散創意模式 (Creative & Visionary)】 (Temperature: {temp}):\n"
+                "- 當前推論配置為創意發散模式。鼓勵打破常規框架、進行前瞻性概念延伸、多維度創新方案探索與生動活潑的文風表達。\n"
+                "- 提出富有洞見、驚喜構思與多元解法的技術藍圖，充分發揮大模型的想像力與聯想力。\n\n"
+            )
+        else:
+            cognitive_directive = (
+                f"### ⚖️ 認知與推論調優指令：【標準平衡模式 (Balanced)】 (Temperature: {temp}):\n"
+                "- 兼顧嚴謹性與創新探索，提供客觀、結構清晰、兼具深度與易讀性的完整高品質交付。\n\n"
+            )
 
         system_instruction = (
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"
+            f"{cognitive_directive}"
             f"{disabled_directive}"
             f"{available_section}"
             + "\n".join(guidelines)

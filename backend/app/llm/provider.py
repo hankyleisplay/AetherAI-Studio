@@ -235,12 +235,17 @@ class UnifiedLLMClient:
                 m_copy.pop("images", None)
             formatted_messages.append(m_copy)
 
+        temp = float(self.config.temperature if self.config.temperature is not None else 0.7)
         payload: Dict[str, Any] = {
             "model": self.config.model,
             "messages": formatted_messages,
-            "temperature": self.config.temperature,
+            "temperature": temp,
             "stream": True
         }
+        if temp <= 0.3:
+            payload["top_p"] = 0.2
+        elif temp >= 0.9:
+            payload["top_p"] = 0.95
         if self.config.max_tokens:
             payload["max_tokens"] = self.config.max_tokens
         if tools:
@@ -388,9 +393,21 @@ class UnifiedLLMClient:
                 m_copy["tool_calls"] = new_tcs
             sanitized_messages.append(m_copy)
 
+        temp = float(self.config.temperature if self.config.temperature is not None else 0.7)
         options = {
-            "temperature": self.config.temperature
+            "temperature": temp
         }
+        if temp <= 0.3:
+            # Precise & Rigorous: Low entropy, strict sampling
+            options["top_p"] = 0.2
+            options["top_k"] = 20
+        elif temp >= 0.9:
+            # Creative & Visionary: High exploration sampling
+            options["top_p"] = 0.95
+            options["top_k"] = 100
+        else:
+            options["top_p"] = 0.9
+            options["top_k"] = 40
         # Explicitly configure num_ctx to prevent Ollama from defaulting to 2048/4096 tokens,
         # which causes premature cutoff in long multi-turn sessions.
         ctx_size = getattr(self.config, "context_window", None) or 16384
@@ -529,11 +546,12 @@ class UnifiedLLMClient:
                     "content": m.get("content", "")
                 })
 
+        temp = max(0.0, min(1.0, float(self.config.temperature if self.config.temperature is not None else 0.7)))
         payload: Dict[str, Any] = {
             "model": self.config.model or "claude-3-5-sonnet-20241022",
             "messages": anthropic_msgs,
             "max_tokens": self.config.max_tokens or 4096,
-            "temperature": self.config.temperature,
+            "temperature": temp,
             "stream": True
         }
         if system_prompt:
@@ -687,11 +705,18 @@ class UnifiedLLMClient:
                         })
                 contents.append({"role": "user", "parts": user_parts})
 
+        temp = float(self.config.temperature if self.config.temperature is not None else 0.7)
+        generation_cfg: Dict[str, Any] = {
+            "temperature": temp
+        }
+        if temp <= 0.3:
+            generation_cfg["topP"] = 0.2
+        elif temp >= 0.9:
+            generation_cfg["topP"] = 0.95
+
         payload: Dict[str, Any] = {
             "contents": contents,
-            "generationConfig": {
-                "temperature": self.config.temperature
-            }
+            "generationConfig": generation_cfg
         }
         if system_instruction:
             payload["systemInstruction"] = system_instruction
