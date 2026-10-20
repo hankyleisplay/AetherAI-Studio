@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aether AI Studio 3.5 - 官方專屬啟動器</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="launcher-container">
+    <!-- Top Brand Header -->
+    <header class="launcher-header">
+      <div class="logo-area">
+        <div class="logo-glow"></div>
+        <div class="logo-badge">⚡</div>
+        <div class="header-titles">
+          <h1>AETHER AI STUDIO <span>3.5</span></h1>
+          <p class="subtitle">次世代獨立原生桌面代理系統 • 官方正式版 (Tauri + Rust)</p>
+        </div>
+      </div>
+    </header>
+
+    <!-- Auto-Update Alert Banner -->
+    <div id="update-banner" class="update-banner state-checking">
+      <div class="banner-icon" id="update-icon">⏳</div>
+      <div class="banner-text">
+        <div class="banner-title" id="update-title">自動更新檢查中...</div>
+        <div class="banner-desc" id="update-desc">正在向官方 GitHub 驗證最新正式發行版本</div>
+      </div>
+      <div class="banner-action" id="update-action">
+        <button id="btn-recheck-update" class="btn-ghost" title="重新檢查更新">🔄 重新檢查</button>
+      </div>
+    </div>
+
+    <!-- Environment Detection Card -->
+    <section class="env-card">
+      <div class="env-row">
+        <div class="env-item">
+          <span class="env-label">📂 專案目錄:</span>
+          <span class="env-value" id="project-path-display">偵測中...</span>
+        </div>
+        <div class="env-item">
+          <span class="env-label">🐍 Python:</span>
+          <span class="env-value" id="python-status-display">偵測中...</span>
+        </div>
+      </div>
+      <div class="env-row env-settings">
+        <div class="port-setting">
+          <label for="server-port">監聽埠號 (Port):</label>
+          <input type="number" id="server-port" value="8000" min="1024" max="65535">
+        </div>
+        <div class="status-indicator">
+          <span class="dot green" id="system-ready-dot"></span>
+          <span id="system-ready-text">核心環境就緒</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Mode Selection Prompt -->
+    <main class="mode-selection">
+      <h2 class="section-title">請選擇啟動模式：</h2>
+      
+      <!-- Option 1: Standalone Desktop App (Recommended) -->
+      <div class="mode-card primary-card" id="card-desktop">
+        <div class="card-icon">🖥️</div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>獨立原生桌面版 <span class="tag tag-recommend">推薦首選</span></h3>
+          </div>
+          <p class="card-desc">獨立原生視窗應用 • 沉浸專注無干擾 • 實時推論 HUD 與即時畫布</p>
+        </div>
+        <button class="btn-launch btn-launch-primary" id="btn-launch-desktop">
+          <span>立即啟動桌面版</span>
+          <span class="arrow">➔</span>
+        </button>
+      </div>
+
+      <!-- Option 2: Terminal CLI Mode (Headless / Server) -->
+      <div class="mode-card" id="card-cli">
+        <div class="card-icon">💻</div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>終端命令列版 <span class="tag tag-cli">即時日誌</span></h3>
+          </div>
+          <p class="card-desc">在獨立終端視窗運行伺服器 • 實時監控 22 大工具調用日誌與推理進度</p>
+        </div>
+        <button class="btn-launch btn-launch-secondary" id="btn-launch-cli">
+          <span>啟動終端版</span>
+          <span class="arrow">➔</span>
+        </button>
+      </div>
+
+      <!-- Option 3: Web Browser Mode -->
+      <div class="mode-card" id="card-browser">
+        <div class="card-icon">🌐</div>
+        <div class="card-content">
+          <div class="card-header">
+            <h3>一般網頁瀏覽器版</h3>
+          </div>
+          <p class="card-desc">啟動本地後端伺服器，並自動在預設瀏覽器分頁開啟使用</p>
+        </div>
+        <button class="btn-launch btn-launch-subtle" id="btn-launch-browser">
+          <span>開啟瀏覽器</span>
+          <span class="arrow">➔</span>
+        </button>
+      </div>
+    </main>
+
+    <!-- Bottom Quick Actions & Status -->
+    <footer class="launcher-footer">
+      <div class="footer-buttons">
+        <button id="btn-create-shortcut" class="footer-btn">
+          <span>⭐</span> 建立桌面捷徑
+        </button>
+        <button id="btn-open-folder" class="footer-btn">
+          <span>📂</span> 開啟專案目錄
+        </button>
+        <button id="btn-health-check" class="footer-btn">
+          <span>🩺</span> 環境健康檢查
+        </button>
+      </div>
+      <div class="footer-status-bar" id="footer-status-bar">
+        Aether AI Studio v3.5.0 Official Release • 系統狀態：待命中
+      </div>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
