@@ -36,9 +36,17 @@ if (Test-Path ".\run.ps1") {
         Write-Host " [*] 正在檢查並拉取最新 $Branch 實驗預覽版本更新..." -ForegroundColor Yellow
         git pull origin $Branch
     }
-} elseif (Test-Path $TargetFolder) {
-    Write-Host " [*] 檢測到已存在 $TargetFolder 專案目錄，進入並更新至最新 $Branch 版本..." -ForegroundColor Yellow
-    Push-Location $TargetFolder
+} elseif (Test-Path ".\$TargetFolder\run.ps1") {
+    Write-Host " [*] 檢測到當前目錄已存在 $TargetFolder 專案，進入並更新至最新 $Branch 版本..." -ForegroundColor Yellow
+    Push-Location ".\$TargetFolder"
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        git fetch origin
+        git checkout $Branch
+        git pull origin $Branch
+    }
+} elseif (Test-Path "$HOME\$TargetFolder\run.ps1") {
+    Write-Host " [*] 檢測到使用者目錄已存在 $TargetFolder 專案 ($HOME\$TargetFolder)，進入並更新至最新 $Branch 版本..." -ForegroundColor Yellow
+    Push-Location "$HOME\$TargetFolder"
     if (Get-Command git -ErrorAction SilentlyContinue) {
         git fetch origin
         git checkout $Branch
@@ -46,18 +54,25 @@ if (Test-Path ".\run.ps1") {
     }
 } else {
     Write-Host " [*] 正在從 GitHub 克隆 Aether AI Studio 3.5 實驗預覽版儲存庫..." -ForegroundColor Green
-    if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Host " [錯誤] 未檢測到 Git 指令，請先安裝 Git (https://git-scm.com/) 後重試。" -ForegroundColor Red
-        pause
-        exit 1
+    if (Get-Command git -ErrorAction SilentlyContinue) {
+        git clone -b $Branch $RepoUrl $TargetFolder
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host " [錯誤] 克隆儲存庫失敗，請確認網路連線。" -ForegroundColor Red
+            pause
+            exit $LASTEXITCODE
+        }
+        Push-Location $TargetFolder
+    } else {
+        Write-Host " [*] 系統未檢測到 Git 指令，正在自動下載 Aether AI Studio 3.5 原始碼壓縮包..." -ForegroundColor Yellow
+        $zipUrl = "https://github.com/hankyleisplay/AetherAI-Studio/archive/refs/heads/$Branch.zip"
+        $zipFile = Join-Path (Get-Location) "$TargetFolder-download.zip"
+        [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+        (New-Object System.Net.WebClient).DownloadFile($zipUrl, $zipFile)
+        Expand-Archive -Path $zipFile -DestinationPath (Get-Location) -Force
+        Remove-Item $zipFile -Force -ErrorAction SilentlyContinue
+        Rename-Item -Path "AetherAI-Studio-3.5-experimental" -NewName $TargetFolder -Force -ErrorAction SilentlyContinue
+        Push-Location $TargetFolder
     }
-    git clone -b $Branch $RepoUrl $TargetFolder
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host " [錯誤] 克隆儲存庫失敗，請確認網路連線。" -ForegroundColor Red
-        pause
-        exit $LASTEXITCODE
-    }
-    Push-Location $TargetFolder
 }
 
 # 2. 主動詢問使用者啟動模式
