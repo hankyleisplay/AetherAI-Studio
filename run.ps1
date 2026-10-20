@@ -1,6 +1,4 @@
-# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
-Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
-# ==========================================================================
+﻿# ==========================================================================
 # Aether AI Studio 3.5 (AetherAgent) - Windows Universal Launcher
 # Liquid Glass Aesthetics | Local & Cloud Dual-Mode Agent Framework
 # ==========================================================================
@@ -22,6 +20,14 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 if (Get-Command chcp.com -ErrorAction SilentlyContinue) {
     & chcp.com 65001 >$null 2>&1
 }
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $ScriptDir) { $ScriptDir = $PSScriptRoot }
+if (-not $ScriptDir) { $ScriptDir = (Get-Location).Path }
+Set-Location $ScriptDir
+
+# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
+Get-ChildItem -Path $ScriptDir -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 
 # Title banner
 if (-not $Check) {
@@ -45,9 +51,6 @@ if ($Help) {
     Write-Host "  .\run.ps1 -Help             顯示此說明" -ForegroundColor White
     exit 0
 }
-
-$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
-Set-Location $ScriptDir
 
 function Find-PythonExe {
     $candidates = @("python", "py", "python3")

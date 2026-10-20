@@ -1,6 +1,4 @@
-# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
-Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
-# ==============================================================================
+﻿# ==============================================================================
 # Aether AI Studio 3.5 (AetherAgent) - 智慧極速安裝與啟動腳本
 # 自動處理 Clone / Pull 更新，並主動詢問使用者啟動【原生桌面版】或【一般瀏覽器版】
 # ==============================================================================
@@ -11,6 +9,14 @@ $OutputEncoding = [System.Text.Encoding]::UTF8
 if (Get-Command chcp.com -ErrorAction SilentlyContinue) {
     & chcp.com 65001 >$null 2>&1
 }
+
+$ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
+if (-not $ScriptDir) { $ScriptDir = $PSScriptRoot }
+if (-not $ScriptDir) { $ScriptDir = (Get-Location).Path }
+Set-Location $ScriptDir
+
+# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
+Get-ChildItem -Path $ScriptDir -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 
 $RepoUrl = "https://github.com/hankyleisplay/AetherAI-Studio.git"
 $Branch = "v3.5-experimental"
@@ -41,13 +47,13 @@ if (Test-Path ".\run.ps1") {
 } else {
     Write-Host " [*] 正在從 GitHub 克隆 Aether AI Studio 3.5 實驗預覽版儲存庫..." -ForegroundColor Green
     if (-not (Get-Command git -ErrorAction SilentlyContinue)) {
-        Write-Host " [❌ 錯誤] 未檢測到 Git 指令，請先安裝 Git (https://git-scm.com/) 後重試。" -ForegroundColor Red
+        Write-Host " [錯誤] 未檢測到 Git 指令，請先安裝 Git (https://git-scm.com/) 後重試。" -ForegroundColor Red
         pause
         exit 1
     }
     git clone -b $Branch $RepoUrl $TargetFolder
     if ($LASTEXITCODE -ne 0) {
-        Write-Host " [❌ 錯誤] 克隆儲存庫失敗，請確認網路連線。" -ForegroundColor Red
+        Write-Host " [錯誤] 克隆儲存庫失敗，請確認網路連線。" -ForegroundColor Red
         pause
         exit $LASTEXITCODE
     }
@@ -68,13 +74,13 @@ $choice = Read-Host "請輸入選項 [1/2] (直接按 Enter 預設為桌面版 1
 if ([string]::IsNullOrWhiteSpace($choice) -or $choice.Trim() -eq "1") {
     Write-Host ""
     Write-Host " [✓] 正在為您啟動 Aether AI Studio 3.5 獨立原生桌面版..." -ForegroundColor Green
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 -Desktop }"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Desktop
 } elseif ($choice.Trim() -eq "2") {
     Write-Host ""
     Write-Host " [✓] 正在為您啟動 Aether AI Studio 3.5 一般瀏覽器版..." -ForegroundColor Cyan
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 }"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1
 } else {
     Write-Host ""
     Write-Host " [!] 輸入未辨識，預設為您啟動獨立原生桌面版..." -ForegroundColor Yellow
-    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 -Desktop }"
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -File .\run.ps1 -Desktop
 }
