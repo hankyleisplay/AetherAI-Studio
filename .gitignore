@@ -57,3 +57,10 @@ scratch/
 
 *.zip
 
+
+build/
+dist/
+*.spec
+
+*.exe
+
