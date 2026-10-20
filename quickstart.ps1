@@ -1,3 +1,5 @@
+# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
+Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 # ==============================================================================
 # Aether AI Studio 3.5 (AetherAgent) - 智慧極速安裝與啟動腳本
 # 自動處理 Clone / Pull 更新，並主動詢問使用者啟動【原生桌面版】或【一般瀏覽器版】
@@ -66,13 +68,13 @@ $choice = Read-Host "請輸入選項 [1/2] (直接按 Enter 預設為桌面版 1
 if ([string]::IsNullOrWhiteSpace($choice) -or $choice.Trim() -eq "1") {
     Write-Host ""
     Write-Host " [✓] 正在為您啟動 Aether AI Studio 3.5 獨立原生桌面版..." -ForegroundColor Green
-    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Desktop
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 -Desktop }"
 } elseif ($choice.Trim() -eq "2") {
     Write-Host ""
     Write-Host " [✓] 正在為您啟動 Aether AI Studio 3.5 一般瀏覽器版..." -ForegroundColor Cyan
-    powershell -ExecutionPolicy Bypass -File .\run.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 }"
 } else {
     Write-Host ""
     Write-Host " [!] 輸入未辨識，預設為您啟動獨立原生桌面版..." -ForegroundColor Yellow
-    powershell -ExecutionPolicy Bypass -File .\run.ps1 -Desktop
+    powershell -NoProfile -ExecutionPolicy Bypass -Command "& { Get-ChildItem -Path . -Filter '*.ps1' -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue; & .\run.ps1 -Desktop }"
 }

@@ -310,6 +310,16 @@ async def save_persona(persona: Dict[str, Any]):
     db.save_persona(persona)
     return {"status": "saved", "persona": persona}
 
+@app.delete("/api/personas/{persona_id}")
+async def delete_persona(persona_id: str):
+    try:
+        success = db.delete_persona(persona_id)
+        if not success:
+            raise HTTPException(status_code=404, detail="找不到該角色")
+        return {"status": "deleted", "id": persona_id, "success": True}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
 # File Upload Endpoint
 @app.post("/api/upload")
 async def upload_file(file: UploadFile = File(...)):

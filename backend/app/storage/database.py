@@ -314,6 +314,16 @@ class Database:
             )
             conn.commit()
 
+    def delete_persona(self, persona_id: str) -> bool:
+        builtin_ids = {'assistant', 'coder', 'researcher', 'sysadmin'}
+        if persona_id in builtin_ids:
+            raise ValueError('系統預設角色受到保護，無法刪除')
+        with self.get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute('DELETE FROM personas WHERE id = ?', (persona_id,))
+            conn.commit()
+            return cursor.rowcount > 0
+
     # Settings Storage (e.g. active model config)
     def get_setting(self, key: str, default: Any = None) -> Any:
         with self.get_connection() as conn:

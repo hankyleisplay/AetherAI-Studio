@@ -155,11 +155,31 @@ async def run_tests():
             assert "🎨 發散創意模式" in enh_creative.json()["enhanced_prompt"]
             print("3l. AI Prompt Enhancer API verified across temperature modes!")
 
-            # 4. List personas
+            # 4. List personas & Test custom persona creation and deletion
             res = await client.get("/api/personas")
             personas = res.json()
             print("4. /api/personas count:", len(personas), [p["name"] for p in personas])
             assert len(personas) >= 4
+
+            # 4b. Test create and delete custom persona
+            create_p_res = await client.post("/api/personas", json={
+                "id": "custom_test_p",
+                "name": "測試自訂角色",
+                "description": "測試用角色",
+                "icon": "Bot",
+                "system_prompt": "你是一個測試角色",
+                "enabled_tools": ["web_search"]
+            })
+            assert create_p_res.status_code == 200
+
+            del_p_res = await client.delete("/api/personas/custom_test_p")
+            assert del_p_res.status_code == 200
+            assert del_p_res.json()["success"] is True
+
+            # 4c. Verify protected built-in persona deletion fails
+            del_builtin = await client.delete("/api/personas/assistant")
+            assert del_builtin.status_code == 400
+            print("4b. Custom persona creation & safe deletion verified successfully!")
 
             # 5. Create and get session
             res = await client.post("/api/sessions", json={"title": "測試會話", "persona_id": "assistant"})

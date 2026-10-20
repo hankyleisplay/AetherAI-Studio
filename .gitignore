@@ -52,3 +52,8 @@ Desktop.ini
 
 # Antigravity agent temp artifacts
 .gemini/
+
+scratch/
+
+*.zip
+

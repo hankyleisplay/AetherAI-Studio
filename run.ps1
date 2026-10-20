@@ -1,3 +1,5 @@
+# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
+Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 # ==========================================================================
 # Aether AI Studio 3.5 (AetherAgent) - Windows Universal Launcher
 # Liquid Glass Aesthetics | Local & Cloud Dual-Mode Agent Framework
