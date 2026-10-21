@@ -28,7 +28,21 @@ pub struct UpdateResult {
     pub release_notes: String,
     pub published_at: String,
     pub html_url: String,
+    pub launcher_download_url: Option<String>,
     pub error: Option<String>,
+}
+
+fn cleanup_old_launcher() {
+    if let Ok(exe_path) = env::current_exe() {
+        let backup_exe = exe_path.with_extension("exe.bak");
+        if backup_exe.exists() {
+            let _ = std::fs::remove_file(backup_exe);
+        }
+        let temp_exe = exe_path.with_extension("exe.new");
+        if temp_exe.exists() {
+            let _ = std::fs::remove_file(temp_exe);
+        }
+    }
 }
 
 fn find_project_root() -> Option<PathBuf> {
@@ -168,6 +182,7 @@ fn check_update() -> UpdateResult {
         release_notes: "".to_string(),
         published_at: "".to_string(),
         html_url: "https://github.com/hankyleisplay/AetherAI-Studio/releases".to_string(),
+        launcher_download_url: None,
         error: None,
     };
 
@@ -197,6 +212,19 @@ fn check_update() -> UpdateResult {
                     }
                     if let Some(url) = json.get("html_url").and_then(|v| v.as_str()) {
                         result.html_url = url.to_string();
+                    }
+
+                    if let Some(assets) = json.get("assets").and_then(|a| a.as_array()) {
+                        for asset in assets {
+                            if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
+                                if name == "AetherLauncher.exe" {
+                                    if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
+                                        result.launcher_download_url = Some(url.to_string());
+                                        break;
+                                    }
+                                }
+                            }
+                        }
                     }
 
                     if clean_tag != CURRENT_VERSION && clean_tag > CURRENT_VERSION {
@@ -271,6 +299,106 @@ fn apply_update() -> Result<String, String> {
         }
         Err(e) => Err(format!("執行 git 失敗: {}", e)),
     }
+}
+
+fn get_latest_launcher_url() -> Result<String, String> {
+    let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
+    let resp = ureq::get(api_url)
+        .set("User-Agent", "AetherLauncher-v3.5")
+        .set("Accept", "application/vnd.github.v3+json")
+        .timeout(std::time::Duration::from_secs(8))
+        .call()
+        .map_err(|e| format!("GitHub API 連線失敗: {}", e))?;
+
+    let json: serde_json::Value = resp.into_json().map_err(|e| format!("解析回應失敗: {}", e))?;
+    if let Some(assets) = json.get("assets").and_then(|a| a.as_array()) {
+        for asset in assets {
+            if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
+                if name == "AetherLauncher.exe" {
+                    if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
+                        return Ok(url.to_string());
+                    }
+                }
+            }
+        }
+    }
+    Err("在最新 GitHub Release 中未找到 AetherLauncher.exe 發行資產。".to_string())
+}
+
+#[tauri::command]
+fn self_update_launcher(download_url: Option<String>) -> Result<String, String> {
+    let current_exe = match env::current_exe() {
+        Ok(p) => p,
+        Err(e) => return Err(format!("無法獲取當前執行檔路徑: {}", e)),
+    };
+
+    let target_url = if let Some(url) = download_url {
+        if !url.trim().is_empty() {
+            url
+        } else {
+            get_latest_launcher_url()?
+        }
+    } else {
+        get_latest_launcher_url()?
+    };
+
+    // 1. Download to temporary file
+    let temp_exe = current_exe.with_extension("exe.new");
+    if temp_exe.exists() {
+        let _ = std::fs::remove_file(&temp_exe);
+    }
+
+    let resp = ureq::get(&target_url)
+        .set("User-Agent", "AetherLauncher-Updater")
+        .timeout(std::time::Duration::from_secs(60))
+        .call()
+        .map_err(|e| format!("下載最新啟動器失敗: {}", e))?;
+
+    let mut reader = resp.into_reader();
+    let mut out_file = std::fs::File::create(&temp_exe)
+        .map_err(|e| format!("建立臨時檔案失敗: {}", e))?;
+    std::io::copy(&mut reader, &mut out_file)
+        .map_err(|e| format!("寫入檔案失敗: {}", e))?;
+    drop(out_file);
+
+    // Verify file size
+    let metadata = std::fs::metadata(&temp_exe).map_err(|e| format!("讀取檔案資訊失敗: {}", e))?;
+    if metadata.len() < 1_000_000 {
+        let _ = std::fs::remove_file(&temp_exe);
+        return Err("下載之檔案大小異常，已取消更新。".to_string());
+    }
+
+    // 2. Rename current running exe to .bak
+    let backup_exe = current_exe.with_extension("exe.bak");
+    if backup_exe.exists() {
+        let _ = std::fs::remove_file(&backup_exe);
+    }
+    std::fs::rename(&current_exe, &backup_exe)
+        .map_err(|e| format!("備份現有啟動器失敗 (可能被鎖定): {}", e))?;
+
+    // 3. Move new exe to original path
+    if let Err(e) = std::fs::rename(&temp_exe, &current_exe) {
+        let _ = std::fs::rename(&backup_exe, &current_exe);
+        return Err(format!("替換新版啟動器失敗: {}", e));
+    }
+
+    // 4. Spawn the new exe
+    let mut cmd = Command::new(&current_exe);
+    if let Some(parent) = current_exe.parent() {
+        cmd.current_dir(parent);
+    }
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+
+    cmd.spawn().map_err(|e| format!("重新啟動新版啟動器失敗: {}", e))?;
+
+    // 5. Exit the current process after short delay
+    std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::process::exit(0);
+    });
+
+    Ok("✅ 啟動器已成功更新至最新版，正在為您自動重新啟動...".to_string())
 }
 
 #[tauri::command]
@@ -464,11 +592,14 @@ fn run_health_check() -> Result<String, String> {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
+    cleanup_old_launcher();
+
     tauri::Builder::default()
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             check_update,
             apply_update,
+            self_update_launcher,
             launch_mode,
             create_desktop_shortcut,
             open_project_folder,

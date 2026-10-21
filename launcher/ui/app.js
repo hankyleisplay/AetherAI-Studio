@@ -1,4 +1,4 @@
-// Aether AI Studio 3.5 - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode & Full i18n
+// Aether AI Studio 3.5 - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode, Launcher Self-Update & Full i18n
 
 const I18N = {
   "zh-TW": {
@@ -9,8 +9,12 @@ const I18N = {
     update_latest_desc: "GitHub 遠端發行與本地版本一致，無需更新",
     btn_recheck: "🔄 重新檢查",
     update_available_title: "發現新版本 v{version}！",
-    btn_update_now: "⚡ 立即更新",
+    btn_update_now: "⚡ 立即更新專案",
     btn_updating: "正在更新中...",
+    btn_update_launcher: "🚀 更新啟動器",
+    btn_updating_launcher: "正在下載並更換啟動器...",
+    launcher_update_success: "✅ 啟動器已更新完畢，即將自動重新啟動！",
+    launcher_update_fail: "啟動器更新失敗: ",
     update_success_title: "已成功更新至最新版！",
     update_failed: "更新失敗: ",
     update_error_title: "離線或更新檢查略過",
@@ -49,6 +53,7 @@ const I18N = {
     btn_launching: "啟動中...",
     footer_shortcut: "⭐ 建立桌面捷徑",
     footer_open_folder: "📂 開啟專案目錄",
+    footer_update_launcher: "🚀 自動更新啟動器",
     footer_health_check: "🩺 環境健康檢查",
     footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 系統狀態：待命中",
     shortcut_success: "⭐ 已成功在您的 Windows 桌面建立「Aether AI Studio 3.5」捷徑！",
@@ -65,8 +70,12 @@ const I18N = {
     update_latest_desc: "GitHub 远端发行与本地版本一致，无需更新",
     btn_recheck: "🔄 重新检查",
     update_available_title: "发现新版本 v{version}！",
-    btn_update_now: "⚡ 立即更新",
+    btn_update_now: "⚡ 立即更新项目",
     btn_updating: "正在更新中...",
+    btn_update_launcher: "🚀 更新启动器",
+    btn_updating_launcher: "正在下载并更换启动器...",
+    launcher_update_success: "✅ 启动器已更新完毕，即将自动重新启动！",
+    launcher_update_fail: "启动器更新失败: ",
     update_success_title: "已成功更新至最新版！",
     update_failed: "更新失败: ",
     update_error_title: "离线或更新检查略过",
@@ -105,6 +114,7 @@ const I18N = {
     btn_launching: "启动中...",
     footer_shortcut: "⭐ 创建桌面快捷方式",
     footer_open_folder: "📂 打开项目目录",
+    footer_update_launcher: "🚀 自动更新启动器",
     footer_health_check: "🩺 环境健康检查",
     footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 系统状态：待命中",
     shortcut_success: "⭐ 已成功在您的 Windows 桌面创建「Aether AI Studio 3.5」快捷方式！",
@@ -121,8 +131,12 @@ const I18N = {
     update_latest_desc: "Remote GitHub release matches local version, no update needed",
     btn_recheck: "🔄 Recheck",
     update_available_title: "New Version Available: v{version}!",
-    btn_update_now: "⚡ Update Now",
+    btn_update_now: "⚡ Update Project",
     btn_updating: "Updating...",
+    btn_update_launcher: "🚀 Update Launcher",
+    btn_updating_launcher: "Downloading new launcher...",
+    launcher_update_success: "✅ Launcher updated, restarting now!",
+    launcher_update_fail: "Launcher update failed: ",
     update_success_title: "Successfully updated to latest version!",
     update_failed: "Update failed: ",
     update_error_title: "Offline or update check skipped",
@@ -161,6 +175,7 @@ const I18N = {
     btn_launching: "Launching...",
     footer_shortcut: "⭐ Create Desktop Shortcut",
     footer_open_folder: "📂 Open Project Folder",
+    footer_update_launcher: "🚀 Update Launcher",
     footer_health_check: "🩺 System Health Check",
     footer_status_standby: "Aether AI Studio v3.5.0 Official Release • Status: Standby",
     shortcut_success: "⭐ Successfully created 'Aether AI Studio 3.5' shortcut on Desktop!",
@@ -177,8 +192,12 @@ const I18N = {
     update_latest_desc: "リモートのリリースとローカルのバージョンは一致しています",
     btn_recheck: "🔄 再確認",
     update_available_title: "新バージョン v{version} が利用可能！",
-    btn_update_now: "⚡ 今すぐ更新",
+    btn_update_now: "⚡ プロジェクト更新",
     btn_updating: "更新中...",
+    btn_update_launcher: "🚀 起動ツール更新",
+    btn_updating_launcher: "新しい起動ツールをダウンロード中...",
+    launcher_update_success: "✅ 起動ツールが更新されました。再起動中...",
+    launcher_update_fail: "起動ツールの更新に失敗しました: ",
     update_success_title: "最新バージョンへの更新が完了しました！",
     update_failed: "更新失敗: ",
     update_error_title: "オフラインまたは更新チェックをスキップ",
@@ -217,6 +236,7 @@ const I18N = {
     btn_launching: "起動中...",
     footer_shortcut: "⭐ デスクトップショートカット作成",
     footer_open_folder: "📂 プロジェクトを開く",
+    footer_update_launcher: "🚀 起動ツール更新",
     footer_health_check: "🩺 システム健全性診断",
     footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 状態：待機中",
     shortcut_success: "⭐ デスクトップに「Aether AI Studio 3.5」ショートカットを作成しました！",
@@ -361,6 +381,7 @@ const btnLaunchBrowser = document.getElementById("btn-launch-browser");
 
 const btnCreateShortcut = document.getElementById("btn-create-shortcut");
 const btnOpenFolder = document.getElementById("btn-open-folder");
+const btnSelfUpdateLauncher = document.getElementById("btn-self-update-launcher");
 const btnHealthCheck = document.getElementById("btn-health-check");
 
 // -------------------------------------------------------------
@@ -407,7 +428,6 @@ function adjustPort(delta) {
 btnPortUp.addEventListener("click", () => adjustPort(1));
 btnPortDown.addEventListener("click", () => adjustPort(-1));
 
-// Long-press holding accelerator
 function setupStepperHolding(btn, delta) {
   let timer = null;
   let interval = null;
@@ -494,6 +514,33 @@ async function loadSystemInfo() {
 }
 
 // -------------------------------------------------------------
+// Logic: Launcher Self-Update
+// -------------------------------------------------------------
+async function doSelfUpdateLauncher(url = null) {
+  const originalText = btnSelfUpdateLauncher.innerHTML;
+  btnSelfUpdateLauncher.disabled = true;
+  btnSelfUpdateLauncher.innerHTML = `<span>⏳ ${t("btn_updating_launcher")}</span>`;
+  footerStatusBar.textContent = t("btn_updating_launcher");
+  footerStatusBar.style.color = "#f59e0b";
+
+  try {
+    const msg = await invoke("self_update_launcher", { downloadUrl: url });
+    footerStatusBar.textContent = msg || t("launcher_update_success");
+    footerStatusBar.style.color = "#10b981";
+  } catch (err) {
+    alert(t("launcher_update_fail") + err);
+    footerStatusBar.textContent = t("launcher_update_fail") + err;
+    footerStatusBar.style.color = "#f43f5e";
+    btnSelfUpdateLauncher.disabled = false;
+    btnSelfUpdateLauncher.innerHTML = originalText;
+  }
+}
+
+btnSelfUpdateLauncher.addEventListener("click", () => {
+  doSelfUpdateLauncher(lastUpdateResult?.launcher_download_url || null);
+});
+
+// -------------------------------------------------------------
 // Logic: Update Check & Apply
 // -------------------------------------------------------------
 function renderUpdateResult(res) {
@@ -505,26 +552,38 @@ function renderUpdateResult(res) {
     updateTitle.textContent = t("update_available_title", { version: res.latest_version });
     updateDesc.textContent = res.release_name || res.published_at || "";
 
-    const btnUpdate = document.createElement("button");
-    btnUpdate.className = "btn-update-now";
-    btnUpdate.textContent = t("btn_update_now");
-    btnUpdate.onclick = async () => {
-      btnUpdate.disabled = true;
-      btnUpdate.textContent = t("btn_updating");
+    // 1. Update Project Code Button
+    const btnUpdateProject = document.createElement("button");
+    btnUpdateProject.className = "btn-update-now";
+    btnUpdateProject.textContent = t("btn_update_now");
+    btnUpdateProject.onclick = async () => {
+      btnUpdateProject.disabled = true;
+      btnUpdateProject.textContent = t("btn_updating");
       try {
         const pullMsg = await invoke("apply_update");
         updateBanner.className = "update-banner state-latest";
         updateIcon.textContent = "✅";
         updateTitle.textContent = t("update_success_title");
         updateDesc.textContent = pullMsg;
-        btnUpdate.remove();
+        btnUpdateProject.remove();
       } catch (e) {
         alert(t("update_failed") + e);
-        btnUpdate.disabled = false;
-        btnUpdate.textContent = t("btn_update_now");
+        btnUpdateProject.disabled = false;
+        btnUpdateProject.textContent = t("btn_update_now");
       }
     };
-    updateAction.appendChild(btnUpdate);
+    updateAction.appendChild(btnUpdateProject);
+
+    // 2. Update Launcher Binary Button
+    if (res.launcher_download_url) {
+      const btnUpdateLauncher = document.createElement("button");
+      btnUpdateLauncher.className = "btn-ghost";
+      btnUpdateLauncher.style.borderColor = "#00f2fe";
+      btnUpdateLauncher.style.color = "#00f2fe";
+      btnUpdateLauncher.textContent = t("btn_update_launcher");
+      btnUpdateLauncher.onclick = () => doSelfUpdateLauncher(res.launcher_download_url);
+      updateAction.appendChild(btnUpdateLauncher);
+    }
   } else {
     updateBanner.className = "update-banner state-latest";
     updateIcon.textContent = "✅";
