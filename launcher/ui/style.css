@@ -451,6 +451,50 @@ body {
 }
 
 /* -------------------------------------------------------------
+   One-Click Close All Clients Button
+   ------------------------------------------------------------- */
+.btn-close-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(244, 63, 94, 0.12);
+  border: 1px solid rgba(244, 63, 94, 0.35);
+  color: #fda4af;
+  border-radius: var(--radius-sm);
+  padding: 5px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  box-shadow: 0 0 10px rgba(244, 63, 94, 0.1);
+  white-space: nowrap;
+}
+
+.btn-close-all:hover {
+  background: rgba(244, 63, 94, 0.25);
+  border-color: rgba(244, 63, 94, 0.7);
+  color: #fff;
+  box-shadow: 0 0 16px rgba(244, 63, 94, 0.3);
+  transform: translateY(-1px);
+}
+
+.btn-close-all:active {
+  transform: translateY(1px);
+  background: rgba(244, 63, 94, 0.35);
+}
+
+.btn-close-all:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.close-all-icon {
+  font-size: 12px;
+  filter: drop-shadow(0 0 4px rgba(244, 63, 94, 0.5));
+}
+
+/* -------------------------------------------------------------
    Hardware-Saving Low-Resource Mode Toggle
    ------------------------------------------------------------- */
 .eco-row {

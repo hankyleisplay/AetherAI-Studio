@@ -60,7 +60,12 @@ const I18N = {
     shortcut_fail: "建立捷徑失敗: ",
     open_folder_fail: "開啟目錄失敗: ",
     health_check_fail: "啟動診斷失敗: ",
-    launch_error: "啟動出錯: "
+    launch_error: "啟動出錯: ",
+    btn_close_all_clients: "一鍵關閉所有客戶端",
+    btn_closing_clients: "正在終止客戶端與伺服器進程...",
+    close_all_success: "🛑 已成功終止 {count} 個相關客戶端與背景進程！",
+    close_all_none: "✅ 目前沒有檢測到正在運行的相關客戶端或背景進程。",
+    close_all_fail: "終止進程失敗: "
   },
   "zh-CN": {
     app_subtitle: "次世代独立原生桌面代理系统 • 官方正式版 (Tauri + Rust)",
@@ -121,7 +126,12 @@ const I18N = {
     shortcut_fail: "创建快捷方式失败: ",
     open_folder_fail: "打开目录失败: ",
     health_check_fail: "启动诊断失败: ",
-    launch_error: "启动出错: "
+    launch_error: "启动出错: ",
+    btn_close_all_clients: "一键关闭所有客户端",
+    btn_closing_clients: "正在终止客户端与服务器进程...",
+    close_all_success: "🛑 已成功终止 {count} 个相关客户端与后台进程！",
+    close_all_none: "✅ 目前没有检测到正在运行的相关客户端或后台进程。",
+    close_all_fail: "终止进程失败: "
   },
   "en": {
     app_subtitle: "Next-Gen Autonomous Desktop AI Agent • Official Release (Tauri + Rust)",
@@ -182,7 +192,12 @@ const I18N = {
     shortcut_fail: "Failed to create shortcut: ",
     open_folder_fail: "Failed to open folder: ",
     health_check_fail: "Failed to launch health check: ",
-    launch_error: "Launch error: "
+    launch_error: "Launch error: ",
+    btn_close_all_clients: "Close All Clients",
+    btn_closing_clients: "Terminating client & server processes...",
+    close_all_success: "🛑 Successfully terminated {count} client & background processes!",
+    close_all_none: "✅ No active client or background processes detected.",
+    close_all_fail: "Failed to terminate processes: "
   },
   "ja": {
     app_subtitle: "次世代自律型デスクトップAIエージェント • 公式正式版 (Tauri + Rust)",
@@ -243,7 +258,12 @@ const I18N = {
     shortcut_fail: "ショートカット作成失敗: ",
     open_folder_fail: "フォルダを開けませんでした: ",
     health_check_fail: "診断の起動に失敗しました: ",
-    launch_error: "起動エラー: "
+    launch_error: "起動エラー: ",
+    btn_close_all_clients: "全クライアントを一括終了",
+    btn_closing_clients: "クライアントとサーバープロセスを終了中...",
+    close_all_success: "🛑 {count} 個の関連クライアントおよびバックグラウンドプロセスを終了しました！",
+    close_all_none: "✅ 実行中のクライアントまたはバックグラウンドプロセスは検出されませんでした。",
+    close_all_fail: "プロセスの終了に失敗しました: "
   }
 };
 
@@ -383,6 +403,7 @@ const btnCreateShortcut = document.getElementById("btn-create-shortcut");
 const btnOpenFolder = document.getElementById("btn-open-folder");
 const btnSelfUpdateLauncher = document.getElementById("btn-self-update-launcher");
 const btnHealthCheck = document.getElementById("btn-health-check");
+const btnCloseAll = document.getElementById("btn-close-all");
 
 // -------------------------------------------------------------
 // Logic: Custom Dropdown Menu for Language
@@ -690,6 +711,40 @@ btnHealthCheck.addEventListener("click", async () => {
     alert(t("health_check_fail") + err);
   }
 });
+
+if (btnCloseAll) {
+  btnCloseAll.addEventListener("click", async () => {
+    const originalText = btnCloseAll.innerHTML;
+    btnCloseAll.disabled = true;
+    btnCloseAll.innerHTML = `<span class="close-all-icon">⏳</span> <span>${t("btn_closing_clients")}</span>`;
+    footerStatusBar.textContent = t("btn_closing_clients");
+
+    const port = parseInt(serverPortInput.value, 10) || 8000;
+
+    try {
+      const count = await invoke("close_all_instances", { port });
+      if (count > 0) {
+        const msg = t("close_all_success", { count });
+        alert(msg);
+        footerStatusBar.textContent = msg;
+        footerStatusBar.style.color = "#fda4af";
+      } else {
+        const msg = t("close_all_none");
+        alert(msg);
+        footerStatusBar.textContent = msg;
+        footerStatusBar.style.color = "#34d399";
+      }
+      loadSystemInfo();
+    } catch (err) {
+      alert(t("close_all_fail") + err);
+      footerStatusBar.textContent = t("close_all_fail") + err;
+      footerStatusBar.style.color = "#f43f5e";
+    } finally {
+      btnCloseAll.disabled = false;
+      btnCloseAll.innerHTML = originalText;
+    }
+  });
+}
 
 // Auto-run on startup
 window.addEventListener("DOMContentLoaded", async () => {

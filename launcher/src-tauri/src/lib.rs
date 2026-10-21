@@ -402,6 +402,50 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
 }
 
 #[tauri::command]
+fn close_all_instances(port: u16) -> Result<u32, String> {
+    let port_str = port.to_string();
+
+    let ps_script = format!(
+        r#"$killed = 0;
+$pids = @();
+$conns = Get-NetTCPConnection -LocalPort {} -ErrorAction SilentlyContinue;
+if ($conns) {{ $pids += ($conns | Select-Object -ExpandProperty OwningProcess) }}
+$app_procs = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%aetherai_studio_3%' OR CommandLine LIKE '%start.py%' OR CommandLine LIKE '%test_backend.py%'" -ErrorAction SilentlyContinue;
+if ($app_procs) {{ $pids += ($app_procs | Select-Object -ExpandProperty ProcessId) }}
+$unique_pids = $pids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_ -ne $PID }};
+foreach ($p in $unique_pids) {{
+    try {{
+        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue;
+        $killed++;
+    }} catch {{}}
+}}
+Write-Host $killed;"#,
+        port_str
+    );
+
+    // Also close CMD windows with title starting with Aether AI Studio
+    let mut cmd_kill = Command::new("taskkill");
+    cmd_kill.args(["/F", "/FI", "WINDOWTITLE eq Aether AI Studio*", "/T"]);
+    #[cfg(windows)]
+    cmd_kill.creation_flags(CREATE_NO_WINDOW);
+    let _ = cmd_kill.output();
+
+    let mut ps_cmd = Command::new("powershell");
+    ps_cmd.args(["-NoProfile", "-Command", &ps_script]);
+    #[cfg(windows)]
+    ps_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match ps_cmd.output() {
+        Ok(output) => {
+            let killed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
+            let count: u32 = killed_str.parse().unwrap_or(0);
+            Ok(count)
+        }
+        Err(e) => Err(format!("終止進程失敗: {}", e)),
+    }
+}
+
+#[tauri::command]
 fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -600,6 +644,7 @@ pub fn run() {
             check_update,
             apply_update,
             self_update_launcher,
+            close_all_instances,
             launch_mode,
             create_desktop_shortcut,
             open_project_folder,
