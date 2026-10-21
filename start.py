@@ -161,6 +161,42 @@ def ensure_shortcuts():
         except Exception:
             pass
 
+def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
+    import socket
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.settimeout(0.5)
+            return s.connect_ex((host, port)) == 0
+    except Exception:
+        return False
+
+def free_port_if_aether(port: int) -> bool:
+    """Attempt to terminate any previous or zombie Aether instance listening on this port."""
+    import psutil
+    freed = False
+    try:
+        for conn in psutil.net_connections(kind="inet"):
+            if conn.laddr.port == port and conn.status == "LISTEN" and conn.pid:
+                if conn.pid != os.getpid():
+                    try:
+                        proc = psutil.Process(conn.pid)
+                        cmd = " ".join(proc.cmdline() or []).lower()
+                        if "start.py" in cmd or "uvicorn" in cmd or "test_backend.py" in cmd or "aether" in cmd:
+                            print(f"\033[33m[*] 檢測到埠號 {port} 被先前未結束的背景進程 (PID: {conn.pid}) 佔用，正在為您自動釋放...\033[0m")
+                            proc.terminate()
+                            try:
+                                proc.wait(timeout=2)
+                            except Exception:
+                                proc.kill()
+                            freed = True
+                    except Exception:
+                        pass
+    except Exception:
+        pass
+    if freed:
+        time.sleep(0.5)
+    return freed
+
 def launch_desktop_window(url: str, low_spec: bool = False):
     """
     Launch native desktop window using Chrome/Edge in standalone app mode.
@@ -171,13 +207,13 @@ def launch_desktop_window(url: str, low_spec: bool = False):
     candidates = []
     if sys.platform == "win32":
         candidates = [
-            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
-            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
-            os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
             os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
+            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
         ]
     elif sys.platform == "darwin":
         candidates = [
@@ -199,8 +235,6 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                     f"--app={url}",
                     "--window-size=1360,900",
                     "--window-position=center",
-                    "--user-data-dir=" + str(PROJECT_ROOT / "backend" / "data" / "desktop_profile"),
-                    "--app-id=aetherai_studio_3",
                     "--disable-extensions",
                 ]
                 if low_spec:
@@ -209,7 +243,17 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                         "--disable-gpu-compositing",
                         "--renderer-process-limit=1",
                     ])
-                return subprocess.Popen(cmd)
+                p = subprocess.Popen(cmd)
+                time.sleep(0.5)
+                if p.poll() is None:
+                    return p
+
+                if sys.platform == "win32":
+                    cmd_shell = ["cmd.exe", "/c", "start", "", exe, f"--app={url}", "--window-size=1360,900"]
+                    sp = subprocess.Popen(cmd_shell)
+                    sp.wait()
+                    if sp.returncode == 0:
+                        return sp
             except Exception:
                 continue
 
@@ -243,10 +287,24 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     print(f"📂 工作區目錄: {PROJECT_ROOT / 'backend' / 'workspace'}\n")
     print("\033[90m(按 Ctrl+C 可停止伺服器)\033[0m\n")
 
+    # Auto-resolve port conflict
+    if is_port_in_use(port, "127.0.0.1"):
+        freed = free_port_if_aether(port)
+        if not freed and is_port_in_use(port, "127.0.0.1"):
+            print(f"\033[1;31m[!] 埠號 {port} 目前被其他程式佔用！\033[0m")
+            print(f"\033[33m[建議] 請於啟動器更換監聽埠號 (如 {port + 1})，或點擊啟動器的「🛑 一鍵關閉所有客戶端」按鈕。\033[0m\n")
+
     if desktop:
         def open_desktop():
             time.sleep(1.2)
-            launch_desktop_window(url, low_spec=low_spec)
+            p = launch_desktop_window(url, low_spec=low_spec)
+            if p and hasattr(p, "wait"):
+                try:
+                    p.wait()
+                    print("\n\033[32m[✓] 原生桌面視窗已關閉，正在自動關閉後端伺服器...\033[0m")
+                    os.kill(os.getpid(), signal.SIGTERM)
+                except Exception:
+                    pass
         import threading
         threading.Thread(target=open_desktop, daemon=True).start()
     elif not no_browser:

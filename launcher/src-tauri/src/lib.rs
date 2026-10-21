@@ -462,30 +462,26 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         return Err(format!("主程式檔案不存在: {}", start_py.display()));
     }
 
+    // Auto-free any previous zombie or active instances on this port so collision NEVER occurs
+    let _ = close_all_instances(port);
+    std::thread::sleep(std::time::Duration::from_millis(300));
+
     let port_str = port.to_string();
 
     match mode.as_str() {
         "desktop" => {
-            // Standalone desktop mode: Launch python with --desktop directly in background
-            let mut cmd = if python_bin == "py -3" {
-                let mut c = Command::new("py");
-                c.arg("-3");
-                c
-            } else {
-                Command::new(&python_bin)
-            };
+            // Standalone desktop mode: Launch python start.py --port <port> --desktop
+            let low_spec_arg = if low_spec { " --low-spec" } else { "" };
+            let exec_cmd = format!(
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [原生桌面服務] & {} start.py --port {} --desktop{}",
+                python_bin,
+                port_str,
+                low_spec_arg
+            );
 
-            let mut args = vec![
-                start_py.to_string_lossy().to_string(),
-                "--port".to_string(),
-                port_str.clone(),
-                "--desktop".to_string(),
-            ];
-            if low_spec {
-                args.push("--low-spec".to_string());
-            }
-
-            cmd.args(&args).current_dir(&project_dir);
+            let mut cmd = Command::new("cmd.exe");
+            cmd.args(["/c", &exec_cmd])
+                .current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NO_WINDOW);
