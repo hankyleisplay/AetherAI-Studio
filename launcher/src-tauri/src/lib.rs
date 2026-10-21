@@ -274,7 +274,7 @@ fn apply_update() -> Result<String, String> {
 }
 
 #[tauri::command]
-fn launch_mode(mode: String, port: u16) -> Result<String, String> {
+fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
         None => return Err("找不到 Aether AI Studio 專案目錄 (start.py)。請確認專案已放置於正確位置。".to_string()),
@@ -303,13 +303,17 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
                 Command::new(&python_bin)
             };
 
-            cmd.args([
-                start_py.to_string_lossy().as_ref(),
-                "--port",
-                &port_str,
-                "--desktop",
-            ])
-            .current_dir(&project_dir);
+            let mut args = vec![
+                start_py.to_string_lossy().to_string(),
+                "--port".to_string(),
+                port_str.clone(),
+                "--desktop".to_string(),
+            ];
+            if low_spec {
+                args.push("--low-spec".to_string());
+            }
+
+            cmd.args(&args).current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NO_WINDOW);
@@ -321,10 +325,12 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
         }
         "cli" => {
             // Terminal CLI mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
+            let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器] & {} start.py --port {} --no-browser",
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器] & {} start.py --port {} --no-browser{}",
                 python_bin,
-                port_str
+                port_str,
+                low_spec_arg
             );
 
             let mut cmd = Command::new("cmd.exe");
@@ -341,10 +347,12 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
         }
         "browser" => {
             // Browser mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
+            let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5 & {} start.py --port {}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5 & {} start.py --port {}{}",
                 python_bin,
-                port_str
+                port_str,
+                low_spec_arg
             );
 
             let mut cmd = Command::new("cmd.exe");

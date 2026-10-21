@@ -7,8 +7,8 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="launcher-container">
-    <!-- Top Brand Header with Language Switcher -->
+  <div class="launcher-container" id="launcher-container">
+    <!-- Top Brand Header with Custom Language Dropdown -->
     <header class="launcher-header">
       <div class="logo-area">
         <div class="logo-glow"></div>
@@ -18,13 +18,36 @@
           <p class="subtitle" data-i18n="app_subtitle">次世代獨立原生桌面代理系統 • 官方正式版 (Tauri + Rust)</p>
         </div>
       </div>
-      <div class="lang-selector-wrap">
-        <select id="lang-selector" class="lang-selector" aria-label="Language Selector">
-          <option value="zh-TW">🇹🇼 繁體中文</option>
-          <option value="zh-CN">🇨🇳 简体中文</option>
-          <option value="en">🇺🇸 English</option>
-          <option value="ja">🇯🇵 日本語</option>
-        </select>
+
+      <!-- Custom Styled Dropdown Menu -->
+      <div class="custom-dropdown" id="lang-dropdown">
+        <button type="button" class="dropdown-trigger" id="lang-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+          <span class="dropdown-flag" id="dropdown-current-flag">🇹🇼</span>
+          <span class="dropdown-label" id="dropdown-current-label">繁體中文</span>
+          <span class="dropdown-arrow">▾</span>
+        </button>
+        <div class="dropdown-menu" id="lang-dropdown-menu" role="listbox">
+          <div class="dropdown-item active" data-lang="zh-TW" role="option">
+            <span class="item-flag">🇹🇼</span>
+            <span class="item-text">繁體中文</span>
+            <span class="item-check">✓</span>
+          </div>
+          <div class="dropdown-item" data-lang="zh-CN" role="option">
+            <span class="item-flag">🇨🇳</span>
+            <span class="item-text">简体中文</span>
+            <span class="item-check">✓</span>
+          </div>
+          <div class="dropdown-item" data-lang="en" role="option">
+            <span class="item-flag">🇺🇸</span>
+            <span class="item-text">English</span>
+            <span class="item-check">✓</span>
+          </div>
+          <div class="dropdown-item" data-lang="ja" role="option">
+            <span class="item-flag">🇯🇵</span>
+            <span class="item-text">日本語</span>
+            <span class="item-check">✓</span>
+          </div>
+        </div>
       </div>
     </header>
 
@@ -40,7 +63,7 @@
       </div>
     </div>
 
-    <!-- Environment Detection Card -->
+    <!-- Environment Detection & Hardware Mode Card -->
     <section class="env-card">
       <div class="env-row">
         <div class="env-item">
@@ -52,14 +75,37 @@
           <span class="env-value" id="python-status-display" data-i18n="env_detecting">偵測中...</span>
         </div>
       </div>
+
       <div class="env-row env-settings">
+        <!-- Custom Stepper Input for Port -->
         <div class="port-setting">
           <label for="server-port" data-i18n="env_port">監聽埠號 (Port):</label>
-          <input type="number" id="server-port" value="8000" min="1024" max="65535">
+          <div class="custom-stepper">
+            <input type="number" id="server-port" value="8000" min="1024" max="65535">
+            <div class="stepper-buttons">
+              <button type="button" class="stepper-btn stepper-up" id="btn-port-up" title="增加埠號 (+1)">▲</button>
+              <button type="button" class="stepper-btn stepper-down" id="btn-port-down" title="減少埠號 (-1)">▼</button>
+            </div>
+          </div>
         </div>
+
         <div class="status-indicator">
           <span class="dot green" id="system-ready-dot"></span>
           <span id="system-ready-text" data-i18n="env_core_ready">核心環境就緒</span>
+        </div>
+      </div>
+
+      <!-- Hardware-Saving Low-Resource Mode Toggle -->
+      <div class="env-row eco-row">
+        <div class="eco-container">
+          <label class="custom-switch" for="eco-mode-toggle">
+            <input type="checkbox" id="eco-mode-toggle">
+            <span class="slider"></span>
+          </label>
+          <div class="eco-text">
+            <div class="eco-title" data-i18n="eco_mode_label">⚡ 節省硬體消耗模式 (適合低配置 / 筆電)</div>
+            <div class="eco-desc" data-i18n="eco_mode_desc">降低記憶體與 CPU 佔用、停用高耗能 GPU 特效，推薦文書機或筆電開啟</div>
+          </div>
         </div>
       </div>
     </section>

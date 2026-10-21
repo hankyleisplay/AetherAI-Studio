@@ -1,4 +1,4 @@
-// Aether AI Studio 3.5 - Tauri Launcher Logic with Full i18n & Resilient IPC
+// Aether AI Studio 3.5 - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode & Full i18n
 
 const I18N = {
   "zh-TW": {
@@ -24,6 +24,10 @@ const I18N = {
     env_port: "監聽埠號 (Port):",
     env_core_ready: "核心環境就緒",
     env_core_missing: "環境缺失",
+    eco_mode_label: "⚡ 節省硬體消耗模式 (適合低配置 / 筆電)",
+    eco_mode_desc: "降低記憶體與 CPU 佔用、停用高耗能 GPU 特效，推薦文書機或筆電開啟",
+    stepper_up_title: "增加埠號 (+1)",
+    stepper_down_title: "減少埠號 (-1)",
     section_mode_title: "請選擇啟動模式：",
     tag_recommend: "推薦首選",
     tag_cli: "即時日誌",
@@ -76,6 +80,10 @@ const I18N = {
     env_port: "监听端口 (Port):",
     env_core_ready: "核心环境就绪",
     env_core_missing: "环境缺失",
+    eco_mode_label: "⚡ 节省硬件消耗模式 (适合低配置 / 笔记本)",
+    eco_mode_desc: "降低内存与 CPU 占用、停用高耗能 GPU 特效，推荐轻薄本或老旧电脑开启",
+    stepper_up_title: "增加端口号 (+1)",
+    stepper_down_title: "减少端口号 (-1)",
     section_mode_title: "请选择启动模式：",
     tag_recommend: "推荐首选",
     tag_cli: "实时日志",
@@ -128,6 +136,10 @@ const I18N = {
     env_port: "Port:",
     env_core_ready: "Core Environment Ready",
     env_core_missing: "Environment Missing",
+    eco_mode_label: "⚡ Hardware-Saving Mode (Low-Resource / Laptop)",
+    eco_mode_desc: "Reduces RAM & CPU usage, disables heavy GPU compositing, optimal for low-spec PCs",
+    stepper_up_title: "Increase Port (+1)",
+    stepper_down_title: "Decrease Port (-1)",
     section_mode_title: "Select Launch Mode:",
     tag_recommend: "Recommended",
     tag_cli: "Live Logs",
@@ -180,6 +192,10 @@ const I18N = {
     env_port: "ポート (Port):",
     env_core_ready: "コア環境準備完了",
     env_core_missing: "環境が不足しています",
+    eco_mode_label: "⚡ 省電力・低負荷モード (低スペックPC / ノートPC向け)",
+    eco_mode_desc: "メモリとCPU消費を抑え、高負荷なGPU描画を無効化します",
+    stepper_up_title: "ポート番号を増やす (+1)",
+    stepper_down_title: "ポート番号を減らす (-1)",
     section_mode_title: "起動モードを選択してください：",
     tag_recommend: "おすすめ",
     tag_cli: "ライブログ",
@@ -211,9 +227,16 @@ const I18N = {
   }
 };
 
+const LANG_META = {
+  "zh-TW": { flag: "🇹🇼", label: "繁體中文" },
+  "zh-CN": { flag: "🇨🇳", label: "简体中文" },
+  "en": { flag: "🇺🇸", label: "English" },
+  "ja": { flag: "🇯🇵", label: "日本語" }
+};
+
 let currentLang = "zh-TW";
 
-function getLang() {
+function getSavedLang() {
   const saved = localStorage.getItem("aether_language");
   if (saved && I18N[saved]) return saved;
 
@@ -239,10 +262,19 @@ function applyLanguage(lang) {
   localStorage.setItem("aether_language", lang);
   document.documentElement.lang = lang;
 
-  const selector = document.getElementById("lang-selector");
-  if (selector && selector.value !== lang) {
-    selector.value = lang;
-  }
+  // Update Custom Dropdown trigger label and flag
+  const meta = LANG_META[lang] || LANG_META["zh-TW"];
+  document.getElementById("dropdown-current-flag").textContent = meta.flag;
+  document.getElementById("dropdown-current-label").textContent = meta.label;
+
+  // Update active state in custom dropdown list
+  document.querySelectorAll(".dropdown-item").forEach(item => {
+    if (item.getAttribute("data-lang") === lang) {
+      item.classList.add("active");
+    } else {
+      item.classList.remove("active");
+    }
+  });
 
   // Update all DOM elements with data-i18n
   document.querySelectorAll("[data-i18n]").forEach(el => {
@@ -252,7 +284,13 @@ function applyLanguage(lang) {
     }
   });
 
-  // Refresh dynamic states if already loaded
+  // Update titles
+  const btnUp = document.getElementById("btn-port-up");
+  const btnDown = document.getElementById("btn-port-down");
+  if (btnUp) btnUp.title = t("stepper_up_title");
+  if (btnDown) btnDown.title = t("stepper_down_title");
+
+  // Refresh dynamic states if loaded
   if (lastSystemInfo) {
     updateSystemDisplay(lastSystemInfo);
   }
@@ -302,11 +340,13 @@ let lastSystemInfo = null;
 let lastUpdateResult = null;
 let isSystemReady = false;
 
+const launcherContainer = document.getElementById("launcher-container");
 const projectPathEl = document.getElementById("project-path-display");
 const pythonStatusEl = document.getElementById("python-status-display");
 const systemReadyDot = document.getElementById("system-ready-dot");
 const systemReadyText = document.getElementById("system-ready-text");
 const serverPortInput = document.getElementById("server-port");
+const ecoModeToggle = document.getElementById("eco-mode-toggle");
 
 const updateBanner = document.getElementById("update-banner");
 const updateIcon = document.getElementById("update-icon");
@@ -322,6 +362,91 @@ const btnLaunchBrowser = document.getElementById("btn-launch-browser");
 const btnCreateShortcut = document.getElementById("btn-create-shortcut");
 const btnOpenFolder = document.getElementById("btn-open-folder");
 const btnHealthCheck = document.getElementById("btn-health-check");
+
+// -------------------------------------------------------------
+// Logic: Custom Dropdown Menu for Language
+// -------------------------------------------------------------
+const langDropdown = document.getElementById("lang-dropdown");
+const langDropdownTrigger = document.getElementById("lang-dropdown-trigger");
+
+langDropdownTrigger.addEventListener("click", (e) => {
+  e.stopPropagation();
+  langDropdown.classList.toggle("open");
+  const isOpen = langDropdown.classList.contains("open");
+  langDropdownTrigger.setAttribute("aria-expanded", String(isOpen));
+});
+
+document.querySelectorAll(".dropdown-item").forEach(item => {
+  item.addEventListener("click", () => {
+    const selectedLang = item.getAttribute("data-lang");
+    applyLanguage(selectedLang);
+    langDropdown.classList.remove("open");
+    langDropdownTrigger.setAttribute("aria-expanded", "false");
+  });
+});
+
+document.addEventListener("click", (e) => {
+  if (!langDropdown.contains(e.target)) {
+    langDropdown.classList.remove("open");
+    langDropdownTrigger.setAttribute("aria-expanded", "false");
+  }
+});
+
+// -------------------------------------------------------------
+// Logic: Custom Stepper (Up/Down) Buttons for Port
+// -------------------------------------------------------------
+const btnPortUp = document.getElementById("btn-port-up");
+const btnPortDown = document.getElementById("btn-port-down");
+
+function adjustPort(delta) {
+  let val = parseInt(serverPortInput.value, 10) || 8000;
+  val = Math.max(1024, Math.min(65535, val + delta));
+  serverPortInput.value = val;
+}
+
+btnPortUp.addEventListener("click", () => adjustPort(1));
+btnPortDown.addEventListener("click", () => adjustPort(-1));
+
+// Long-press holding accelerator
+function setupStepperHolding(btn, delta) {
+  let timer = null;
+  let interval = null;
+
+  const start = () => {
+    adjustPort(delta);
+    timer = setTimeout(() => {
+      interval = setInterval(() => adjustPort(delta), 80);
+    }, 350);
+  };
+
+  const stop = () => {
+    clearTimeout(timer);
+    clearInterval(interval);
+  };
+
+  btn.addEventListener("mousedown", start);
+  btn.addEventListener("mouseup", stop);
+  btn.addEventListener("mouseleave", stop);
+}
+
+setupStepperHolding(btnPortUp, 1);
+setupStepperHolding(btnPortDown, -1);
+
+// -------------------------------------------------------------
+// Logic: Hardware-Saving Low-Resource Mode
+// -------------------------------------------------------------
+function setEcoMode(enabled) {
+  if (enabled) {
+    launcherContainer.classList.add("eco-mode");
+  } else {
+    launcherContainer.classList.remove("eco-mode");
+  }
+  localStorage.setItem("aether_eco_mode", enabled ? "1" : "0");
+}
+
+ecoModeToggle.addEventListener("change", (e) => {
+  setEcoMode(e.target.checked);
+});
 
 // -------------------------------------------------------------
 // Logic: System Info
@@ -449,6 +574,7 @@ async function launch(mode, btn) {
   btn.innerHTML = `<span>${t("btn_launching")}</span> <span class="arrow">⏳</span>`;
 
   const port = parseInt(serverPortInput.value, 10) || 8000;
+  const lowSpec = ecoModeToggle.checked;
   
   if (mode === "desktop") {
     footerStatusBar.textContent = t("desktop_launching");
@@ -459,7 +585,7 @@ async function launch(mode, btn) {
   }
 
   try {
-    const msg = await invoke("launch_mode", { mode, port });
+    const msg = await invoke("launch_mode", { mode, port, lowSpec });
     footerStatusBar.textContent = msg;
     footerStatusBar.style.color = "#00f2fe";
   } catch (err) {
@@ -506,14 +632,16 @@ btnHealthCheck.addEventListener("click", async () => {
   }
 });
 
-document.getElementById("lang-selector").addEventListener("change", (e) => {
-  applyLanguage(e.target.value);
-});
-
 // Auto-run on startup
 window.addEventListener("DOMContentLoaded", async () => {
-  const initialLang = getLang();
+  // Load Language Preference
+  const initialLang = getSavedLang();
   applyLanguage(initialLang);
+
+  // Load Eco Mode Preference
+  const savedEco = localStorage.getItem("aether_eco_mode") === "1";
+  ecoModeToggle.checked = savedEco;
+  setEcoMode(savedEco);
 
   // Poll for Tauri IPC readiness before invoking
   await getInvokeFn();
