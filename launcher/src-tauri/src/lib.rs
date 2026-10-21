@@ -8,6 +8,7 @@ use std::os::windows::process::CommandExt;
 
 const CURRENT_VERSION: &str = "3.5.0";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
+const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
@@ -64,6 +65,10 @@ fn find_project_root() -> Option<PathBuf> {
         r"C:\Users\李秉翰\AetherAI-Studio",
         &format!(r"{}\Documents\Project\AetherAI-Studio", home),
         &format!(r"{}\AetherAI-Studio", home),
+        &format!(r"{}\Desktop\AetherAI-Studio", home),
+        &format!(r"{}\Downloads\AetherAI-Studio", home),
+        r"D:\AetherAI-Studio",
+        r"E:\AetherAI-Studio",
     ];
 
     for candidate in &candidates {
@@ -77,43 +82,38 @@ fn find_project_root() -> Option<PathBuf> {
 }
 
 fn find_python() -> Option<String> {
-    // 1. Try python in PATH
-    let mut cmd = Command::new("python");
-    cmd.args(["-c", "import sys; print(sys.executable)"]);
+    // 1. Test if "python" in PATH is directly callable
+    let mut check_py = Command::new("python");
+    check_py.arg("--version");
     #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    check_py.creation_flags(CREATE_NO_WINDOW);
 
-    if let Ok(output) = cmd.output() {
+    if let Ok(output) = check_py.output() {
         if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return Some(path);
-            }
+            return Some("python".to_string());
         }
     }
 
-    // 2. Try py launcher in PATH
-    let mut cmd_py = Command::new("py");
-    cmd_py.args(["-3", "-c", "import sys; print(sys.executable)"]);
+    // 2. Test if "py" launcher is directly callable
+    let mut check_py_launcher = Command::new("py");
+    check_py_launcher.args(["-3", "--version"]);
     #[cfg(windows)]
-    cmd_py.creation_flags(CREATE_NO_WINDOW);
+    check_py_launcher.creation_flags(CREATE_NO_WINDOW);
 
-    if let Ok(output) = cmd_py.output() {
+    if let Ok(output) = check_py_launcher.output() {
         if output.status.success() {
-            let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-            if !path.is_empty() {
-                return Some(path);
-            }
+            return Some("py -3".to_string());
         }
     }
 
-    // 3. Fallback to common Windows Python paths
+    // 3. Fallback to common Windows Python installation paths
     let home = env::var("USERPROFILE").unwrap_or_default();
     let common_paths = [
         format!(r"{}\AppData\Local\Programs\Python\Python314\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python313\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python312\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python311\python.exe", home),
+        r"C:\Users\李秉翰\AppData\Local\Programs\Python\Python314\python.exe".to_string(),
         r"C:\Python314\python.exe".to_string(),
         r"C:\Python313\python.exe".to_string(),
         r"C:\Python312\python.exe".to_string(),
@@ -199,7 +199,6 @@ fn check_update() -> UpdateResult {
                         result.html_url = url.to_string();
                     }
 
-                    // Check if latest version differs and is newer than current
                     if clean_tag != CURRENT_VERSION && clean_tag > CURRENT_VERSION {
                         result.has_update = true;
                         return result;
@@ -212,7 +211,7 @@ fn check_update() -> UpdateResult {
         }
     }
 
-    // 2. Local Git repository check (check if commits are ahead on remote branch)
+    // 2. Local Git repository check
     if let Some(project_path) = find_project_root() {
         let git_dir = project_path.join(".git");
         if git_dir.exists() {
@@ -281,7 +280,7 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
         None => return Err("找不到 Aether AI Studio 專案目錄 (start.py)。請確認專案已放置於正確位置。".to_string()),
     };
 
-    let python_exe = match find_python() {
+    let python_bin = match find_python() {
         Some(p) => p,
         None => return Err("找不到系統 Python。請確認已安裝 Python 3.10+ 並加入系統 PATH。".to_string()),
     };
@@ -295,8 +294,15 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
 
     match mode.as_str() {
         "desktop" => {
-            // Standalone desktop mode: Launch python with --desktop in background
-            let mut cmd = Command::new(&python_exe);
+            // Standalone desktop mode: Launch python with --desktop directly in background
+            let mut cmd = if python_bin == "py -3" {
+                let mut c = Command::new("py");
+                c.arg("-3");
+                c
+            } else {
+                Command::new(&python_bin)
+            };
+
             cmd.args([
                 start_py.to_string_lossy().as_ref(),
                 "--port",
@@ -314,17 +320,19 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
             }
         }
         "cli" => {
-            // Terminal CLI mode: Spawn a dedicated visible console window with ANSI colors and live logs
-            let cmd_str = format!(
-                r#"title Aether AI Studio 3.5 [CLI 伺服器] & "{}" "{}" --port {} --no-browser"#,
-                python_exe,
-                start_py.display(),
+            // Terminal CLI mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
+            let exec_cmd = format!(
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器] & {} start.py --port {} --no-browser",
+                python_bin,
                 port_str
             );
 
             let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/c", "start", "cmd.exe", "/k", &cmd_str])
+            cmd.args(["/k", &exec_cmd])
                 .current_dir(&project_dir);
+
+            #[cfg(windows)]
+            cmd.creation_flags(CREATE_NEW_CONSOLE);
 
             match cmd.spawn() {
                 Ok(_) => Ok("✅ 已在專屬終端視窗中啟動 CLI 伺服器！".to_string()),
@@ -332,17 +340,19 @@ fn launch_mode(mode: String, port: u16) -> Result<String, String> {
             }
         }
         "browser" => {
-            // Browser mode: Spawn console window that boots server and opens default browser
-            let cmd_str = format!(
-                r#"title Aether AI Studio 3.5 & "{}" "{}" --port {}"#,
-                python_exe,
-                start_py.display(),
+            // Browser mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
+            let exec_cmd = format!(
+                "chcp 65001 >nul & title Aether AI Studio 3.5 & {} start.py --port {}",
+                python_bin,
                 port_str
             );
 
             let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/c", "start", "cmd.exe", "/k", &cmd_str])
+            cmd.args(["/k", &exec_cmd])
                 .current_dir(&project_dir);
+
+            #[cfg(windows)]
+            cmd.creation_flags(CREATE_NEW_CONSOLE);
 
             match cmd.spawn() {
                 Ok(_) => Ok("✅ 伺服器已啟動，即將為您開啟瀏覽器...".to_string()),
@@ -401,8 +411,12 @@ fn open_project_folder() -> Result<String, String> {
         None => return Err("找不到專案目錄。".to_string()),
     };
 
-    let mut cmd = Command::new("explorer.exe");
-    cmd.arg(project_dir.to_string_lossy().as_ref());
+    let dir_str = project_dir.to_string_lossy().to_string();
+
+    let mut cmd = Command::new("cmd.exe");
+    cmd.args(["/c", "start", "", &dir_str]);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
 
     match cmd.spawn() {
         Ok(_) => Ok("已開啟目錄".to_string()),
@@ -417,21 +431,22 @@ fn run_health_check() -> Result<String, String> {
         None => return Err("找不到專案目錄。".to_string()),
     };
 
-    let python_exe = match find_python() {
+    let python_bin = match find_python() {
         Some(p) => p,
         None => return Err("找不到 Python。".to_string()),
     };
 
-    let test_py = project_dir.join("test_backend.py");
-    let cmd_str = format!(
-        r#"title Aether AI Studio 3.5 [系統檢測] & "{}" "{}" & pause"#,
-        python_exe,
-        test_py.display()
+    let exec_cmd = format!(
+        "chcp 65001 >nul & title Aether AI Studio 3.5 [系統檢測] & {} test_backend.py & pause",
+        python_bin
     );
 
     let mut cmd = Command::new("cmd.exe");
-    cmd.args(["/c", "start", "cmd.exe", "/k", &cmd_str])
+    cmd.args(["/k", &exec_cmd])
         .current_dir(&project_dir);
+
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NEW_CONSOLE);
 
     match cmd.spawn() {
         Ok(_) => Ok("已開啟健康診斷測試視窗！".to_string()),
