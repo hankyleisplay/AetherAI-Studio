@@ -1,16 +1,307 @@
-// Aether AI Studio 3.5 - Tauri Launcher Frontend Logic
+// Aether AI Studio 3.5 - Tauri Launcher Logic with Full i18n & Resilient IPC
+
+const I18N = {
+  "zh-TW": {
+    app_subtitle: "次世代獨立原生桌面代理系統 • 官方正式版 (Tauri + Rust)",
+    update_checking_title: "自動更新檢查中...",
+    update_checking_desc: "正在向官方 GitHub 驗證最新發行版本與倉庫狀態",
+    update_latest_title: "已是最新正式版 v{version}",
+    update_latest_desc: "GitHub 遠端發行與本地版本一致，無需更新",
+    btn_recheck: "🔄 重新檢查",
+    update_available_title: "發現新版本 v{version}！",
+    btn_update_now: "⚡ 立即更新",
+    btn_updating: "正在更新中...",
+    update_success_title: "已成功更新至最新版！",
+    update_failed: "更新失敗: ",
+    update_error_title: "離線或更新檢查略過",
+    btn_retry: "重試",
+    env_project_dir: "📂 專案目錄:",
+    env_python: "🐍 Python:",
+    env_detecting: "偵測中...",
+    env_project_not_found: "未找到專案目錄！",
+    env_python_ready: "已就緒 (Python 3)",
+    env_python_not_found: "未偵測到 Python！",
+    env_port: "監聽埠號 (Port):",
+    env_core_ready: "核心環境就緒",
+    env_core_missing: "環境缺失",
+    section_mode_title: "請選擇啟動模式：",
+    tag_recommend: "推薦首選",
+    tag_cli: "即時日誌",
+    desktop_title: "獨立原生桌面版",
+    desktop_desc: "獨立原生視窗應用 • 沉浸專注無干擾 • 實時推論 HUD 與即時畫布",
+    desktop_btn: "立即啟動桌面版",
+    desktop_launching: "正在啟動原生獨立桌面版...",
+    desktop_success: "✅ 原生獨立桌面視窗已開啟",
+    cli_title: "終端命令列版",
+    cli_desc: "在獨立終端視窗運行伺服器 • 實時監控 22 大工具調用日誌與推理進度",
+    cli_btn: "啟動終端版",
+    cli_launching: "正在開啟獨立終端命令列視窗...",
+    cli_success: "✅ 終端視窗已啟動，實時日誌監控中",
+    browser_title: "一般網頁瀏覽器版",
+    browser_desc: "啟動本地後端伺服器，並自動在預設瀏覽器分頁開啟使用",
+    browser_btn: "開啟瀏覽器",
+    browser_launching: "正在啟動伺服器並開啟瀏覽器...",
+    browser_success: "✅ 伺服器就緒，已開啟瀏覽器",
+    btn_launching: "啟動中...",
+    footer_shortcut: "⭐ 建立桌面捷徑",
+    footer_open_folder: "📂 開啟專案目錄",
+    footer_health_check: "🩺 環境健康檢查",
+    footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 系統狀態：待命中",
+    shortcut_success: "⭐ 已成功在您的 Windows 桌面建立「Aether AI Studio 3.5」捷徑！",
+    shortcut_fail: "建立捷徑失敗: ",
+    open_folder_fail: "開啟目錄失敗: ",
+    health_check_fail: "啟動診斷失敗: ",
+    launch_error: "啟動出錯: "
+  },
+  "zh-CN": {
+    app_subtitle: "次世代独立原生桌面代理系统 • 官方正式版 (Tauri + Rust)",
+    update_checking_title: "自动更新检查中...",
+    update_checking_desc: "正在向官方 GitHub 验证最新发行版本与仓库状态",
+    update_latest_title: "已是最新正式版 v{version}",
+    update_latest_desc: "GitHub 远端发行与本地版本一致，无需更新",
+    btn_recheck: "🔄 重新检查",
+    update_available_title: "发现新版本 v{version}！",
+    btn_update_now: "⚡ 立即更新",
+    btn_updating: "正在更新中...",
+    update_success_title: "已成功更新至最新版！",
+    update_failed: "更新失败: ",
+    update_error_title: "离线或更新检查略过",
+    btn_retry: "重试",
+    env_project_dir: "📂 项目目录:",
+    env_python: "🐍 Python:",
+    env_detecting: "检测中...",
+    env_project_not_found: "未找到项目目录！",
+    env_python_ready: "已就绪 (Python 3)",
+    env_python_not_found: "未检测到 Python！",
+    env_port: "监听端口 (Port):",
+    env_core_ready: "核心环境就绪",
+    env_core_missing: "环境缺失",
+    section_mode_title: "请选择启动模式：",
+    tag_recommend: "推荐首选",
+    tag_cli: "实时日志",
+    desktop_title: "独立原生桌面版",
+    desktop_desc: "独立原生窗口应用 • 沉浸专注无干扰 • 实时推理 HUD 与即时画布",
+    desktop_btn: "立即启动桌面版",
+    desktop_launching: "正在启动原生独立桌面版...",
+    desktop_success: "✅ 原生独立桌面窗口已开启",
+    cli_title: "终端命令行版",
+    cli_desc: "在独立终端窗口运行服务器 • 实时监控 22 大工具调用日志与推理进度",
+    cli_btn: "启动终端版",
+    cli_launching: "正在开启独立终端命令行窗口...",
+    cli_success: "✅ 终端窗口已启动，实时日志监控中",
+    browser_title: "一般网页浏览器版",
+    browser_desc: "启动本地后端服务器，并自动在默认浏览器标签页打开使用",
+    browser_btn: "开启浏览器",
+    browser_launching: "正在启动服务器并开启浏览器...",
+    browser_success: "✅ 服务器就绪，已开启浏览器",
+    btn_launching: "启动中...",
+    footer_shortcut: "⭐ 创建桌面快捷方式",
+    footer_open_folder: "📂 打开项目目录",
+    footer_health_check: "🩺 环境健康检查",
+    footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 系统状态：待命中",
+    shortcut_success: "⭐ 已成功在您的 Windows 桌面创建「Aether AI Studio 3.5」快捷方式！",
+    shortcut_fail: "创建快捷方式失败: ",
+    open_folder_fail: "打开目录失败: ",
+    health_check_fail: "启动诊断失败: ",
+    launch_error: "启动出错: "
+  },
+  "en": {
+    app_subtitle: "Next-Gen Autonomous Desktop AI Agent • Official Release (Tauri + Rust)",
+    update_checking_title: "Checking for updates...",
+    update_checking_desc: "Verifying latest release and repository status on GitHub",
+    update_latest_title: "Up to date (v{version})",
+    update_latest_desc: "Remote GitHub release matches local version, no update needed",
+    btn_recheck: "🔄 Recheck",
+    update_available_title: "New Version Available: v{version}!",
+    btn_update_now: "⚡ Update Now",
+    btn_updating: "Updating...",
+    update_success_title: "Successfully updated to latest version!",
+    update_failed: "Update failed: ",
+    update_error_title: "Offline or update check skipped",
+    btn_retry: "Retry",
+    env_project_dir: "📂 Project Dir:",
+    env_python: "🐍 Python:",
+    env_detecting: "Detecting...",
+    env_project_not_found: "Project directory not found!",
+    env_python_ready: "Ready (Python 3)",
+    env_python_not_found: "Python not found!",
+    env_port: "Port:",
+    env_core_ready: "Core Environment Ready",
+    env_core_missing: "Environment Missing",
+    section_mode_title: "Select Launch Mode:",
+    tag_recommend: "Recommended",
+    tag_cli: "Live Logs",
+    desktop_title: "Standalone Desktop App",
+    desktop_desc: "Dedicated native window • Immersive & distraction-free • Real-time HUD & live canvas",
+    desktop_btn: "Launch Desktop",
+    desktop_launching: "Launching standalone desktop app...",
+    desktop_success: "✅ Native desktop window opened",
+    cli_title: "Terminal CLI Mode",
+    cli_desc: "Runs server in a dedicated console window • Real-time logs for all 22 tools & reasoning",
+    cli_btn: "Launch CLI",
+    cli_launching: "Opening dedicated terminal window...",
+    cli_success: "✅ Terminal launched, monitoring live logs",
+    browser_title: "Web Browser Mode",
+    browser_desc: "Starts local backend server and automatically opens your default web browser",
+    browser_btn: "Launch Browser",
+    browser_launching: "Starting server and opening browser...",
+    browser_success: "✅ Server ready, browser opened",
+    btn_launching: "Launching...",
+    footer_shortcut: "⭐ Create Desktop Shortcut",
+    footer_open_folder: "📂 Open Project Folder",
+    footer_health_check: "🩺 System Health Check",
+    footer_status_standby: "Aether AI Studio v3.5.0 Official Release • Status: Standby",
+    shortcut_success: "⭐ Successfully created 'Aether AI Studio 3.5' shortcut on Desktop!",
+    shortcut_fail: "Failed to create shortcut: ",
+    open_folder_fail: "Failed to open folder: ",
+    health_check_fail: "Failed to launch health check: ",
+    launch_error: "Launch error: "
+  },
+  "ja": {
+    app_subtitle: "次世代自律型デスクトップAIエージェント • 公式正式版 (Tauri + Rust)",
+    update_checking_title: "アップデートを確認中...",
+    update_checking_desc: "公式 GitHub で最新リリースとリポジトリの状態を確認しています",
+    update_latest_title: "最新バージョンです (v{version})",
+    update_latest_desc: "リモートのリリースとローカルのバージョンは一致しています",
+    btn_recheck: "🔄 再確認",
+    update_available_title: "新バージョン v{version} が利用可能！",
+    btn_update_now: "⚡ 今すぐ更新",
+    btn_updating: "更新中...",
+    update_success_title: "最新バージョンへの更新が完了しました！",
+    update_failed: "更新失敗: ",
+    update_error_title: "オフラインまたは更新チェックをスキップ",
+    btn_retry: "再試行",
+    env_project_dir: "📂 プロジェクト:",
+    env_python: "🐍 Python:",
+    env_detecting: "検出中...",
+    env_project_not_found: "プロジェクトが見つかりません！",
+    env_python_ready: "準備完了 (Python 3)",
+    env_python_not_found: "Pythonが見つかりません！",
+    env_port: "ポート (Port):",
+    env_core_ready: "コア環境準備完了",
+    env_core_missing: "環境が不足しています",
+    section_mode_title: "起動モードを選択してください：",
+    tag_recommend: "おすすめ",
+    tag_cli: "ライブログ",
+    desktop_title: "独立デスクトップ版",
+    desktop_desc: "独立したネイティブウィンドウ • 没入感のある作業空間 • リアルタイムHUD＆キャンバス",
+    desktop_btn: "デスクトップ版を起動",
+    desktop_launching: "独立デスクトップ版を起動しています...",
+    desktop_success: "✅ デスクトップウィンドウが開きました",
+    cli_title: "ターミナルCLI版",
+    cli_desc: "専用ターミナルでサーバーを実行 • 22種類のツール実行と推論ログをリアルタイム監視",
+    cli_btn: "CLI版を起動",
+    cli_launching: "専用ターミナルウィンドウを開いています...",
+    cli_success: "✅ ターミナルでサーバーが起動しました",
+    browser_title: "Webブラウザ版",
+    browser_desc: "ローカルサーバーを起動し、デフォルトのブラウザで自動的に開きます",
+    browser_btn: "ブラウザを起動",
+    browser_launching: "サーバーを起動しブラウザを開いています...",
+    browser_success: "✅ サーバー準備完了、ブラウザを開きました",
+    btn_launching: "起動中...",
+    footer_shortcut: "⭐ デスクトップショートカット作成",
+    footer_open_folder: "📂 プロジェクトを開く",
+    footer_health_check: "🩺 システム健全性診断",
+    footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 状態：待機中",
+    shortcut_success: "⭐ デスクトップに「Aether AI Studio 3.5」ショートカットを作成しました！",
+    shortcut_fail: "ショートカット作成失敗: ",
+    open_folder_fail: "フォルダを開けませんでした: ",
+    health_check_fail: "診断の起動に失敗しました: ",
+    launch_error: "起動エラー: "
+  }
+};
+
+let currentLang = "zh-TW";
+
+function getLang() {
+  const saved = localStorage.getItem("aether_language");
+  if (saved && I18N[saved]) return saved;
+
+  const nav = (navigator.language || "").toLowerCase();
+  if (nav.includes("cn") || nav.includes("hans")) return "zh-CN";
+  if (nav.includes("ja")) return "ja";
+  if (nav.includes("en")) return "en";
+  return "zh-TW";
+}
+
+function t(key, vars = {}) {
+  const dict = I18N[currentLang] || I18N["zh-TW"];
+  let str = dict[key] || I18N["zh-TW"][key] || key;
+  for (const [k, v] of Object.entries(vars)) {
+    str = str.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+  }
+  return str;
+}
+
+function applyLanguage(lang) {
+  if (!I18N[lang]) lang = "zh-TW";
+  currentLang = lang;
+  localStorage.setItem("aether_language", lang);
+  document.documentElement.lang = lang;
+
+  const selector = document.getElementById("lang-selector");
+  if (selector && selector.value !== lang) {
+    selector.value = lang;
+  }
+
+  // Update all DOM elements with data-i18n
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (key) {
+      el.textContent = t(key);
+    }
+  });
+
+  // Refresh dynamic states if already loaded
+  if (lastSystemInfo) {
+    updateSystemDisplay(lastSystemInfo);
+  }
+  if (lastUpdateResult) {
+    renderUpdateResult(lastUpdateResult);
+  }
+}
+
+// -------------------------------------------------------------
+// Resilient Tauri IPC Resolver
+// -------------------------------------------------------------
+let _invokeFn = null;
+
+async function getInvokeFn(maxRetries = 60, intervalMs = 50) {
+  if (_invokeFn) return _invokeFn;
+
+  for (let i = 0; i < maxRetries; i++) {
+    if (window.__TAURI__?.core?.invoke) {
+      _invokeFn = window.__TAURI__.core.invoke;
+      return _invokeFn;
+    }
+    if (window.__TAURI__?.invoke) {
+      _invokeFn = window.__TAURI__.invoke;
+      return _invokeFn;
+    }
+    if (window.__TAURI_INTERNALS__?.invoke) {
+      _invokeFn = window.__TAURI_INTERNALS__.invoke;
+      return _invokeFn;
+    }
+    await new Promise(r => setTimeout(r, intervalMs));
+  }
+  return null;
+}
 
 const invoke = async (cmd, args = {}) => {
-  if (window.__TAURI__ && window.__TAURI__.core && window.__TAURI__.core.invoke) {
-    return window.__TAURI__.core.invoke(cmd, args);
-  }
-  if (window.__TAURI__ && window.__TAURI__.invoke) {
-    return window.__TAURI__.invoke(cmd, args);
+  const fn = await getInvokeFn();
+  if (fn) {
+    return fn(cmd, args);
   }
   throw new Error("Tauri API is not available in standard browser environment.");
 };
 
-// DOM Elements
+// -------------------------------------------------------------
+// UI State & Elements
+// -------------------------------------------------------------
+let lastSystemInfo = null;
+let lastUpdateResult = null;
+let isSystemReady = false;
+
 const projectPathEl = document.getElementById("project-path-display");
 const pythonStatusEl = document.getElementById("python-status-display");
 const systemReadyDot = document.getElementById("system-ready-dot");
@@ -32,126 +323,148 @@ const btnCreateShortcut = document.getElementById("btn-create-shortcut");
 const btnOpenFolder = document.getElementById("btn-open-folder");
 const btnHealthCheck = document.getElementById("btn-health-check");
 
-let isSystemReady = false;
+// -------------------------------------------------------------
+// Logic: System Info
+// -------------------------------------------------------------
+function updateSystemDisplay(info) {
+  if (info.project_path) {
+    projectPathEl.textContent = info.project_path;
+    projectPathEl.title = info.project_path;
+    projectPathEl.style.color = "#f8fafc";
+  } else {
+    projectPathEl.textContent = t("env_project_not_found");
+    projectPathEl.style.color = "#f43f5e";
+  }
 
-// 1. Initialize System Info
-async function loadSystemInfo() {
-  try {
-    const info = await invoke("get_system_info");
-    
-    if (info.project_path) {
-      projectPathEl.textContent = info.project_path;
-      projectPathEl.title = info.project_path;
-    } else {
-      projectPathEl.textContent = "未找到專案目錄！";
-      projectPathEl.style.color = "#f43f5e";
-    }
+  if (info.python_path) {
+    pythonStatusEl.textContent = t("env_python_ready");
+    pythonStatusEl.title = info.python_path;
+    pythonStatusEl.style.color = "#10b981";
+  } else {
+    pythonStatusEl.textContent = t("env_python_not_found");
+    pythonStatusEl.style.color = "#f43f5e";
+  }
 
-    if (info.python_path) {
-      pythonStatusEl.textContent = "已就緒 (Python 3)";
-      pythonStatusEl.title = info.python_path;
-      pythonStatusEl.style.color = "#10b981";
-    } else {
-      pythonStatusEl.textContent = "未偵測到 Python！";
-      pythonStatusEl.style.color = "#f43f5e";
-    }
-
-    isSystemReady = info.is_ready;
-    if (isSystemReady) {
-      systemReadyDot.className = "dot green";
-      systemReadyText.textContent = "核心環境就緒";
-      systemReadyText.style.color = "#10b981";
-    } else {
-      systemReadyDot.className = "dot red";
-      systemReadyText.textContent = "環境缺失";
-      systemReadyText.style.color = "#f43f5e";
-    }
-  } catch (err) {
-    console.error("Failed to load system info:", err);
-    projectPathEl.textContent = "偵測失敗";
+  isSystemReady = info.is_ready;
+  if (isSystemReady) {
+    systemReadyDot.className = "dot green";
+    systemReadyText.textContent = t("env_core_ready");
+    systemReadyText.style.color = "#10b981";
+  } else {
+    systemReadyDot.className = "dot red";
+    systemReadyText.textContent = t("env_core_missing");
+    systemReadyText.style.color = "#f43f5e";
   }
 }
 
-// 2. Automatic Update Check
+async function loadSystemInfo() {
+  try {
+    const info = await invoke("get_system_info");
+    lastSystemInfo = info;
+    updateSystemDisplay(info);
+  } catch (err) {
+    console.error("Failed to load system info:", err);
+    projectPathEl.textContent = t("env_project_not_found");
+  }
+}
+
+// -------------------------------------------------------------
+// Logic: Update Check & Apply
+// -------------------------------------------------------------
+function renderUpdateResult(res) {
+  updateAction.innerHTML = "";
+
+  if (res.has_update) {
+    updateBanner.className = "update-banner state-update-available";
+    updateIcon.textContent = "🎉";
+    updateTitle.textContent = t("update_available_title", { version: res.latest_version });
+    updateDesc.textContent = res.release_name || res.published_at || "";
+
+    const btnUpdate = document.createElement("button");
+    btnUpdate.className = "btn-update-now";
+    btnUpdate.textContent = t("btn_update_now");
+    btnUpdate.onclick = async () => {
+      btnUpdate.disabled = true;
+      btnUpdate.textContent = t("btn_updating");
+      try {
+        const pullMsg = await invoke("apply_update");
+        updateBanner.className = "update-banner state-latest";
+        updateIcon.textContent = "✅";
+        updateTitle.textContent = t("update_success_title");
+        updateDesc.textContent = pullMsg;
+        btnUpdate.remove();
+      } catch (e) {
+        alert(t("update_failed") + e);
+        btnUpdate.disabled = false;
+        btnUpdate.textContent = t("btn_update_now");
+      }
+    };
+    updateAction.appendChild(btnUpdate);
+  } else {
+    updateBanner.className = "update-banner state-latest";
+    updateIcon.textContent = "✅";
+    updateTitle.textContent = t("update_latest_title", { version: res.current_version });
+    updateDesc.textContent = t("update_latest_desc");
+
+    const btnRecheck = document.createElement("button");
+    btnRecheck.className = "btn-ghost";
+    btnRecheck.textContent = t("btn_recheck");
+    btnRecheck.onclick = doCheckUpdate;
+    updateAction.appendChild(btnRecheck);
+  }
+}
+
 async function doCheckUpdate() {
   updateBanner.className = "update-banner state-checking";
   updateIcon.textContent = "⏳";
-  updateTitle.textContent = "自動檢查更新中...";
-  updateDesc.textContent = "正在向官方 GitHub 驗證最新發行版本與倉庫狀態";
+  updateTitle.textContent = t("update_checking_title");
+  updateDesc.textContent = t("update_checking_desc");
   updateAction.innerHTML = "";
 
   try {
     const res = await invoke("check_update");
-
-    if (res.has_update) {
-      updateBanner.className = "update-banner state-update-available";
-      updateIcon.textContent = "🎉";
-      updateTitle.textContent = `發現新版本 v${res.latest_version}！`;
-      updateDesc.textContent = res.release_name || "有最新的功能更新可供拉取";
-
-      const btnUpdate = document.createElement("button");
-      btnUpdate.className = "btn-update-now";
-      btnUpdate.textContent = "⚡ 立即更新";
-      btnUpdate.onclick = async () => {
-        btnUpdate.disabled = true;
-        btnUpdate.textContent = "正在更新中...";
-        try {
-          const pullMsg = await invoke("apply_update");
-          updateBanner.className = "update-banner state-latest";
-          updateIcon.textContent = "✅";
-          updateTitle.textContent = "已成功更新至最新版！";
-          updateDesc.textContent = pullMsg;
-          btnUpdate.remove();
-        } catch (e) {
-          alert(`更新失敗: ${e}`);
-          btnUpdate.disabled = false;
-          btnUpdate.textContent = "⚡ 重試更新";
-        }
-      };
-
-      updateAction.appendChild(btnUpdate);
-    } else {
-      updateBanner.className = "update-banner state-latest";
-      updateIcon.textContent = "✅";
-      updateTitle.textContent = `已是最新正式版 v${res.current_version}`;
-      updateDesc.textContent = "GitHub 遠端發行與本地版本一致，無需更新";
-
-      const btnRecheck = document.createElement("button");
-      btnRecheck.className = "btn-ghost";
-      btnRecheck.textContent = "🔄 重新檢查";
-      btnRecheck.onclick = doCheckUpdate;
-      updateAction.appendChild(btnRecheck);
-    }
+    lastUpdateResult = res;
+    renderUpdateResult(res);
   } catch (err) {
+    console.error("Check update failed:", err);
     updateBanner.className = "update-banner state-error";
     updateIcon.textContent = "⚠️";
-    updateTitle.textContent = "離線或更新檢查略過";
+    updateTitle.textContent = t("update_error_title");
     updateDesc.textContent = String(err);
 
     const btnRetry = document.createElement("button");
     btnRetry.className = "btn-ghost";
-    btnRetry.textContent = "重試";
+    btnRetry.textContent = t("btn_retry");
     btnRetry.onclick = doCheckUpdate;
     updateAction.appendChild(btnRetry);
   }
 }
 
-// 3. Launch Handlers
+// -------------------------------------------------------------
+// Logic: Launch Modes
+// -------------------------------------------------------------
 async function launch(mode, btn) {
   const originalText = btn.innerHTML;
   btn.disabled = true;
-  btn.innerHTML = `<span>啟動中...</span> <span class="arrow">⏳</span>`;
+  btn.innerHTML = `<span>${t("btn_launching")}</span> <span class="arrow">⏳</span>`;
 
   const port = parseInt(serverPortInput.value, 10) || 8000;
-  footerStatusBar.textContent = `正在啟動 [${mode.toUpperCase()}] 模式 (Port: ${port})...`;
+  
+  if (mode === "desktop") {
+    footerStatusBar.textContent = t("desktop_launching");
+  } else if (mode === "cli") {
+    footerStatusBar.textContent = t("cli_launching");
+  } else {
+    footerStatusBar.textContent = t("browser_launching");
+  }
 
   try {
     const msg = await invoke("launch_mode", { mode, port });
     footerStatusBar.textContent = msg;
     footerStatusBar.style.color = "#00f2fe";
   } catch (err) {
-    alert(`啟動失敗: ${err}`);
-    footerStatusBar.textContent = `啟動出錯: ${err}`;
+    alert(t("launch_error") + err);
+    footerStatusBar.textContent = t("launch_error") + err;
     footerStatusBar.style.color = "#f43f5e";
   } finally {
     setTimeout(() => {
@@ -161,7 +474,9 @@ async function launch(mode, btn) {
   }
 }
 
+// -------------------------------------------------------------
 // Event Listeners
+// -------------------------------------------------------------
 btnLaunchDesktop.addEventListener("click", () => launch("desktop", btnLaunchDesktop));
 btnLaunchCli.addEventListener("click", () => launch("cli", btnLaunchCli));
 btnLaunchBrowser.addEventListener("click", () => launch("browser", btnLaunchBrowser));
@@ -169,9 +484,9 @@ btnLaunchBrowser.addEventListener("click", () => launch("browser", btnLaunchBrow
 btnCreateShortcut.addEventListener("click", async () => {
   try {
     const msg = await invoke("create_desktop_shortcut");
-    alert(msg);
+    alert(msg || t("shortcut_success"));
   } catch (err) {
-    alert(`建立捷徑失敗: ${err}`);
+    alert(t("shortcut_fail") + err);
   }
 });
 
@@ -179,7 +494,7 @@ btnOpenFolder.addEventListener("click", async () => {
   try {
     await invoke("open_project_folder");
   } catch (err) {
-    alert(`開啟目錄失敗: ${err}`);
+    alert(t("open_folder_fail") + err);
   }
 });
 
@@ -187,12 +502,22 @@ btnHealthCheck.addEventListener("click", async () => {
   try {
     await invoke("run_health_check");
   } catch (err) {
-    alert(`啟動診斷失敗: ${err}`);
+    alert(t("health_check_fail") + err);
   }
 });
 
+document.getElementById("lang-selector").addEventListener("change", (e) => {
+  applyLanguage(e.target.value);
+});
+
 // Auto-run on startup
-window.addEventListener("DOMContentLoaded", () => {
+window.addEventListener("DOMContentLoaded", async () => {
+  const initialLang = getLang();
+  applyLanguage(initialLang);
+
+  // Poll for Tauri IPC readiness before invoking
+  await getInvokeFn();
+
   loadSystemInfo();
   doCheckUpdate();
 });

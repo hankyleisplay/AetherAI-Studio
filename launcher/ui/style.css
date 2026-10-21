@@ -96,6 +96,42 @@ body {
   margin-top: 2px;
 }
 
+/* Language Selector */
+.lang-selector-wrap {
+  position: relative;
+}
+
+.lang-selector {
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-sm);
+  color: var(--text-main);
+  padding: 6px 12px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s;
+  backdrop-filter: blur(8px);
+}
+
+.lang-selector:hover {
+  border-color: rgba(0, 242, 254, 0.5);
+  background: rgba(30, 41, 59, 0.95);
+  box-shadow: 0 0 12px rgba(0, 242, 254, 0.15);
+}
+
+.lang-selector:focus {
+  border-color: var(--accent-cyan);
+  box-shadow: 0 0 14px rgba(0, 242, 254, 0.25);
+}
+
+.lang-selector option {
+  background: #0f172a;
+  color: #f8fafc;
+  padding: 6px;
+}
+
 /* Update Banner */
 .update-banner {
   display: flex;
