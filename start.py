@@ -165,10 +165,17 @@ def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
     import socket
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.settimeout(0.5)
-            return s.connect_ex((host, port)) == 0
-    except Exception:
-        return False
+            s.bind((host, port))
+            return False
+    except OSError:
+        return True
+
+def find_available_port(start_port: int, max_attempts: int = 100) -> int:
+    """Find the next available TCP port starting from start_port."""
+    for p in range(start_port, start_port + max_attempts):
+        if not is_port_in_use(p):
+            return p
+    return start_port
 
 def free_port_if_aether(port: int) -> bool:
     """Attempt to terminate any previous or zombie Aether instance listening on this port."""
@@ -274,8 +281,16 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     provider = active_cfg.get("provider", "ollama")
     model = active_cfg.get("model", "預設")
 
-    url = f"http://localhost:{port}"
+    # Auto-switch to next available port if requested port is in use (Multi-instance support)
+    actual_port = port
+    if is_port_in_use(port, "127.0.0.1"):
+        actual_port = find_available_port(port + 1)
+        print(f"\033[1;33m[*] 檢測到連接埠 {port} 正在使用，已自動切換至可用連接埠: {actual_port} (多開模式支援)\033[0m")
+
+    url = f"http://localhost:{actual_port}"
     print("\033[1;32m🚀 Aether AI Studio 3.5 (Official Release) 服務就緒！\033[0m")
+    if actual_port != port:
+        print(f"\033[1;35m✨ 多開實例已啟用 (連接埠: {actual_port})\033[0m")
     if desktop:
         print("\033[1;35m🖥️  已啟用原生獨立桌面視窗模式 (Standalone Desktop Mode)\033[0m")
     if low_spec:
@@ -286,13 +301,6 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     print(f"🛠️ 啟用工具: {tool_count} 個企業級工程工具")
     print(f"📂 工作區目錄: {PROJECT_ROOT / 'backend' / 'workspace'}\n")
     print("\033[90m(按 Ctrl+C 可停止伺服器)\033[0m\n")
-
-    # Auto-resolve port conflict
-    if is_port_in_use(port, "127.0.0.1"):
-        freed = free_port_if_aether(port)
-        if not freed and is_port_in_use(port, "127.0.0.1"):
-            print(f"\033[1;31m[!] 埠號 {port} 目前被其他程式佔用！\033[0m")
-            print(f"\033[33m[建議] 請於啟動器更換監聽埠號 (如 {port + 1})，或點擊啟動器的「🛑 一鍵關閉所有客戶端」按鈕。\033[0m\n")
 
     if desktop:
         def open_desktop():
@@ -319,7 +327,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
         uvicorn.run(
             "backend.app.main:app",
             host=host,
-            port=port,
+            port=actual_port,
             reload=False,
             log_level="info"
         )

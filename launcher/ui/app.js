@@ -668,6 +668,10 @@ async function launch(mode, btn) {
     const msg = await invoke("launch_mode", { mode, port, lowSpec });
     footerStatusBar.textContent = msg;
     footerStatusBar.style.color = "#00f2fe";
+    const match = msg.match(/(?:切換至連接埠|切換至埠號|Port)\s*(\d+)/i);
+    if (match && match[1]) {
+      serverPortInput.value = match[1];
+    }
   } catch (err) {
     alert(t("launch_error") + err);
     footerStatusBar.textContent = t("launch_error") + err;

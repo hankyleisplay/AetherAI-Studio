@@ -445,6 +445,19 @@ Write-Host $killed;"#,
     }
 }
 
+fn is_port_free(port: u16) -> bool {
+    std::net::TcpListener::bind(("127.0.0.1", port)).is_ok()
+}
+
+fn find_available_port(start_port: u16) -> u16 {
+    for p in start_port..(start_port + 200) {
+        if is_port_free(p) {
+            return p;
+        }
+    }
+    start_port
+}
+
 #[tauri::command]
 fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
     let project_dir = match find_project_root() {
@@ -462,18 +475,22 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         return Err(format!("主程式檔案不存在: {}", start_py.display()));
     }
 
-    // Auto-free any previous zombie or active instances on this port so collision NEVER occurs
-    let _ = close_all_instances(port);
-    std::thread::sleep(std::time::Duration::from_millis(300));
-
-    let port_str = port.to_string();
+    // Determine actual port: if requested port is free, use it; otherwise auto-switch to next available port (Multi-instance support)
+    let actual_port = if is_port_free(port) {
+        port
+    } else {
+        find_available_port(port + 1)
+    };
+    let is_multi = actual_port != port;
+    let port_str = actual_port.to_string();
 
     match mode.as_str() {
         "desktop" => {
-            // Standalone desktop mode: Launch python start.py --port <port> --desktop
+            // Standalone desktop mode: Launch python start.py --port <actual_port> --desktop
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5 [原生桌面服務] & {} start.py --port {} --desktop{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
+                port_str,
                 python_bin,
                 port_str,
                 low_spec_arg
@@ -487,7 +504,13 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             cmd.creation_flags(CREATE_NO_WINDOW);
 
             match cmd.spawn() {
-                Ok(_) => Ok("✅ 原生獨立桌面版正在啟動中，請稍候...".to_string()),
+                Ok(_) => {
+                    if is_multi {
+                        Ok(format!("🚀 連接埠 {} 正在使用中，已自動切換至連接埠 {} 啟動新實例 (多開模式)！", port, actual_port))
+                    } else {
+                        Ok(format!("✅ 原生獨立桌面版正在連接埠 {} 啟動中，請稍候...", actual_port))
+                    }
+                }
                 Err(e) => Err(format!("桌面模式啟動失敗: {}", e)),
             }
         }
@@ -495,7 +518,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             // Terminal CLI mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器] & {} start.py --port {} --no-browser{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
+                port_str,
                 python_bin,
                 port_str,
                 low_spec_arg
@@ -509,7 +533,13 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             cmd.creation_flags(CREATE_NEW_CONSOLE);
 
             match cmd.spawn() {
-                Ok(_) => Ok("✅ 已在專屬終端視窗中啟動 CLI 伺服器！".to_string()),
+                Ok(_) => {
+                    if is_multi {
+                        Ok(format!("🚀 連接埠 {} 正在使用中，已自動切換至連接埠 {} 啟動新 CLI 實例 (多開模式)！", port, actual_port))
+                    } else {
+                        Ok(format!("✅ 已在專屬終端視窗中啟動 CLI 伺服器 (Port {})！", actual_port))
+                    }
+                }
                 Err(e) => Err(format!("終端啟動失敗: {}", e)),
             }
         }
@@ -517,7 +547,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             // Browser mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5 & {} start.py --port {}{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
+                port_str,
                 python_bin,
                 port_str,
                 low_spec_arg
@@ -531,7 +562,13 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             cmd.creation_flags(CREATE_NEW_CONSOLE);
 
             match cmd.spawn() {
-                Ok(_) => Ok("✅ 伺服器已啟動，即將為您開啟瀏覽器...".to_string()),
+                Ok(_) => {
+                    if is_multi {
+                        Ok(format!("🚀 連接埠 {} 正在使用中，已自動切換至連接埠 {} 啟動伺服器 (多開模式)！", port, actual_port))
+                    } else {
+                        Ok(format!("✅ 伺服器已在連接埠 {} 啟動，即將為您開啟瀏覽器...", actual_port))
+                    }
+                }
                 Err(e) => Err(format!("瀏覽器模式啟動失敗: {}", e)),
             }
         }
