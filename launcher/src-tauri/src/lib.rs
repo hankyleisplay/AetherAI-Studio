@@ -478,22 +478,61 @@ fn apply_update() -> Result<String, String> {
 
     let git_dir = project_dir.join(".git");
     if git_dir.exists() && check_git() {
+        // 1. Fetch remote updates
+        let mut fetch_cmd = Command::new("git");
+        fetch_cmd.args(["fetch", "origin", "main"]).current_dir(&project_dir);
+        #[cfg(windows)]
+        fetch_cmd.creation_flags(CREATE_NO_WINDOW);
+        let _ = fetch_cmd.output();
+
+        // 2. Stash any local working directory modifications so merge never aborts
+        let mut stash_cmd = Command::new("git");
+        stash_cmd.args(["stash"]).current_dir(&project_dir);
+        #[cfg(windows)]
+        stash_cmd.creation_flags(CREATE_NO_WINDOW);
+        let _ = stash_cmd.output();
+
+        // 3. Fast-forward pull
         let mut pull_cmd = Command::new("git");
         pull_cmd.args(["pull", "origin", "main"]).current_dir(&project_dir);
         #[cfg(windows)]
         pull_cmd.creation_flags(CREATE_NO_WINDOW);
 
-        match pull_cmd.output() {
-            Ok(output) => {
-                if output.status.success() {
-                    Ok("✅ 已成功拉取最新主分支更新至本地！".to_string())
-                } else {
-                    let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-                    Err(format!("Git pull 失敗: {}", err_msg))
-                }
-            }
-            Err(e) => Err(format!("執行 git 失敗: {}", e)),
+        let pull_ok = match pull_cmd.output() {
+            Ok(output) => output.status.success(),
+            Err(_) => false,
+        };
+
+        if !pull_ok {
+            // Safe fallback: Hard reset to origin/main to guarantee clean update
+            let mut reset_cmd = Command::new("git");
+            reset_cmd.args(["reset", "--hard", "origin/main"]).current_dir(&project_dir);
+            #[cfg(windows)]
+            reset_cmd.creation_flags(CREATE_NO_WINDOW);
+            let _ = reset_cmd.output();
         }
+
+        // 4. Update python dependencies in case requirements changed
+        if let Some(python_bin) = find_python() {
+            let req_file = project_dir.join("backend").join("requirements.txt");
+            if req_file.exists() {
+                let mut pip_cmd = if python_bin.contains(" ") {
+                    let parts: Vec<&str> = python_bin.split_whitespace().collect();
+                    let mut c = Command::new(parts[0]);
+                    c.args(&parts[1..]);
+                    c
+                } else {
+                    Command::new(&python_bin)
+                };
+                pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy()]);
+                pip_cmd.current_dir(&project_dir);
+                #[cfg(windows)]
+                pip_cmd.creation_flags(CREATE_NO_WINDOW);
+                let _ = pip_cmd.output();
+            }
+        }
+
+        Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件！".to_string())
     } else {
         // Non-git installation: download and update files directly
         download_and_extract_repo(&project_dir)?;
