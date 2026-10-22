@@ -283,6 +283,8 @@ const I18N = {
     btn_launching: "起動中...",
     footer_shortcut: "⭐ デスクトップショートカット作成",
     footer_open_folder: "📂 プロジェクトを開く",
+    footer_reinstall: "📦 コアを再インストール/修復",
+    confirm_reinstall: "Aether AI Studio のコアファイルと依存関係を再インストール/修復しますか？",
     footer_update_launcher: "🚀 起動ツール更新",
     footer_health_check: "🩺 システム健全性診断",
     footer_status_standby: "Aether AI Studio v3.5.0 Official Release • 状態：待機中",
@@ -433,6 +435,7 @@ const btnLaunchBrowser = document.getElementById("btn-launch-browser");
 
 const btnCreateShortcut = document.getElementById("btn-create-shortcut");
 const btnOpenFolder = document.getElementById("btn-open-folder");
+const btnReinstallCore = document.getElementById("btn-reinstall-core");
 const btnSelfUpdateLauncher = document.getElementById("btn-self-update-launcher");
 const btnHealthCheck = document.getElementById("btn-health-check");
 const btnCloseAll = document.getElementById("btn-close-all");
@@ -773,6 +776,16 @@ btnCreateShortcut.addEventListener("click", async () => {
     alert(t("shortcut_fail") + err);
   }
 });
+
+if (btnReinstallCore) {
+  btnReinstallCore.addEventListener("click", () => {
+    if (confirm(t("confirm_reinstall"))) {
+      if (btnInstallCore) {
+        btnInstallCore.click();
+      }
+    }
+  });
+}
 
 btnOpenFolder.addEventListener("click", async () => {
   try {

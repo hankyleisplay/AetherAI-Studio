@@ -111,8 +111,6 @@ fn find_project_root() -> Option<PathBuf> {
         format!(r"{}\Documents\AetherAI-Studio", home),
         format!(r"{}\Desktop\AetherAI-Studio", home),
         format!(r"{}\Downloads\AetherAI-Studio", home),
-        r"C:\Users\李秉翰\Documents\Project\AetherAI-Studio".to_string(),
-        r"C:\Users\李秉翰\AetherAI-Studio".to_string(),
         r"C:\AetherAI-Studio".to_string(),
         r"D:\AetherAI-Studio".to_string(),
         r"E:\AetherAI-Studio".to_string(),
@@ -190,7 +188,14 @@ fn check_git() -> bool {
 
 #[tauri::command]
 fn get_system_info() -> SystemInfo {
-    let project_dir = find_project_root();
+    let args: Vec<String> = env::args().collect();
+    let force_install = args.iter().any(|a| a == "--install" || a == "--fresh");
+
+    let project_dir = if force_install {
+        None
+    } else {
+        find_project_root()
+    };
     let python_exe = find_python();
     let git = check_git();
 
