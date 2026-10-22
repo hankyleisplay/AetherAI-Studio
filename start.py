@@ -244,12 +244,6 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                     "--window-position=center",
                     "--disable-extensions",
                 ]
-                if low_spec:
-                    cmd.extend([
-                        "--disable-gpu",
-                        "--disable-gpu-compositing",
-                        "--renderer-process-limit=1",
-                    ])
                 p = subprocess.Popen(cmd)
                 time.sleep(0.5)
                 if p.poll() is None:
@@ -288,6 +282,8 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
         print(f"\033[1;33m[*] 檢測到連接埠 {port} 正在使用，已自動切換至可用連接埠: {actual_port} (多開模式支援)\033[0m")
 
     url = f"http://localhost:{actual_port}"
+    if low_spec:
+        url += "?eco=1"
     print("\033[1;32m🚀 Aether AI Studio 3.5 (Official Release) 服務就緒！\033[0m")
     if actual_port != port:
         print(f"\033[1;35m✨ 多開實例已啟用 (連接埠: {actual_port})\033[0m")

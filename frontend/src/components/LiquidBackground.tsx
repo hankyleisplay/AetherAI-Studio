@@ -3,6 +3,7 @@ import { AgentState } from '../types';
 
 interface LiquidBackgroundProps {
   state: AgentState;
+  isEcoMode?: boolean;
 }
 
 interface Orb {
@@ -30,7 +31,7 @@ interface Particle {
   phase: number;
 }
 
-export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state }) => {
+export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state, isEcoMode }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const mouseRef = useRef({ x: 0, y: 0, targetX: 0, targetY: 0, active: false });
 
@@ -96,6 +97,17 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state }) => 
       if (!canvas) return;
       width = canvas.width = window.innerWidth;
       height = canvas.height = window.innerHeight;
+      if (isEcoMode && ctx) {
+        ctx.clearRect(0, 0, width, height);
+        const bgGrad = ctx.createRadialGradient(
+          width * 0.4, height * 0.3, 0,
+          width * 0.4, height * 0.3, width * 0.65
+        );
+        bgGrad.addColorStop(0, 'rgba(14, 165, 233, 0.08)');
+        bgGrad.addColorStop(1, 'transparent');
+        ctx.fillStyle = bgGrad;
+        ctx.fillRect(0, 0, width, height);
+      }
     };
 
     const handleMouseMove = (e: MouseEvent) => {
@@ -106,6 +118,24 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state }) => 
 
     window.addEventListener('resize', handleResize);
     window.addEventListener('mousemove', handleMouseMove);
+
+    // If Eco Mode is enabled, draw static ambient background once and skip continuous 60fps render loop
+    if (isEcoMode) {
+      ctx.clearRect(0, 0, width, height);
+      const bgGrad = ctx.createRadialGradient(
+        width * 0.4, height * 0.3, 0,
+        width * 0.4, height * 0.3, width * 0.65
+      );
+      bgGrad.addColorStop(0, 'rgba(14, 165, 233, 0.08)');
+      bgGrad.addColorStop(1, 'transparent');
+      ctx.fillStyle = bgGrad;
+      ctx.fillRect(0, 0, width, height);
+
+      return () => {
+        window.removeEventListener('resize', handleResize);
+        window.removeEventListener('mousemove', handleMouseMove);
+      };
+    }
 
     // 1. Create Organic Liquid Orbs
     const palette = getPalette(state);
@@ -271,7 +301,7 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state }) => 
       window.removeEventListener('resize', handleResize);
       window.removeEventListener('mousemove', handleMouseMove);
     };
-  }, [state]);
+  }, [state, isEcoMode]);
 
   return (
     <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden select-none">

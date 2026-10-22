@@ -10,7 +10,7 @@ if not "%~1"=="" (
 
 cls
 echo ==============================================================
-echo          Aether AI Studio 3.5 (AetherAgent) Preview
+echo          Aether AI Studio 3.5 (Official Release)
 echo    Liquid Glass 3.5 - Next-Gen Desktop Autonomous AI Agent
 echo ==============================================================
 echo.

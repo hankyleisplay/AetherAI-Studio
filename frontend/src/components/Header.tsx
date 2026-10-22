@@ -36,6 +36,8 @@ interface HeaderProps {
   isProbingModels?: boolean;
   onSelectModel?: (model: string) => void;
   onRefreshModels?: () => void;
+  isEcoMode?: boolean;
+  onToggleEcoMode?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -53,7 +55,9 @@ export const Header: React.FC<HeaderProps> = ({
   availableModels = [],
   isProbingModels = false,
   onSelectModel,
-  onRefreshModels
+  onRefreshModels,
+  isEcoMode = false,
+  onToggleEcoMode
 }) => {
   const { currentLang, setLanguage, availableLanguages, t } = useI18n();
   const [isLangOpen, setIsLangOpen] = useState(false);
@@ -200,6 +204,25 @@ export const Header: React.FC<HeaderProps> = ({
           <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="text-xs font-semibold">{tools.filter(t => t.enabled).length}/{tools.length}</span>
         </button>
+
+        {/* Hardware-Saving Eco Mode Button */}
+        {onToggleEcoMode && (
+          <button
+            type="button"
+            onClick={onToggleEcoMode}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-medium transition-all shadow-sm whitespace-nowrap shrink-0 ${
+              isEcoMode
+                ? 'text-amber-300 border-amber-500/50 bg-amber-500/20 shadow-[0_0_12px_rgba(245,158,11,0.25)]'
+                : 'text-slate-400 border-white/10 hover:text-slate-200 hover:border-white/20'
+            }`}
+            title={isEcoMode ? t('eco_mode_on', '⚡ 節省硬體效能模式：已開啟 (點擊關閉)') : t('eco_mode_off', '⚡ 節省硬體效能模式：已關閉 (點擊開啟)')}
+          >
+            <Zap className={`w-3.5 h-3.5 shrink-0 ${isEcoMode ? 'text-amber-400 fill-amber-400/30' : 'text-slate-400'}`} />
+            <span className="hidden sm:inline whitespace-nowrap">
+              {isEcoMode ? t('eco_active', '節能') : t('eco_inactive', '效能')}
+            </span>
+          </button>
+        )}
 
         {/* Multi-Language Selector Capsule */}
         <div className="relative shrink-0" ref={langDropdownRef}>

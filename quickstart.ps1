@@ -1,4 +1,4 @@
-﻿# ==============================================================================
+# ==============================================================================
 # Aether AI Studio 3.5 (AetherAgent) - 智慧極速安裝與啟動腳本
 # 自動處理 Clone / Pull 更新，並主動詢問使用者啟動【原生桌面版】或【一般瀏覽器版】
 # ==============================================================================
@@ -24,7 +24,7 @@ $TargetFolder = "AetherAI-Studio"
 
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          Aether AI Studio 3.5 (AetherAgent) Preview           " -ForegroundColor Cyan
+Write-Host "          Aether AI Studio 3.5 (Official Release)              " -ForegroundColor Cyan
 Write-Host "   次世代獨立原生桌面版 • 實時推論 HUD • 即時畫布 • 22 大工具鏈   " -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""

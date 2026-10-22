@@ -22,7 +22,7 @@ if not exist "%PS1_FILE%" (
 if not exist "%PS1_FILE%" (
     echo.
     echo [!] 無法取得 quickstart.ps1，請確認網路連線是否正常。
-    echo 或請直接至 GitHub Release 下載 AetherAI-Studio-3.5-Preview-Desktop-Launcher.zip 解壓縮後執行。
+    echo 或請直接至 GitHub Release 下載 AetherAI-Studio-3.5-Official-Launcher.zip 解壓縮後執行。
     echo.
     pause
     exit /b 1

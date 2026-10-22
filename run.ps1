@@ -1,4 +1,4 @@
-﻿# ==========================================================================
+# ==========================================================================
 # Aether AI Studio 3.5 (AetherAgent) - Windows Universal Launcher
 # Liquid Glass Aesthetics | Local & Cloud Dual-Mode Agent Framework
 # ==========================================================================
@@ -35,7 +35,7 @@ if (-not $Check) {
 }
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          Aether AI Studio 3.5 (AetherAgent) Preview" -ForegroundColor Cyan
+Write-Host "          Aether AI Studio 3.5 (Official Release)" -ForegroundColor Cyan
 Write-Host "    Liquid Glass 3.5 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""
