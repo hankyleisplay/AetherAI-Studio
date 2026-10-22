@@ -160,7 +160,23 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
     : t('default_agent_name', 'Aether 核心架構系統');
 
   const currentSlogan = cyclingSlogans[sloganIdx];
-  const displayStatus = message.status_text || currentSlogan.text;
+
+  const getLocalizedStatus = (rawStatus?: string): string => {
+    if (!rawStatus) return currentSlogan.text;
+    if (rawStatus.includes('深度推理與檢索知識庫') || rawStatus.includes('深度推理与检索知识库') || rawStatus.includes('querying knowledge base')) {
+      return t('status_deep_reasoning_retrieval', '正在深度推理與檢索知識庫...');
+    }
+    if (rawStatus.includes('視覺特徵已結構化提取完成') || rawStatus.includes('视觉特征已结构化提取完成')) {
+      return t('status_vision_reasoning', '視覺特徵已結構化提取完成，正在結合問題進行深度推論...');
+    }
+    if (rawStatus.startsWith('調用工具中...') || rawStatus.startsWith('调用工具中...') || rawStatus.startsWith('Calling tool') || rawStatus.startsWith('ツール呼出中')) {
+      const toolPart = rawStatus.split(':')[1]?.trim() || '';
+      return `${t('status_calling_tool', '調用工具中...')}: ${toolPart}`;
+    }
+    return rawStatus;
+  };
+
+  const displayStatus = getLocalizedStatus(message.status_text);
   const isAwaitingContent = isStreaming && (!message.content || !message.content.trim());
 
   return (

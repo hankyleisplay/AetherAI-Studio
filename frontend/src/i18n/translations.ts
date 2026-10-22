@@ -9,7 +9,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企業級自主智能體系統',
-    'system_title': 'Aether AI Studio 3.5.2 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.5.3 • Liquid Glass Optics & Live Canvas',
     'system_desc': '已就緒支援 Ollama 本地開源模型與各主流雲端 LLM 引擎。',
     'eco_mode_on': '⚡ 節省硬體效能模式：已開啟 (點擊關閉)',
     'eco_mode_off': '⚡ 節省硬體效能模式：已關閉 (點擊開啟)',
@@ -232,6 +232,8 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Commercial AI Chat Experience & Cycling Slogans
     'slogan_thinking': '正在深度推理與分析問題架構...',
+    'status_deep_reasoning_retrieval': '正在深度推理與檢索知識庫...',
+    'status_vision_reasoning': '視覺特徵已結構化提取完成，正在結合問題進行深度推論...',
     'slogan_researching': '正在跨領域檢索知識與驗證邏輯...',
     'slogan_synthesizing': '正在綜合推論架構並構思解答...',
     'slogan_finalizing': '即將完成回答，正在組織精準文字...',
@@ -313,7 +315,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企业级自主智能体系统',
-    'system_title': 'Aether AI Studio 3.5.2 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.5.3 • Liquid Glass Optics & Live Canvas',
     'system_desc': '已就绪支持 Ollama 本地开源模型与各主流云端 LLM 引擎。',
     'eco_mode_on': '⚡ 节省硬件效能模式：已开启 (点击关闭)',
     'eco_mode_off': '⚡ 节省硬件效能模式：已关闭 (点击开启)',
@@ -536,6 +538,8 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Commercial AI Chat Experience & Cycling Slogans
     'slogan_thinking': '正在深度推理与分析问题架构...',
+    'status_deep_reasoning_retrieval': '正在深度推理与检索知识库...',
+    'status_vision_reasoning': '视觉特征已结构化提取完成，正在结合问题进行深度推论...',
     'slogan_researching': '正在跨领域检索知识与验证逻辑...',
     'slogan_synthesizing': '正在综合推论架构并构思解答...',
     'slogan_finalizing': '即将完成回答，正在组织精准文字...',
@@ -617,7 +621,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': 'Enterprise Autonomous AI Workstation',
-    'system_title': 'Aether AI Studio 3.5.2 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.5.3 • Liquid Glass Optics & Live Canvas',
     'system_desc': 'Engineered for Ollama local models and major cloud LLM providers.',
     'eco_mode_on': '⚡ Hardware-Saving Mode: Enabled (Click to disable)',
     'eco_mode_off': '⚡ Hardware-Saving Mode: Disabled (Click to enable)',
@@ -840,6 +844,8 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Commercial AI Chat Experience & Cycling Slogans
     'slogan_thinking': 'Deeply reasoning and analyzing request structure...',
+    'status_deep_reasoning_retrieval': 'Deep reasoning and querying knowledge base...',
+    'status_vision_reasoning': 'Visual features extracted, performing deep multimodal reasoning...',
     'slogan_researching': 'Cross-referencing knowledge and validating logic...',
     'slogan_synthesizing': 'Synthesizing reasoning framework and drafting response...',
     'slogan_finalizing': 'Almost ready, structuring final output...',
@@ -921,7 +927,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企業級自律型AIワークステーション',
-    'system_title': 'Aether AI Studio 3.5.2 • Liquid Glass 先進オプティクス & Live Canvas',
+    'system_title': 'Aether AI Studio 3.5.3 • Liquid Glass 先進オプティクス & Live Canvas',
     'system_desc': 'Ollama ローカルモデルおよび主要クラウド LLM エンジンに対応しています。',
     'eco_mode_on': '⚡ 省電力・低負荷モード：有効 (クリックで無効化)',
     'eco_mode_off': '⚡ 省電力・低負荷モード：無効 (クリックで有効化)',
@@ -1144,6 +1150,8 @@ export const translations: Record<Language, TranslationRecord> = {
 
     // Commercial AI Chat Experience & Cycling Slogans
     'slogan_thinking': 'リクエストの構造を深く推論・分析中...',
+    'status_deep_reasoning_retrieval': '深い推論とナレッジベースの検索を実行中...',
+    'status_vision_reasoning': '視覚的特徴の抽出が完了、深い推論を実行中...',
     'slogan_researching': '知識ベースを検索し論理を検証中...',
     'slogan_synthesizing': '推論フレームワークを統合し回答を構想中...',
     'slogan_finalizing': 'まもなく完了します、出力を整理中...',

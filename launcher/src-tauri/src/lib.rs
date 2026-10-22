@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
-const CURRENT_VERSION: &str = "3.5.2";
+const CURRENT_VERSION: &str = "3.5.3";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
@@ -741,7 +741,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "desktop" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.2 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -769,7 +769,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "cli" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.2 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -797,7 +797,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "browser" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.2 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -839,15 +839,29 @@ fn create_desktop_shortcut() -> Result<String, String> {
         project_dir.join("AetherLauncher.exe").to_string_lossy().to_string()
     };
 
+    // Ensure high-resolution icon file exists in project directory
+    let icon_path = project_dir.join("icon.ico");
+    if !icon_path.exists() {
+        let icon_bytes = include_bytes!("../icons/icon.ico");
+        let _ = std::fs::write(&icon_path, icon_bytes);
+    }
+    let icon_location = if icon_path.exists() {
+        icon_path.to_string_lossy().to_string()
+    } else {
+        launcher_exe.clone()
+    };
+
     let ps_script = format!(
         r#"$desktop = [Environment]::GetFolderPath('Desktop');
-$s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\Aether AI Studio 3.5.lnk");
+$s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\Aether AI Studio.lnk");
 $s.TargetPath = '{}';
 $s.WorkingDirectory = '{}';
-$s.Description = 'Aether AI Studio 3.5 官方專屬啟動器';
+$s.Description = 'Aether AI Studio 官方專屬啟動器';
+$s.IconLocation = '{},0';
 $s.Save();"#,
         launcher_exe.replace('\\', "\\\\"),
-        project_dir.to_string_lossy().replace('\\', "\\\\")
+        project_dir.to_string_lossy().replace('\\', "\\\\"),
+        icon_location.replace('\\', "\\\\")
     );
 
     let mut cmd = Command::new("powershell");
@@ -904,7 +918,7 @@ fn run_health_check() -> Result<String, String> {
     };
 
     let exec_cmd = format!(
-        "chcp 65001 >nul & title Aether AI Studio 3.5.2 [系統檢測] & {} test_backend.py & pause",
+        "chcp 65001 >nul & title Aether AI Studio 3.5.3 [系統檢測] & {} test_backend.py & pause",
         python_bin
     );
 
@@ -926,6 +940,15 @@ pub fn run() {
     cleanup_old_launcher();
 
     tauri::Builder::default()
+        .setup(|app| {
+            use tauri::Manager;
+            if let Some(window) = app.get_webview_window("main") {
+                if let Some(icon) = app.default_window_icon() {
+                    let _ = window.set_icon(icon.clone());
+                }
+            }
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![
             get_system_info,
             check_update,
