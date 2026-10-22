@@ -63,6 +63,24 @@
       </div>
     </div>
 
+    <!-- One-Click Core Installer Banner (Displayed when project is not installed) -->
+    <div id="install-banner" class="install-banner" style="display: none;">
+      <div class="install-card">
+        <div class="install-header">
+          <div class="install-icon">⚡</div>
+          <div class="install-details">
+            <div class="install-tag" data-i18n="install_tag">自動安裝精靈 (Setup Wizard)</div>
+            <h3 class="install-title" data-i18n="install_title">一鍵自動安裝 Aether AI Studio 3.5</h3>
+            <p class="install-desc" data-i18n="install_desc">尚未偵測到核心系統。點擊按鈕將自動從官方 GitHub 下載核心檔案、自動配置 Python 相依套件並建立桌面捷徑！</p>
+          </div>
+        </div>
+        <button id="btn-install-core" class="btn-install-primary">
+          <span id="install-btn-text" data-i18n="btn_install_now">⚡ 一鍵自動安裝與配置</span>
+          <span class="arrow">➔</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Environment Detection & Hardware Mode Card -->
     <section class="env-card">
       <div class="env-row">

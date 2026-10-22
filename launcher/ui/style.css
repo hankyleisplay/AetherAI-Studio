@@ -300,6 +300,108 @@ body {
   transform: translateY(-1px);
 }
 
+
+/* Core Installer Banner */
+.install-banner {
+  margin-bottom: 14px;
+}
+
+.install-card {
+  background: linear-gradient(135deg, rgba(0, 242, 254, 0.1), rgba(99, 102, 241, 0.15));
+  border: 1px solid rgba(0, 242, 254, 0.4);
+  border-radius: var(--radius-md);
+  padding: 14px 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 4px 20px rgba(0, 242, 254, 0.15);
+  backdrop-filter: blur(12px);
+  animation: pulseGlow 3s infinite ease-in-out;
+}
+
+@keyframes pulseGlow {
+  0%, 100% { border-color: rgba(0, 242, 254, 0.4); box-shadow: 0 4px 20px rgba(0, 242, 254, 0.15); }
+  50% { border-color: rgba(0, 242, 254, 0.7); box-shadow: 0 4px 28px rgba(0, 242, 254, 0.3); }
+}
+
+.install-header {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.install-icon {
+  font-size: 26px;
+  line-height: 1;
+  flex-shrink: 0;
+  padding: 8px;
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  border-radius: var(--radius-sm);
+}
+
+.install-details {
+  flex: 1;
+}
+
+.install-tag {
+  display: inline-block;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent-cyan);
+  background: rgba(0, 242, 254, 0.15);
+  border: 1px solid rgba(0, 242, 254, 0.3);
+  padding: 2px 8px;
+  border-radius: 20px;
+  margin-bottom: 4px;
+}
+
+.install-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #fff;
+  margin: 0 0 4px 0;
+}
+
+.install-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+  line-height: 1.5;
+}
+
+.btn-install-primary {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  background: linear-gradient(135deg, var(--accent-cyan), var(--accent-blue));
+  color: #070a13;
+  font-weight: 700;
+  font-size: 13px;
+  padding: 10px 18px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 242, 254, 0.35);
+  transition: all 0.2s;
+}
+
+.btn-install-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 20px rgba(0, 242, 254, 0.5);
+  filter: brightness(1.1);
+}
+
+.btn-install-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+  transform: none;
+}
+
 /* Environment Info Card */
 .env-card {
   background: var(--bg-card);

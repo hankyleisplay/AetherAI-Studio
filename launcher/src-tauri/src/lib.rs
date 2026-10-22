@@ -17,6 +17,7 @@ pub struct SystemInfo {
     pub git_available: bool,
     pub current_version: String,
     pub is_ready: bool,
+    pub is_installed: bool,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
@@ -45,15 +46,39 @@ fn cleanup_old_launcher() {
     }
 }
 
+pub fn get_default_install_dir() -> PathBuf {
+    // If executable is located in a dedicated custom directory (not Downloads/Desktop/Temp), install in or alongside it
+    if let Ok(exe_path) = env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            let parent_str = parent.to_string_lossy().to_lowercase();
+            if !parent_str.contains("download") && !parent_str.contains("desktop") && !parent_str.contains("temp") && !parent_str.contains("windows") {
+                if parent.join("backend").exists() || parent.join("start.py").exists() {
+                    return parent.to_path_buf();
+                }
+                return parent.join("AetherAI-Studio");
+            }
+        }
+    }
+
+    let home = env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join("AetherAI-Studio")
+}
+
 fn find_project_root() -> Option<PathBuf> {
     // 1. Current working directory
     if let Ok(cwd) = env::current_dir() {
         if cwd.join("start.py").exists() {
             return Some(cwd);
         }
+        if cwd.join("AetherAI-Studio").join("start.py").exists() {
+            return Some(cwd.join("AetherAI-Studio"));
+        }
         if let Some(parent) = cwd.parent() {
             if parent.join("start.py").exists() {
                 return Some(parent.to_path_buf());
+            }
+            if parent.join("AetherAI-Studio").join("start.py").exists() {
+                return Some(parent.join("AetherAI-Studio"));
             }
         }
     }
@@ -64,25 +89,33 @@ fn find_project_root() -> Option<PathBuf> {
             if exe_dir.join("start.py").exists() {
                 return Some(exe_dir.to_path_buf());
             }
+            if exe_dir.join("AetherAI-Studio").join("start.py").exists() {
+                return Some(exe_dir.join("AetherAI-Studio"));
+            }
             if let Some(parent) = exe_dir.parent() {
                 if parent.join("start.py").exists() {
                     return Some(parent.to_path_buf());
+                }
+                if parent.join("AetherAI-Studio").join("start.py").exists() {
+                    return Some(parent.join("AetherAI-Studio"));
                 }
             }
         }
     }
 
-    // 3. Known project paths
+    // 3. Known and standard installation paths
     let home = env::var("USERPROFILE").unwrap_or_default();
     let candidates = [
-        r"C:\Users\李秉翰\Documents\Project\AetherAI-Studio",
-        r"C:\Users\李秉翰\AetherAI-Studio",
-        &format!(r"{}\Documents\Project\AetherAI-Studio", home),
-        &format!(r"{}\AetherAI-Studio", home),
-        &format!(r"{}\Desktop\AetherAI-Studio", home),
-        &format!(r"{}\Downloads\AetherAI-Studio", home),
-        r"D:\AetherAI-Studio",
-        r"E:\AetherAI-Studio",
+        format!(r"{}\AetherAI-Studio", home),
+        format!(r"{}\Documents\Project\AetherAI-Studio", home),
+        format!(r"{}\Documents\AetherAI-Studio", home),
+        format!(r"{}\Desktop\AetherAI-Studio", home),
+        format!(r"{}\Downloads\AetherAI-Studio", home),
+        r"C:\Users\李秉翰\Documents\Project\AetherAI-Studio".to_string(),
+        r"C:\Users\李秉翰\AetherAI-Studio".to_string(),
+        r"C:\AetherAI-Studio".to_string(),
+        r"D:\AetherAI-Studio".to_string(),
+        r"E:\AetherAI-Studio".to_string(),
     ];
 
     for candidate in &candidates {
@@ -161,7 +194,8 @@ fn get_system_info() -> SystemInfo {
     let python_exe = find_python();
     let git = check_git();
 
-    let is_ready = project_dir.is_some() && python_exe.is_some();
+    let is_installed = project_dir.is_some();
+    let is_ready = is_installed && python_exe.is_some();
 
     SystemInfo {
         project_path: project_dir.map(|p| p.to_string_lossy().to_string()),
@@ -169,6 +203,7 @@ fn get_system_info() -> SystemInfo {
         git_available: git,
         current_version: CURRENT_VERSION.to_string(),
         is_ready,
+        is_installed,
     }
 }
 
@@ -239,12 +274,12 @@ fn check_update() -> UpdateResult {
         }
     }
 
-    // 2. Local Git repository check
+    // 2. Local Git repository check (if git clone was used)
     if let Some(project_path) = find_project_root() {
         let git_dir = project_path.join(".git");
         if git_dir.exists() {
             let mut fetch_cmd = Command::new("git");
-            fetch_cmd.args(["fetch", "origin"])
+            fetch_cmd.args(["fetch", "origin", "main"])
                 .current_dir(&project_path);
             #[cfg(windows)]
             fetch_cmd.creation_flags(CREATE_NO_WINDOW);
@@ -257,7 +292,7 @@ fn check_update() -> UpdateResult {
                     local_cmd.creation_flags(CREATE_NO_WINDOW);
 
                     let mut remote_cmd = Command::new("git");
-                    remote_cmd.args(["rev-parse", "@{u}"]).current_dir(&project_path);
+                    remote_cmd.args(["rev-parse", "origin/main"]).current_dir(&project_path);
                     #[cfg(windows)]
                     remote_cmd.creation_flags(CREATE_NO_WINDOW);
 
@@ -266,7 +301,7 @@ fn check_update() -> UpdateResult {
 
                     if !local_hash.is_empty() && !remote_hash.is_empty() && local_hash != remote_hash {
                         result.has_update = true;
-                        result.release_name = "檢測到遠端倉庫有最新程式碼更新".to_string();
+                        result.release_name = "檢測到主分支倉庫有最新程式碼更新".to_string();
                     }
                 }
             }
@@ -276,28 +311,188 @@ fn check_update() -> UpdateResult {
     result
 }
 
+fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
+    if !target_dir.exists() {
+        std::fs::create_dir_all(target_dir)
+            .map_err(|e| format!("建立目標目錄失敗 ({}): {}", target_dir.display(), e))?;
+    }
+
+    // 1. If git is available, try shallow git clone first
+    if check_git() {
+        let mut clone_cmd = Command::new("git");
+        clone_cmd.args(["clone", "--depth", "1", "-b", "main", "https://github.com/hankyleisplay/AetherAI-Studio.git", "."])
+            .current_dir(target_dir);
+        #[cfg(windows)]
+        clone_cmd.creation_flags(CREATE_NO_WINDOW);
+
+        if let Ok(out) = clone_cmd.output() {
+            if out.status.success() && target_dir.join("start.py").exists() {
+                return Ok(());
+            }
+        }
+    }
+
+    // 2. Fallback: Download zipball from GitHub
+    let zip_url = "https://github.com/hankyleisplay/AetherAI-Studio/archive/refs/heads/main.zip";
+    let temp_zip = target_dir.join("aether_install_temp.zip");
+
+    let resp = ureq::get(zip_url)
+        .set("User-Agent", "AetherLauncher-Installer")
+        .timeout(std::time::Duration::from_secs(180))
+        .call()
+        .map_err(|e| format!("下載核心程式碼失敗 (請確認網路連線): {}", e))?;
+
+    let mut reader = resp.into_reader();
+    let mut out_file = std::fs::File::create(&temp_zip)
+        .map_err(|e| format!("建立臨時壓縮檔失敗: {}", e))?;
+
+    std::io::copy(&mut reader, &mut out_file)
+        .map_err(|e| format!("寫入壓縮檔失敗: {}", e))?;
+    drop(out_file);
+
+    // Extract using tar (built into Windows 10/11) with --strip-components=1
+    let mut tar_cmd = Command::new("tar");
+    tar_cmd.args([
+        "-xf",
+        &temp_zip.to_string_lossy(),
+        "-C",
+        &target_dir.to_string_lossy(),
+        "--strip-components=1"
+    ]);
+    #[cfg(windows)]
+    tar_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    let tar_ok = match tar_cmd.output() {
+        Ok(out) => out.status.success(),
+        Err(_) => false,
+    };
+
+    if !tar_ok {
+        // Fallback: PowerShell Expand-Archive
+        let ps_script = format!(
+            r#"$tempZip = '{}'; $target = '{}'; Expand-Archive -Path $tempZip -DestinationPath "$target\_temp_extract" -Force; Copy-Item "$target\_temp_extract\AetherAI-Studio-main\*" "$target" -Recurse -Force; Remove-Item "$target\_temp_extract" -Recurse -Force;"#,
+            temp_zip.to_string_lossy().replace('\\', "\\\\"),
+            target_dir.to_string_lossy().replace('\\', "\\\\")
+        );
+        let mut ps_cmd = Command::new("powershell");
+        ps_cmd.args(["-NoProfile", "-Command", &ps_script]);
+        #[cfg(windows)]
+        ps_cmd.creation_flags(CREATE_NO_WINDOW);
+        let _ = ps_cmd.output();
+    }
+
+    if temp_zip.exists() {
+        let _ = std::fs::remove_file(temp_zip);
+    }
+
+    if !target_dir.join("start.py").exists() {
+        return Err("解壓縮核心檔案失敗，未找到 start.py。".to_string());
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn install_or_repair_core(target_path: Option<String>) -> Result<String, String> {
+    let install_dir = if let Some(p) = target_path {
+        if !p.trim().is_empty() {
+            PathBuf::from(p)
+        } else {
+            get_default_install_dir()
+        }
+    } else {
+        match find_project_root() {
+            Some(p) => p,
+            None => get_default_install_dir(),
+        }
+    };
+
+    // 1. Download or extract repository files if start.py doesn't exist
+    if !install_dir.join("start.py").exists() {
+        download_and_extract_repo(&install_dir)?;
+    }
+
+    // 2. Install Python dependencies
+    if let Some(python_bin) = find_python() {
+        let req_file = install_dir.join("backend").join("requirements.txt");
+        if req_file.exists() {
+            let mut pip_cmd = if python_bin.contains(" ") {
+                let parts: Vec<&str> = python_bin.split_whitespace().collect();
+                let mut c = Command::new(parts[0]);
+                c.args(&parts[1..]);
+                c
+            } else {
+                Command::new(&python_bin)
+            };
+            pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy()]);
+            pip_cmd.current_dir(&install_dir);
+            #[cfg(windows)]
+            pip_cmd.creation_flags(CREATE_NO_WINDOW);
+            let _ = pip_cmd.output();
+        }
+    }
+
+    // 3. Create desktop shortcut
+    let _ = create_desktop_shortcut();
+
+    Ok(format!("🎉 Aether AI Studio 3.5 核心檔案與相依套件已成功安裝並配置完成！\n安裝路徑: {}", install_dir.display()))
+}
+
+#[tauri::command]
+fn install_python() -> Result<String, String> {
+    // 1. Try winget install
+    let mut winget = Command::new("winget");
+    winget.args([
+        "install", "-e", "--id", "Python.Python.3.12",
+        "--accept-source-agreements", "--accept-package-agreements"
+    ]);
+    #[cfg(windows)]
+    winget.creation_flags(CREATE_NEW_CONSOLE);
+
+    if let Ok(mut child) = winget.spawn() {
+        let _ = child.wait();
+        if find_python().is_some() {
+            return Ok("Python 安裝成功！".to_string());
+        }
+    }
+
+    // 2. Fallback: open python.org
+    let _ = Command::new("cmd.exe")
+        .args(["/c", "start", "https://www.python.org/downloads/"])
+        .spawn();
+
+    Ok("已開啟 Python 官方下載頁面，請下載安裝並務必勾選「Add Python to PATH」。".to_string())
+}
+
 #[tauri::command]
 fn apply_update() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
-        None => return Err("找不到專案目錄，無法執行 git pull 更新。".to_string()),
+        None => return Err("找不到專案目錄，無法執行更新。".to_string()),
     };
 
-    let mut pull_cmd = Command::new("git");
-    pull_cmd.args(["pull"]).current_dir(&project_dir);
-    #[cfg(windows)]
-    pull_cmd.creation_flags(CREATE_NO_WINDOW);
+    let git_dir = project_dir.join(".git");
+    if git_dir.exists() && check_git() {
+        let mut pull_cmd = Command::new("git");
+        pull_cmd.args(["pull", "origin", "main"]).current_dir(&project_dir);
+        #[cfg(windows)]
+        pull_cmd.creation_flags(CREATE_NO_WINDOW);
 
-    match pull_cmd.output() {
-        Ok(output) => {
-            if output.status.success() {
-                Ok("✅ 已成功拉取最新更新至本地！".to_string())
-            } else {
-                let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
-                Err(format!("Git pull 失敗: {}", err_msg))
+        match pull_cmd.output() {
+            Ok(output) => {
+                if output.status.success() {
+                    Ok("✅ 已成功拉取最新主分支更新至本地！".to_string())
+                } else {
+                    let err_msg = String::from_utf8_lossy(&output.stderr).to_string();
+                    Err(format!("Git pull 失敗: {}", err_msg))
+                }
             }
+            Err(e) => Err(format!("執行 git 失敗: {}", e)),
         }
-        Err(e) => Err(format!("執行 git 失敗: {}", e)),
+    } else {
+        // Non-git installation: download and update files directly
+        download_and_extract_repo(&project_dir)?;
+        Ok("✅ 已成功下載並更新最新核心檔案！".to_string())
     }
 }
 
@@ -460,9 +655,17 @@ fn find_available_port(start_port: u16) -> u16 {
 
 #[tauri::command]
 fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
+    // If project is not installed yet, auto-install first!
     let project_dir = match find_project_root() {
         Some(p) => p,
-        None => return Err("找不到 Aether AI Studio 專案目錄 (start.py)。請確認專案已放置於正確位置。".to_string()),
+        None => {
+            // Auto install!
+            install_or_repair_core(None)?;
+            match find_project_root() {
+                Some(p) => p,
+                None => return Err("自動安裝完成後仍無法定位核心專案目錄，請重新開啟啟動器。".to_string()),
+            }
+        }
     };
 
     let python_bin = match find_python() {
@@ -475,7 +678,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         return Err(format!("主程式檔案不存在: {}", start_py.display()));
     }
 
-    // Determine actual port: if requested port is free, use it; otherwise auto-switch to next available port (Multi-instance support)
+    // Determine actual port: auto-switch to next available port (Multi-instance support)
     let actual_port = if is_port_free(port) {
         port
     } else {
@@ -486,7 +689,6 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
 
     match mode.as_str() {
         "desktop" => {
-            // Standalone desktop mode: Launch python start.py --port <actual_port> --desktop
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
@@ -515,7 +717,6 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             }
         }
         "cli" => {
-            // Terminal CLI mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
@@ -544,7 +745,6 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             }
         }
         "browser" => {
-            // Browser mode: Spawn cmd.exe with CREATE_NEW_CONSOLE running start.py
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
@@ -580,7 +780,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
 fn create_desktop_shortcut() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
-        None => return Err("找不到專案目錄。".to_string()),
+        None => get_default_install_dir(),
     };
 
     let launcher_exe = if let Ok(exe) = env::current_exe() {
@@ -621,8 +821,12 @@ $s.Save();"#,
 fn open_project_folder() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
-        None => return Err("找不到專案目錄。".to_string()),
+        None => get_default_install_dir(),
     };
+
+    if !project_dir.exists() {
+        let _ = std::fs::create_dir_all(&project_dir);
+    }
 
     let dir_str = project_dir.to_string_lossy().to_string();
 
@@ -641,7 +845,7 @@ fn open_project_folder() -> Result<String, String> {
 fn run_health_check() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
-        None => return Err("找不到專案目錄。".to_string()),
+        None => return Err("尚未安裝核心檔案，請先點擊一鍵安裝。".to_string()),
     };
 
     let python_bin = match find_python() {
@@ -681,7 +885,9 @@ pub fn run() {
             launch_mode,
             create_desktop_shortcut,
             open_project_folder,
-            run_health_check
+            run_health_check,
+            install_or_repair_core,
+            install_python
         ])
         .run(tauri::generate_context!())
         .expect("error while building tauri application");
