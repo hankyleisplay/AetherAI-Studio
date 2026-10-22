@@ -141,9 +141,9 @@ export const Header: React.FC<HeaderProps> = ({
     : t('default_agent_name', 'Aether 核心架構系統');
 
   return (
-    <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 z-20 shrink-0">
+    <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 z-20 shrink-0 overflow-x-hidden">
       {/* Left: Sidebar Toggle & Persona Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
         {!isSidebarOpen && (
           <button
             onClick={onToggleSidebar}
@@ -155,8 +155,8 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center gap-2 min-w-0">
-          <span className="text-xs font-semibold text-white/90 truncate max-w-[110px] sm:max-w-[170px] xl:max-w-[240px]">
+        <div className="flex items-center gap-2 min-w-0 shrink-0">
+          <span className="text-xs font-semibold text-white/90 truncate max-w-[90px] sm:max-w-[130px] md:max-w-[180px]">
             {displayPersonaName}
           </span>
           {getStateBadge()}
@@ -165,8 +165,8 @@ export const Header: React.FC<HeaderProps> = ({
 
       {/* Right: Tools Switchers, Language Selector, Model Capsule & Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Quick Tools Toggle Pills - Hide earlier when sidebar is expanded to prevent clipping */}
-        <div className={`${isSidebarOpen ? 'hidden 2xl:flex' : 'hidden xl:flex'} items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5 shrink-0`}>
+        {/* Quick Tools Toggle Pills - Only shown when sidebar is closed on ultra-wide viewports to prevent any overlap */}
+        <div className={`${isSidebarOpen ? 'hidden' : 'hidden 2xl:flex'} items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5 shrink-0`}>
           {tools.slice(0, 4).map((tool) => (
             <button
               key={tool.name}
@@ -195,11 +195,11 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
 
-        {/* Compact Tool Manager Button for smaller viewports */}
+        {/* Compact Tool Manager Button */}
         <button
           onClick={() => onOpenSettings('tools')}
           title="開啟工具箱設定 (22 大工具管理)"
-          className={`${isSidebarOpen ? '2xl:hidden' : 'xl:hidden'} flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
+          className={`${!isSidebarOpen ? '2xl:hidden' : 'flex'} flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
         >
           <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="text-xs font-semibold">{tools.filter(t => t.enabled).length}/{tools.length}</span>
@@ -381,7 +381,7 @@ export const Header: React.FC<HeaderProps> = ({
             title={t('swarm_debate', '多智能體圓桌辯論 (Swarm)')}
           >
             <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="hidden md:inline whitespace-nowrap">{t('swarm_btn', '論辯')}</span>
+            <span className="hidden lg:inline whitespace-nowrap">{t('swarm_btn', '論辯')}</span>
           </button>
         )}
 
@@ -393,7 +393,7 @@ export const Header: React.FC<HeaderProps> = ({
             title={t('workspace_explorer', '工作區檔案導航')}
           >
             <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="hidden md:inline whitespace-nowrap">{t('workspace_btn', '工作區')}</span>
+            <span className="hidden lg:inline whitespace-nowrap">{t('workspace_btn', '工作區')}</span>
           </button>
         )}
 
