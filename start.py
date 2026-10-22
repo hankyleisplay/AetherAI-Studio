@@ -64,7 +64,7 @@ def print_banner():
         r" / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / " "\n"
         r"/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  " "\n"
         "\n"
-        "      Liquid Glass 3.5 • Next-Gen Desktop Autonomous AI Agent (Official Release)\n"
+        "      Liquid Glass 3.5.1 • Next-Gen Desktop Autonomous AI Agent (Official Release)\n"
         "\033[0m"
     )
     print(banner)
@@ -306,7 +306,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     url = f"http://localhost:{actual_port}"
     if low_spec:
         url += "?eco=1"
-    print("\033[1;32m🚀 Aether AI Studio 3.5 (Official Release) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 Aether AI Studio 3.5.1 (Official Release) 服務就緒！\033[0m")
     if actual_port != port:
         print(f"\033[1;35m✨ 多開實例已啟用 (連接埠: {actual_port})\033[0m")
     if desktop:

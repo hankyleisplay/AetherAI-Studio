@@ -60,6 +60,8 @@ scratch/
 
 build/
 dist/
+!frontend/dist/
+!frontend/dist/**
 *.spec
 
 *.exe

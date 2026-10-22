@@ -68,9 +68,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.5 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.5.1 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "3.5.0"
+            assert res.json()["version"] == "3.5.1"
 
 
 
@@ -456,7 +456,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.5" in res.text
+            assert "Aether AI Studio 3.5.1" in res.text
 
 
 
