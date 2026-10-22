@@ -141,9 +141,9 @@ export const Header: React.FC<HeaderProps> = ({
     : t('default_agent_name', 'Aether 核心架構系統');
 
   return (
-    <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 z-20 shrink-0 overflow-x-hidden">
+    <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 relative z-30 shrink-0">
       {/* Left: Sidebar Toggle & Persona Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink-0">
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
         {!isSidebarOpen && (
           <button
             onClick={onToggleSidebar}
@@ -155,7 +155,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center gap-2 min-w-0 shrink-0">
+        <div className="flex items-center gap-2 min-w-0 shrink">
           <span className="text-xs font-semibold text-white/90 truncate max-w-[90px] sm:max-w-[130px] md:max-w-[180px]">
             {displayPersonaName}
           </span>
@@ -240,7 +240,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {isLangOpen && (
-            <div className="absolute right-0 mt-2 w-40 glass-modal rounded-2xl border border-white/15 py-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl bg-[#0b101e]/95">
+            <div className="absolute right-0 top-full mt-2 w-44 glass-modal rounded-2xl border border-white/15 py-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl bg-[#0b101e]/95">
               {availableLanguages.map((lang) => {
                 const isSelected = currentLang === lang.code;
                 return (
