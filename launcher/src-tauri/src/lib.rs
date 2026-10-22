@@ -717,6 +717,12 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         None => return Err("找不到系統 Python。請確認已安裝 Python 3.10+ 並加入系統 PATH。".to_string()),
     };
 
+    let quoted_python = if python_bin.contains(' ') && !python_bin.starts_with('"') && !python_bin.starts_with("py ") {
+        format!("\"{}\"", python_bin)
+    } else {
+        python_bin.clone()
+    };
+
     let start_py = project_dir.join("start.py");
     if !start_py.exists() {
         return Err(format!("主程式檔案不存在: {}", start_py.display()));
@@ -737,7 +743,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
                 port_str,
-                python_bin,
+                quoted_python,
                 port_str,
                 low_spec_arg
             );
@@ -765,7 +771,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
                 port_str,
-                python_bin,
+                quoted_python,
                 port_str,
                 low_spec_arg
             );
@@ -793,7 +799,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
             let exec_cmd = format!(
                 "chcp 65001 >nul & title Aether AI Studio 3.5 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
                 port_str,
-                python_bin,
+                quoted_python,
                 port_str,
                 low_spec_arg
             );

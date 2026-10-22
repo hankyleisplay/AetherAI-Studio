@@ -716,7 +716,10 @@ async function doCheckUpdate() {
 // -------------------------------------------------------------
 // Logic: Launch Modes
 // -------------------------------------------------------------
+let isLaunching = false;
 async function launch(mode, btn) {
+  if (isLaunching) return;
+  isLaunching = true;
   const originalText = btn.innerHTML;
 
   if (!lastSystemInfo || !lastSystemInfo.is_installed) {
@@ -724,6 +727,7 @@ async function launch(mode, btn) {
     if (doInstall && btnInstallCore) {
       btnInstallCore.click();
     }
+    isLaunching = false;
     return;
   }
 
@@ -755,9 +759,10 @@ async function launch(mode, btn) {
     footerStatusBar.style.color = "#f43f5e";
   } finally {
     setTimeout(() => {
+      isLaunching = false;
       btn.disabled = false;
       btn.innerHTML = originalText;
-    }, 2500);
+    }, 2000);
   }
 }
 

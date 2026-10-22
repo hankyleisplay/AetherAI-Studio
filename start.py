@@ -204,12 +204,30 @@ def free_port_if_aether(port: int) -> bool:
         time.sleep(0.5)
     return freed
 
+def wait_for_server(port: int, timeout: float = 30.0) -> bool:
+    """Poll localhost:{port}/api/health until FastAPI/Uvicorn server is 100% ready."""
+    import urllib.request
+    start_t = time.time()
+    url = f"http://127.0.0.1:{port}/api/health"
+    while time.time() - start_t < timeout:
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Aether-HealthCheck"})
+            with urllib.request.urlopen(req, timeout=1.0) as resp:
+                if resp.status == 200:
+                    return True
+        except Exception:
+            pass
+        time.sleep(0.25)
+    return False
+
 def launch_desktop_window(url: str, low_spec: bool = False):
     """
-    Launch native desktop window using Chrome/Edge in standalone app mode.
-    Falls back to system default browser if neither is available.
+    Launch native desktop window using Chrome/Edge in standalone app mode with isolated profile.
+    Guarantees exactly ONE window is launched and isolates it from regular browser tabs.
+    Falls back to system default browser only if no standalone browser is available.
     """
     import shutil
+    from pathlib import Path
 
     candidates = []
     if sys.platform == "win32":
@@ -234,6 +252,13 @@ def launch_desktop_window(url: str, low_spec: bool = False):
             if p:
                 candidates.append(p)
 
+    # Use a dedicated profile directory so the desktop app runs as an independent, single-instance process
+    profile_dir = Path.home() / ".aether" / "desktop_profile"
+    try:
+        profile_dir.mkdir(parents=True, exist_ok=True)
+    except Exception:
+        profile_dir = None
+
     for exe in candidates:
         if exe and os.path.exists(exe):
             try:
@@ -243,22 +268,19 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                     "--window-size=1360,900",
                     "--window-position=center",
                     "--disable-extensions",
+                    "--no-first-run",
+                    "--no-default-browser-check",
                 ]
-                p = subprocess.Popen(cmd)
-                time.sleep(0.5)
-                if p.poll() is None:
-                    return p
+                if profile_dir:
+                    cmd.append(f"--user-data-dir={profile_dir}")
 
-                if sys.platform == "win32":
-                    cmd_shell = ["cmd.exe", "/c", "start", "", exe, f"--app={url}", "--window-size=1360,900"]
-                    sp = subprocess.Popen(cmd_shell)
-                    sp.wait()
-                    if sp.returncode == 0:
-                        return sp
+                p = subprocess.Popen(cmd)
+                # Success! Return immediately to guarantee single-instance window and prevent duplicate openings
+                return p
             except Exception:
                 continue
 
-    # Fallback to standard browser
+    # Fallback to standard browser only if standalone execution failed completely
     webbrowser.open(url)
     return None
 
@@ -300,21 +322,30 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
 
     if desktop:
         def open_desktop():
-            time.sleep(1.2)
+            # Wait until FastAPI and Uvicorn are actually accepting HTTP requests
+            if not wait_for_server(actual_port, timeout=30.0):
+                print(f"\033[31m[!] 伺服器啟動逾時 (Port {actual_port})，無法自動開啟桌面視窗。\033[0m")
+                return
+
+            time.sleep(0.3)
             p = launch_desktop_window(url, low_spec=low_spec)
             if p and hasattr(p, "wait"):
+                t_spawn = time.time()
                 try:
                     p.wait()
-                    print("\n\033[32m[✓] 原生桌面視窗已關閉，正在自動關閉後端伺服器...\033[0m")
-                    os.kill(os.getpid(), signal.SIGTERM)
+                    # Only exit if the desktop window was open for more than 3 seconds (avoid accidental premature exits)
+                    if time.time() - t_spawn > 3.0:
+                        print("\n\033[32m[✓] 原生桌面視窗已關閉，正在安全退出後端伺服器...\033[0m")
+                        os.kill(os.getpid(), signal.SIGTERM if hasattr(signal, "SIGTERM") else signal.SIGINT)
                 except Exception:
                     pass
         import threading
         threading.Thread(target=open_desktop, daemon=True).start()
     elif not no_browser:
         def open_browser():
-            time.sleep(1.2)
-            webbrowser.open(url)
+            if wait_for_server(actual_port, timeout=30.0):
+                time.sleep(0.3)
+                webbrowser.open(url)
         import threading
         threading.Thread(target=open_browser, daemon=True).start()
 
