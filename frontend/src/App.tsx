@@ -114,7 +114,7 @@ export const App: React.FC = () => {
   const [modelConfig, setModelConfig] = useState<ModelConfig>({
     provider: 'ollama',
     base_url: 'http://localhost:11434',
-    model: 'llama3:latest',
+    model: '',
     temperature: 0.7,
     max_tokens: 8192,
     context_window: 16384
@@ -206,8 +206,8 @@ export const App: React.FC = () => {
       if (res.ok) {
         const data = await res.json();
         const detected: string[] = Array.isArray(data.models) ? data.models : [];
+        setAvailableModels(detected);
         if (detected.length > 0) {
-          setAvailableModels(detected);
           // If the endpoint is live and current model is not in detected list, auto-select the first available model
           if (data.success && (!configToProbe.model || !detected.includes(configToProbe.model))) {
             const updatedConfig = { ...configToProbe, model: detected[0] };
@@ -218,10 +218,24 @@ export const App: React.FC = () => {
               body: JSON.stringify(updatedConfig)
             });
           }
+        } else {
+          // No models detected - clear fake or nonexistent model
+          if (configToProbe.model && ['ollama', 'lm_studio', 'openai_compatible'].includes(configToProbe.provider)) {
+            const updatedConfig = { ...configToProbe, model: '' };
+            setModelConfig(updatedConfig);
+            await fetch('/api/models/active', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(updatedConfig)
+            });
+          }
         }
+      } else {
+        setAvailableModels([]);
       }
     } catch (e) {
       console.error('Failed to auto-probe models:', e);
+      setAvailableModels([]);
     } finally {
       setIsProbingModels(false);
     }
@@ -498,33 +512,47 @@ export const App: React.FC = () => {
   };
 
   const handleEditPrompt = async (messageId: string, newContent: string) => {
-    if (!newContent.trim() || isStreaming) return;
+    if (!newContent.trim()) return;
+
+    // If currently streaming, stop active generation cleanly first
+    if (isStreamingRef.current) {
+      handleStopGeneration();
+    }
 
     const msgIdx = messages.findIndex(m => m.id === messageId);
     if (msgIdx === -1) return;
 
+    const originalMsg = messages[msgIdx];
+    const originalImages = originalMsg?.images;
+
     // Collect all subsequent messages (including preceding assistant reply) to delete
     const idsToDelete: string[] = [];
     for (let i = msgIdx + 1; i < messages.length; i++) {
-      idsToDelete.push(messages[i].id);
+      if (messages[i]?.id) {
+        idsToDelete.push(messages[i].id);
+      }
     }
     // Delete the original user message as well
-    idsToDelete.push(messageId);
+    if (messageId) {
+      idsToDelete.push(messageId);
+    }
 
     // Delete from backend DB
-    await Promise.allSettled(
-      idsToDelete.map(id => fetch(`/api/messages/${id}`, { method: 'DELETE' }))
-    );
+    if (idsToDelete.length > 0) {
+      await Promise.allSettled(
+        idsToDelete.map(id => fetch(`/api/messages/${id}`, { method: 'DELETE' }))
+      );
+    }
 
     // Slice local messages state
     setMessages(prev => prev.slice(0, msgIdx));
 
     // Re-send revised prompt
-    handleSendMessage(newContent);
+    await handleSendMessage(newContent, originalImages);
   };
 
   const handleSendMessage = async (text: string, images?: string[]) => {
-    if ((!text.trim() && (!images || images.length === 0)) || isStreaming) return;
+    if ((!text.trim() && (!images || images.length === 0)) || isStreamingRef.current) return;
 
     // Generate robust UUIDs for both messages
     const userMsgId = (typeof crypto !== 'undefined' && crypto.randomUUID) 
@@ -543,6 +571,25 @@ export const App: React.FC = () => {
       images: images,
       created_at: new Date().toISOString()
     };
+
+    // Check if model is selected/available
+    let effectiveModelConfig = modelConfig;
+    if (!effectiveModelConfig.model || !effectiveModelConfig.model.trim()) {
+      if (availableModels.length > 0) {
+        effectiveModelConfig = { ...effectiveModelConfig, model: availableModels[0] };
+        setModelConfig(effectiveModelConfig);
+      } else {
+        // No models detected/installed
+        const noModelMsg: Message = {
+          id: assistantMsgId,
+          role: 'assistant',
+          content: '❌ **未偵測到可用的 AI 模型**\n\n目前本機尚未安裝或載入任何 AI 模型：\n- 若使用 **Ollama**：請在終端機執行 `ollama pull llama3` 或 `ollama pull qwen2.5:7b` 下載模型。\n- 若使用 **LM Studio** 或 **OpenAI 相容端點**：請確認本地伺服器已啟動並載入模型。\n- 若使用 **雲端 API**（Gemini / OpenAI / Anthropic / DeepSeek）：請點擊右上角設定圖示填入 API Key。',
+          created_at: new Date().toISOString()
+        };
+        setMessages(prev => [...prev, userMsg, noModelMsg]);
+        return;
+      }
+    }
 
     // Prepare Assistant Message container with initial status and persona attribution
     const assistantMsg: Message = {
@@ -575,7 +622,7 @@ export const App: React.FC = () => {
           session_id: activeSessionId,
           message: text,
           persona_id: selectedPersonaId,
-          model_config_override: modelConfig,
+          model_config_override: effectiveModelConfig,
           user_message_id: userMsgId,
           assistant_message_id: assistantMsgId,
           images: images,

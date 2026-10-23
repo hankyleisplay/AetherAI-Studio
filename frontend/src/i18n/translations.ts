@@ -9,7 +9,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企業級自主智能體系統',
-    'system_title': 'Aether AI Studio 3.6.1 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.6.2 • Liquid Glass Optics & Live Canvas',
     'system_desc': '已就緒支援 Ollama 本地開源模型與各主流雲端 LLM 引擎。',
     'eco_mode_on': '⚡ 節省硬體效能模式：已開啟 (點擊關閉)',
     'eco_mode_off': '⚡ 節省硬體效能模式：已關閉 (點擊開啟)',
@@ -81,6 +81,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'edit_prompt': '更改提示詞',
     'save_and_resend': '儲存並重新發送',
     'cancel_edit': '取消',
+    'load_to_input': '填入輸入框編輯',
+    'no_model_selected': '未選取模型',
+    'no_models_installed_hint': '請先下載模型或設定 API Key',
 
     // Settings Modal
     'settings_center': 'Aether AI Studio 設定中心',
@@ -377,7 +380,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企业级自主智能体系统',
-    'system_title': 'Aether AI Studio 3.6.1 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.6.2 • Liquid Glass Optics & Live Canvas',
     'system_desc': '已就绪支持 Ollama 本地开源模型与各主流云端 LLM 引擎。',
     'eco_mode_on': '⚡ 节省硬件效能模式：已开启 (点击关闭)',
     'eco_mode_off': '⚡ 节省硬件效能模式：已关闭 (点击开启)',
@@ -449,6 +452,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'edit_prompt': '修改提示词',
     'save_and_resend': '保存并重新发送',
     'cancel_edit': '取消',
+    'load_to_input': '填入输入框编辑',
+    'no_model_selected': '未选取模型',
+    'no_models_installed_hint': '请先下载模型或配置 API Key',
 
     // Settings Modal
     'settings_center': 'Aether AI Studio 设置中心',
@@ -745,7 +751,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': 'Enterprise Autonomous AI Workstation',
-    'system_title': 'Aether AI Studio 3.6.1 • Liquid Glass Optics & Live Canvas',
+    'system_title': 'Aether AI Studio 3.6.2 • Liquid Glass Optics & Live Canvas',
     'system_desc': 'Engineered for Ollama local models and major cloud LLM providers.',
     'eco_mode_on': '⚡ Hardware-Saving Mode: Enabled (Click to disable)',
     'eco_mode_off': '⚡ Hardware-Saving Mode: Disabled (Click to enable)',
@@ -817,6 +823,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'edit_prompt': 'Edit Prompt',
     'save_and_resend': 'Save & Resend',
     'cancel_edit': 'Cancel',
+    'load_to_input': 'Load into Input',
+    'no_model_selected': 'No model selected',
+    'no_models_installed_hint': 'Please pull a model or configure API Key',
 
     // Settings Modal
     'settings_center': 'Aether AI Studio Settings Center',
@@ -1113,7 +1122,7 @@ export const translations: Record<Language, TranslationRecord> = {
     // Brand & System
     'brand_name': 'Aether AI Studio',
     'brand_subtitle': '企業級自律型AIワークステーション',
-    'system_title': 'Aether AI Studio 3.6.1 • Liquid Glass 先進オプティクス & Live Canvas',
+    'system_title': 'Aether AI Studio 3.6.2 • Liquid Glass 先進オプティクス & Live Canvas',
     'system_desc': 'Ollama ローカルモデルおよび主要クラウド LLM エンジンに対応しています。',
     'eco_mode_on': '⚡ 省電力・低負荷モード：有効 (クリックで無効化)',
     'eco_mode_off': '⚡ 省電力・低負荷モード：無効 (クリックで有効化)',
@@ -1183,6 +1192,9 @@ export const translations: Record<Language, TranslationRecord> = {
     'edit_prompt': 'プロンプトを編集',
     'save_and_resend': '保存して再送信',
     'cancel_edit': 'キャンセル',
+    'load_to_input': '入力欄に読み込む',
+    'no_model_selected': 'モデル未選択',
+    'no_models_installed_hint': 'モデルを取得するか API キーを設定してください',
 
     // Settings Modal
     'settings_center': 'Aether AI Studio 設定センター',

@@ -120,6 +120,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           const shouldSwitchDefault = !prev.model || !data.models.includes(prev.model);
           return shouldSwitchDefault ? { ...prev, model: data.models[0] } : prev;
         });
+      } else {
+        if (onModelsDetected) {
+          onModelsDetected([]);
+        }
+        if (['ollama', 'lm_studio', 'openai_compatible'].includes(targetConfig.provider)) {
+          setFormData((prev) => ({ ...prev, model: '' }));
+        }
       }
     } catch (err: any) {
       setTestResult({ success: false, error: err.message || '無法連線至後端伺服器' });

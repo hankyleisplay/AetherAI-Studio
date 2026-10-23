@@ -339,8 +339,10 @@ export const Header: React.FC<HeaderProps> = ({
                 {modelConfig.provider}
               </span>
               <span className="text-slate-400">/</span>
-              <span className="font-mono text-slate-200 truncate max-w-[85px] sm:max-w-[130px] md:max-w-[160px]">
-                {modelConfig.model}
+              <span className={`font-mono truncate max-w-[85px] sm:max-w-[130px] md:max-w-[160px] ${
+                modelConfig.model ? 'text-slate-200' : 'text-amber-300 font-semibold text-[11px]'
+              }`}>
+                {modelConfig.model || t('no_model_selected', '未選取模型')}
               </span>
               <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-200 ${isModelMenuOpen ? 'rotate-180' : ''}`} />
             </button>
@@ -407,8 +409,11 @@ export const Header: React.FC<HeaderProps> = ({
                     );
                   })
                 ) : (
-                  <div className="px-3 py-3 text-center text-xs text-slate-400">
-                    {t('no_models_detected', '尚未探測到模型')}
+                  <div className="px-3 py-3 text-center text-xs text-amber-300/90 space-y-1">
+                    <div className="font-semibold">{t('no_models_detected', '尚未探測到模型')}</div>
+                    <div className="text-[10px] text-slate-400">
+                      {t('no_models_installed_hint', '請先下載模型或設定 API Key')}
+                    </div>
                   </div>
                 )}
               </div>

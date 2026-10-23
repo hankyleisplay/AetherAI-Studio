@@ -245,7 +245,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
         <div className="p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-slate-300 text-[11px] leading-relaxed">
           <div className="flex items-center gap-2 text-cyan-300 font-semibold mb-1">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Aether Code Terminal v3.6.1 • Claude Code Engine</span>
+            <span>Aether Code Terminal v3.6.2 • Claude Code Engine</span>
           </div>
           <div className="text-slate-400">
             {t('code_mode_desc', '直接在專案目錄下寫程式、讀取與修改檔案、執行終端指令、自主測試與除錯。')}

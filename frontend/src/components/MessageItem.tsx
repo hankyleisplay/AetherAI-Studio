@@ -21,7 +21,8 @@ import {
   Loader2,
   RotateCw,
   Zap,
-  Pencil
+  Pencil,
+  ArrowDownToLine
 } from 'lucide-react';
 import { Message, Persona, AgentState } from '../types';
 import { ToolCallCard } from './ToolCallCard';
@@ -34,6 +35,7 @@ interface MessageItemProps {
   isStreaming?: boolean;
   onBookmarkToggle?: (messageId: string) => void;
   onEditPrompt?: (messageId: string, newContent: string) => void;
+  onLoadToInput?: (content: string) => void;
   persona?: Persona;
   agentState?: AgentState;
 }
@@ -43,6 +45,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   isStreaming,
   onBookmarkToggle,
   onEditPrompt,
+  onLoadToInput,
   persona,
   agentState
 }) => {
@@ -247,6 +250,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   className="w-full p-3.5 rounded-2xl bg-black/75 border border-cyan-400/60 text-slate-100 text-sm md:text-[15px] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 font-sans leading-relaxed resize-y shadow-2xl backdrop-blur-xl"
                   autoFocus
                   onKeyDown={(e) => {
+                    if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault();
                       if (editContent.trim() && onEditPrompt) {
@@ -272,13 +276,14 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   </button>
                   <button
                     type="button"
+                    disabled={!editContent.trim()}
                     onClick={() => {
                       if (editContent.trim() && onEditPrompt) {
                         onEditPrompt(message.id, editContent.trim());
                         setIsEditing(false);
                       }
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all flex items-center gap-1.5 cursor-pointer"
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Zap className="w-3.5 h-3.5 fill-slate-950" />
                     <span>{t('save_and_resend', '儲存並重新發送')}</span>
@@ -309,6 +314,18 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                 >
                   <Pencil className="w-3.5 h-3.5" />
                   <span className="hidden sm:inline">{t('edit_prompt', '更改提示詞')}</span>
+                </button>
+              )}
+
+              {/* Load prompt into input dock */}
+              {onLoadToInput && !isEditing && (
+                <button
+                  onClick={() => onLoadToInput(message.content)}
+                  className="p-1 px-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-300 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={t('load_to_input', '填入輸入框編輯')}
+                >
+                  <ArrowDownToLine className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('load_to_input', '填入輸入框')}</span>
                 </button>
               )}
 

@@ -594,6 +594,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               isStreaming={isStreaming && idx === messages.length - 1 && m.role === 'assistant'}
               onBookmarkToggle={onBookmarkToggle}
               onEditPrompt={onEditPrompt}
+              onLoadToInput={(content) => {
+                setInputText(content);
+                if (textareaRef.current) {
+                  textareaRef.current.focus();
+                }
+              }}
               persona={personas.find(p => p.id === m.persona_id) || activePersona}
               agentState={isStreaming && idx === messages.length - 1 ? agentState : undefined}
             />

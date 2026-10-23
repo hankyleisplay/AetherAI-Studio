@@ -532,7 +532,8 @@ class AgentOrchestrator:
                         role="assistant",
                         content=full_content or f"❌ 執行錯誤: {chunk.content}",
                         thought=full_thought,
-                        tool_calls=executed_tool_calls
+                        tool_calls=executed_tool_calls,
+                        msg_id=assistant_message_id
                     )
                     return
 

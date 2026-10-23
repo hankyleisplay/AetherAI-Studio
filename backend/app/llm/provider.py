@@ -8,7 +8,7 @@ class ModelConfig(BaseModel):
     provider: str = "ollama"  # "ollama", "openai_compatible", "anthropic", "gemini"
     base_url: str = "http://localhost:11434"
     api_key: Optional[str] = None
-    model: str = "llama3:latest"
+    model: str = ""
     temperature: float = 0.7
     max_tokens: int = 8192
     context_window: int = 16384
@@ -26,9 +26,9 @@ class UnifiedLLMClient:
         self.config = config
 
     DEFAULT_PROVIDER_MODELS: Dict[str, List[str]] = {
-        "ollama": ["llama3:latest", "qwen2.5:7b", "deepseek-r1:8b", "gemma2:9b", "mistral:latest"],
-        "openai_compatible": ["local-model"],
-        "lm_studio": ["local-model"],
+        "ollama": [],
+        "openai_compatible": [],
+        "lm_studio": [],
         "deepseek": ["deepseek-chat", "deepseek-reasoner"],
         "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini", "o1"],
         "anthropic": ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
@@ -62,7 +62,7 @@ class UnifiedLLMClient:
                                 return {
                                     "success": True,
                                     "latency_ms": latency,
-                                    "models": models if models else fallback_models,
+                                    "models": models,
                                     "installed_count": len(models),
                                     "provider": "ollama"
                                 }
@@ -102,8 +102,8 @@ class UnifiedLLMClient:
 
                     return {
                         "success": False,
-                        "error": f"無法連線至本機 Ollama 服務 ({last_err or '未啟動'})，已載入預設模型清單供選擇。",
-                        "models": fallback_models,
+                        "error": f"無法連線至本機 Ollama 服務 ({last_err or '未啟動'})",
+                        "models": [],
                         "provider": "ollama"
                     }
 
@@ -132,20 +132,32 @@ class UnifiedLLMClient:
                             pass
 
                     latency = round((time.time() - start) * 1000, 1)
-                    return {
-                        "success": bool(self.config.api_key or provider in ["openai_compatible", "lm_studio"]),
-                        "latency_ms": latency,
-                        "models": fallback_models,
-                        "error": None if (self.config.api_key or provider in ["openai_compatible", "lm_studio"]) else "尚未填寫 API Key，已預載官方可用模型清單。",
-                        "provider": provider
-                    }
+                    if provider in ["openai_compatible", "lm_studio"]:
+                        return {
+                            "success": False,
+                            "latency_ms": latency,
+                            "models": [],
+                            "error": f"無法連線至 {provider} 服務或尚未載入模型",
+                            "provider": provider
+                        }
+                    else:
+                        has_key = bool(self.config.api_key and self.config.api_key.strip())
+                        return {
+                            "success": has_key,
+                            "latency_ms": latency,
+                            "models": fallback_models if has_key else [],
+                            "error": None if has_key else f"尚未填寫 {provider} API Key",
+                            "provider": provider
+                        }
 
                 elif provider == "anthropic":
                     latency = round((time.time() - start) * 1000, 1)
+                    has_key = bool(self.config.api_key and self.config.api_key.strip())
                     return {
-                        "success": True,
+                        "success": has_key,
                         "latency_ms": latency,
-                        "models": fallback_models,
+                        "models": fallback_models if has_key else [],
+                        "error": None if has_key else "尚未填寫 Anthropic API Key",
                         "provider": "anthropic"
                     }
 
@@ -166,22 +178,26 @@ class UnifiedLLMClient:
                                     if "generateContent" in methods:
                                         name = m.get("name", "").replace("models/", "")
                                         valid_models.append(name)
-                                if valid_models:
-                                    prioritized = [m for m in fallback_models if m in valid_models] + [m for m in valid_models if m not in fallback_models]
-                                    return {"success": True, "latency_ms": latency, "models": prioritized, "provider": "gemini"}
+                                return {"success": True, "latency_ms": latency, "models": valid_models, "provider": "gemini"}
                             elif resp.status_code in (400, 403):
                                 return {
                                     "success": False,
-                                    "error": "Gemini API Key 無效或未授權，已預載官方模型清單",
-                                    "models": fallback_models,
+                                    "error": "Gemini API Key 無效或未授權",
+                                    "models": [],
                                     "provider": "gemini"
                                 }
-                        except Exception:
-                            pass
+                        except Exception as e:
+                            return {
+                                "success": False,
+                                "error": f"Gemini 連線異常: {str(e)}",
+                                "models": [],
+                                "provider": "gemini"
+                            }
                     return {
-                        "success": True,
+                        "success": False,
                         "latency_ms": latency,
-                        "models": fallback_models,
+                        "models": [],
+                        "error": "尚未填寫 Gemini API Key",
                         "provider": "gemini"
                     }
 

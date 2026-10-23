@@ -169,19 +169,30 @@ async def get_active_model_config():
         cfg = ModelConfig(
             provider="ollama",
             base_url="http://localhost:11434",
-            model="llama3:latest",
+            model="",
             temperature=0.7,
             max_tokens=8192
         )
 
-    # Auto-probe local Ollama if no custom model was saved or if default llama3:latest isn't installed
-    if cfg.provider == "ollama" and (not saved or cfg.model == "llama3:latest"):
+    # Auto-probe local Ollama: sync actual installed models, never load fake models!
+    if cfg.provider == "ollama":
         try:
             probe = await UnifiedLLMClient(cfg).test_connection()
             models = probe.get("models") or []
-            if probe.get("success") and models and cfg.model not in models:
-                cfg.model = models[0]
-                db.set_setting("active_model_config", cfg.model_dump())
+            if probe.get("success") and models:
+                if not cfg.model or cfg.model not in models:
+                    cfg.model = models[0]
+                    db.set_setting("active_model_config", cfg.model_dump())
+            elif probe.get("success") and not models:
+                # Connected to Ollama, but no models installed!
+                if cfg.model:
+                    cfg.model = ""
+                    db.set_setting("active_model_config", cfg.model_dump())
+            elif not probe.get("success"):
+                # Ollama is not connected; clear fake default if any
+                if cfg.model in ["llama3:latest", "local-model"]:
+                    cfg.model = ""
+                    db.set_setting("active_model_config", cfg.model_dump())
         except Exception:
             pass
 
@@ -274,9 +285,35 @@ async def chat_stream(request: ChatRequest):
             active_config = ModelConfig(
                 provider="ollama",
                 base_url="http://localhost:11434",
-                model="llama3:latest",
+                model="",
                 max_tokens=8192
             )
+
+    # Validate that an active model is configured
+    if not active_config.model or not active_config.model.strip():
+        # Check if local provider has any installed models
+        try:
+            probe = await UnifiedLLMClient(active_config).test_connection()
+            models = probe.get("models") or []
+            if probe.get("success") and models:
+                active_config.model = models[0]
+                db.set_setting("active_model_config", active_config.model_dump())
+        except Exception:
+            pass
+
+    if not active_config.model or not active_config.model.strip():
+        async def no_model_generator():
+            yield {
+                "event": "session_info",
+                "data": json.dumps({"session_id": session_id}, ensure_ascii=False)
+            }
+            yield {
+                "event": "error",
+                "data": json.dumps({
+                    "error": "❌ 尚未安裝或選取任何 AI 模型。若使用 Ollama，請先在終端機執行 'ollama pull <模型名稱>'（例如 ollama pull llama3 或 ollama pull qwen2.5:7b）下載模型，或至右上角「設定」配置端點或 API Key。"
+                }, ensure_ascii=False)
+            }
+        return EventSourceResponse(no_model_generator())
 
     # Code Mode Context Window Expansion & Max Tokens Relaxation
     if request.mode == "code":
