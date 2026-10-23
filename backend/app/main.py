@@ -967,10 +967,26 @@ async def serve_spa(full_path: str):
     if full_path:
         file_path = (FRONTEND_DIST / full_path).resolve()
         if file_path.is_relative_to(FRONTEND_DIST) and file_path.exists() and file_path.is_file():
+            if file_path.suffix.lower() == ".html":
+                return FileResponse(
+                    str(file_path),
+                    headers={
+                        "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                        "Pragma": "no-cache",
+                        "Expires": "0"
+                    }
+                )
             return FileResponse(str(file_path))
     index_file = FRONTEND_DIST / "index.html"
     if index_file.exists():
-        return FileResponse(str(index_file))
+        return FileResponse(
+            str(index_file),
+            headers={
+                "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
+                "Pragma": "no-cache",
+                "Expires": "0"
+            }
+        )
     raise HTTPException(status_code=404, detail="index.html not found in frontend/dist.")
 
 

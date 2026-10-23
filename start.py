@@ -256,6 +256,11 @@ def launch_desktop_window(url: str, low_spec: bool = False):
     profile_dir = Path.home() / ".aether" / "desktop_profile"
     try:
         profile_dir.mkdir(parents=True, exist_ok=True)
+        # Purge stale disk cache so newest assets and HTML are guaranteed to load immediately
+        for stale_sub in ["Cache", "Code Cache"]:
+            stale_path = profile_dir / "Default" / stale_sub
+            if stale_path.exists():
+                shutil.rmtree(stale_path, ignore_errors=True)
     except Exception:
         profile_dir = None
 
@@ -270,6 +275,8 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                     "--disable-extensions",
                     "--no-first-run",
                     "--no-default-browser-check",
+                    "--disable-http-cache",
+                    "--disable-application-cache",
                 ]
                 if profile_dir:
                     cmd.append(f"--user-data-dir={profile_dir}")

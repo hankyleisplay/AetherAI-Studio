@@ -532,10 +532,22 @@ fn apply_update() -> Result<String, String> {
             }
         }
 
+        // 5. Purge Chromium profile caches so updated assets and HTML load immediately
+        let home = env::var("USERPROFILE").unwrap_or_default();
+        let cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Cache");
+        let code_cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Code Cache");
+        let _ = std::fs::remove_dir_all(&cache_dir);
+        let _ = std::fs::remove_dir_all(&code_cache_dir);
+
         Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件！".to_string())
     } else {
         // Non-git installation: download and update files directly
         download_and_extract_repo(&project_dir)?;
+        let home = env::var("USERPROFILE").unwrap_or_default();
+        let cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Cache");
+        let code_cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Code Cache");
+        let _ = std::fs::remove_dir_all(&cache_dir);
+        let _ = std::fs::remove_dir_all(&code_cache_dir);
         Ok("✅ 已成功下載並更新最新核心檔案！".to_string())
     }
 }

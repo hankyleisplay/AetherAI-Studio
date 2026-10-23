@@ -10,6 +10,7 @@ const I18N = {
     btn_recheck: "🔄 重新檢查",
     update_available_title: "發現新版本 v{version}！",
     btn_update_now: "⚡ 立即更新專案",
+    btn_update_full: "⚡ 一鍵全面更新 (專案與啟動器)",
     btn_updating: "正在更新中...",
     btn_update_launcher: "🚀 更新啟動器",
     btn_updating_launcher: "正在下載並更換啟動器...",
@@ -84,6 +85,7 @@ const I18N = {
     btn_recheck: "🔄 重新检查",
     update_available_title: "发现新版本 v{version}！",
     btn_update_now: "⚡ 立即更新项目",
+    btn_update_full: "⚡ 一键全面更新 (项目与启动器)",
     btn_updating: "正在更新中...",
     btn_update_launcher: "🚀 更新启动器",
     btn_updating_launcher: "正在下载并更换启动器...",
@@ -158,6 +160,7 @@ const I18N = {
     btn_recheck: "🔄 Recheck",
     update_available_title: "New Version Available: v{version}!",
     btn_update_now: "⚡ Update Project",
+    btn_update_full: "⚡ One-Click Full Update (App & Launcher)",
     btn_updating: "Updating...",
     btn_update_launcher: "🚀 Update Launcher",
     btn_updating_launcher: "Downloading new launcher...",
@@ -641,29 +644,35 @@ function renderUpdateResult(res) {
     updateTitle.textContent = t("update_available_title", { version: res.latest_version });
     updateDesc.textContent = res.release_name || res.published_at || "";
 
-    // 1. Update Project Code Button
+    // 1. One-Click Full Update (Project + Launcher) Button
     const btnUpdateProject = document.createElement("button");
     btnUpdateProject.className = "btn-update-now";
-    btnUpdateProject.textContent = t("btn_update_now");
+    btnUpdateProject.textContent = res.launcher_download_url ? t("btn_update_full") : t("btn_update_now");
     btnUpdateProject.onclick = async () => {
       btnUpdateProject.disabled = true;
       btnUpdateProject.textContent = t("btn_updating");
       try {
         const pullMsg = await invoke("apply_update");
+        if (res.launcher_download_url) {
+          btnUpdateProject.textContent = t("btn_updating_launcher");
+          await invoke("self_update_launcher", { downloadUrl: res.launcher_download_url });
+          return;
+        }
         updateBanner.className = "update-banner state-latest";
         updateIcon.textContent = "✅";
         updateTitle.textContent = t("update_success_title");
         updateDesc.textContent = pullMsg;
         btnUpdateProject.remove();
+        await loadSystemInfo();
       } catch (e) {
         alert(t("update_failed") + e);
         btnUpdateProject.disabled = false;
-        btnUpdateProject.textContent = t("btn_update_now");
+        btnUpdateProject.textContent = res.launcher_download_url ? t("btn_update_full") : t("btn_update_now");
       }
     };
     updateAction.appendChild(btnUpdateProject);
 
-    // 2. Update Launcher Binary Button
+    // 2. Optional standalone Launcher Binary Update Button if user specifically wants launcher-only
     if (res.launcher_download_url) {
       const btnUpdateLauncher = document.createElement("button");
       btnUpdateLauncher.className = "btn-ghost";
