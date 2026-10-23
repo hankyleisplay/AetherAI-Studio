@@ -189,147 +189,18 @@ export const Header: React.FC<HeaderProps> = ({
           {getStateBadge()}
         </div>
 
-        {/* Mode Switcher Capsule (Chat vs Code) */}
-        {onToggleMode && (
-          <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/10 shrink-0 ml-1">
-            <button
-              onClick={() => onToggleMode('chat')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                mode === 'chat'
-                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title={t('mode_chat', '對話模式 (Chat)')}
-            >
-              <MessageSquare className="w-3.5 h-3.5" />
-              <span className="hidden md:inline">{t('mode_chat', '對話')}</span>
-            </button>
-
-            <button
-              onClick={() => onToggleMode('code')}
-              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
-                mode === 'code'
-                  ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title={t('mode_code', 'Code 模式 (Claude Code)')}
-            >
-              <Terminal className="w-3.5 h-3.5 text-emerald-200" />
-              <span className="hidden md:inline">Code</span>
-            </button>
-          </div>
-        )}
-
-        {/* Code Mode: Project Selector Capsule */}
+        {/* Code Mode: Compact status badge (Click to configure project) */}
         {mode === 'code' && (
-          <div className="relative flex items-center shrink-0 ml-1" ref={projectDropdownRef}>
-            <button
-              onClick={() => setIsProjectMenuOpen(!isProjectMenuOpen)}
-              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-sm"
-              title="切換或建立工程專案"
-            >
-              <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-              <span className="font-bold truncate max-w-[80px] sm:max-w-[120px]">
-                {activeProject || t('root_workspace', 'Root')}
-              </span>
-              <ChevronDown className={`w-3 h-3 text-cyan-400 transition-transform ${isProjectMenuOpen ? 'rotate-180' : ''}`} />
-            </button>
-
-            {isProjectMenuOpen && (
-              <div className="absolute left-0 top-full mt-2 w-60 glass-modal rounded-2xl border border-white/15 py-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl bg-[#0b101e]/95">
-                <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
-                  <span>{t('projects_title', '專案管理')}</span>
-                  {onOpenNewProject && (
-                    <button
-                      onClick={() => {
-                        setIsProjectMenuOpen(false);
-                        onOpenNewProject();
-                      }}
-                      className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] normal-case"
-                    >
-                      <Plus className="w-3 h-3" />
-                      <span>{t('new_project', '新建專案')}</span>
-                    </button>
-                  )}
-                </div>
-
-                <div className="max-h-52 overflow-y-auto py-1">
-                  <button
-                    onClick={() => {
-                      if (onSelectProject) onSelectProject(null);
-                      setIsProjectMenuOpen(false);
-                    }}
-                    className={`w-full px-3 py-2 text-left text-xs font-mono flex items-center justify-between ${
-                      activeProject === null ? 'bg-cyan-500/15 text-cyan-300 font-bold' : 'text-slate-300 hover:bg-white/10'
-                    }`}
-                  >
-                    <span>{t('root_workspace', '工作區根目錄 (Root)')}</span>
-                    {activeProject === null && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                  </button>
-                  {projects.map((p) => {
-                    const isSelected = activeProject === p.name;
-                    return (
-                      <button
-                        key={p.name}
-                        onClick={() => {
-                          if (onSelectProject) onSelectProject(p.name);
-                          setIsProjectMenuOpen(false);
-                        }}
-                        className={`w-full px-3 py-2 text-left text-xs font-mono flex items-center justify-between ${
-                          isSelected ? 'bg-cyan-500/15 text-cyan-300 font-bold' : 'text-slate-300 hover:bg-white/10'
-                        }`}
-                      >
-                        <span className="truncate pr-2">{p.name}</span>
-                        {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                      </button>
-                    );
-                  })}
-                </div>
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Code Mode: Execution Mode Capsule (Auto / Accept Edit / Turbo) */}
-        {mode === 'code' && (
-          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-black/40 border border-white/10 shrink-0 text-[11px] font-mono ml-1">
-            <button
-              type="button"
-              onClick={() => onCodeExecutionModeChange?.('auto')}
-              className={`px-2 py-1 rounded-lg transition-all ${
-                codeExecutionMode === 'auto'
-                  ? 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Auto 模式: 全自主讀寫程式碼與自我除錯"
-            >
-              🤖 Auto
-            </button>
-            <button
-              type="button"
-              onClick={() => onCodeExecutionModeChange?.('accept_edit')}
-              className={`px-2 py-1 rounded-lg transition-all ${
-                codeExecutionMode === 'accept_edit'
-                  ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Accept Edit 模式: 檔案修改前呈現 Diff 需經確認"
-            >
-              🛡️ Accept
-            </button>
-            <button
-              type="button"
-              onClick={() => onCodeExecutionModeChange?.('turbo')}
-              className={`px-2 py-1 rounded-lg transition-all ${
-                codeExecutionMode === 'turbo'
-                  ? 'bg-fuchsia-500/30 text-fuchsia-300 font-bold border border-fuchsia-500/40 shadow-sm'
-                  : 'text-slate-400 hover:text-slate-200'
-              }`}
-              title="Turbo 模式: 極速生成代碼，精簡思維鋪陳"
-            >
-              ⚡ Turbo
-            </button>
-          </div>
+          <button
+            type="button"
+            onClick={onOpenNewProject}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-all shrink-0 ml-1 shadow-sm"
+            title="點擊設定 Code 專案與執行模式"
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="font-bold truncate max-w-[110px]">{activeProject || 'Root'}</span>
+            <span className="text-[10px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200 uppercase font-mono">{codeExecutionMode}</span>
+          </button>
         )}
       </div>
 

@@ -851,6 +851,38 @@ export const App: React.FC = () => {
         onUpdateSessionTitle={(id, title) => {
           setSessions(prev => prev.map(s => s.id === id ? { ...s, title } : s));
         }}
+        mode={mode}
+        onToggleMode={(m) => {
+          if (m === 'code') {
+            setIsNewProjectModalOpen(true);
+          } else {
+            setMode('chat');
+            setIsTerminalOpen(false);
+            try {
+              localStorage.setItem('aether_mode', 'chat');
+            } catch {}
+          }
+        }}
+        projects={projects}
+        activeProject={activeProject}
+        onSelectProject={async (p) => {
+          try {
+            await fetch('/api/projects/select', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ name: p })
+            });
+            setActiveProject(p);
+            fetchProjects();
+          } catch (err) {
+            console.error('Failed to select project:', err);
+          }
+        }}
+        onOpenNewProject={() => setIsNewProjectModalOpen(true)}
+        codeExecutionMode={codeExecutionMode}
+        onCodeExecutionModeChange={handleSetCodeExecutionMode}
+        isTerminalOpen={isTerminalOpen}
+        onToggleTerminal={() => setIsTerminalOpen(prev => !prev)}
       />
 
       {/* Main Chat Workspace Area */}
@@ -877,15 +909,7 @@ export const App: React.FC = () => {
           mode={mode}
           onToggleMode={(m) => {
             if (m === 'code') {
-              if (!activeProject) {
-                setIsNewProjectModalOpen(true);
-              } else {
-                setMode('code');
-                setIsTerminalOpen(true);
-                try {
-                  localStorage.setItem('aether_mode', 'code');
-                } catch {}
-              }
+              setIsNewProjectModalOpen(true);
             } else {
               setMode('chat');
               setIsTerminalOpen(false);
@@ -929,6 +953,12 @@ export const App: React.FC = () => {
           onTemperatureChange={handleTemperatureChange}
           personas={personas}
           activePersona={activePersona}
+          mode={mode}
+          activeProject={activeProject}
+          codeExecutionMode={codeExecutionMode}
+          onOpenNewProject={() => setIsNewProjectModalOpen(true)}
+          isTerminalOpen={isTerminalOpen}
+          onToggleTerminal={() => setIsTerminalOpen(prev => !prev)}
         />
       </div>
 

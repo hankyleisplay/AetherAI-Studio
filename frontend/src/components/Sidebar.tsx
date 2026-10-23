@@ -12,9 +12,13 @@ import {
   Cpu,
   PanelLeftClose,
   Star,
-  X
+  X,
+  FolderGit2,
+  ChevronDown,
+  Bot,
+  Zap
 } from 'lucide-react';
-import { Session, Persona, Message } from '../types';
+import { Session, Persona, Message, CodeExecutionMode } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 
 interface SidebarProps {
@@ -35,6 +39,16 @@ interface SidebarProps {
   onSelectBookmark?: (sessionId: string, messageId: string) => void;
   onBookmarkToggle?: (messageId: string) => void;
   onUpdateSessionTitle?: (id: string, newTitle: string) => void;
+  mode?: 'chat' | 'code';
+  onToggleMode?: (m: 'chat' | 'code') => void;
+  projects?: Array<{ name: string; path: string; file_count: number }>;
+  activeProject?: string | null;
+  onSelectProject?: (name: string | null) => void;
+  onOpenNewProject?: () => void;
+  codeExecutionMode?: CodeExecutionMode;
+  onCodeExecutionModeChange?: (mode: CodeExecutionMode) => void;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -55,6 +69,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onSelectBookmark,
   onBookmarkToggle,
   onUpdateSessionTitle,
+  mode = 'chat',
+  onToggleMode,
+  projects = [],
+  activeProject = null,
+  onSelectProject,
+  onOpenNewProject,
+  codeExecutionMode = 'auto',
+  onCodeExecutionModeChange,
+  isTerminalOpen = false,
+  onToggleTerminal
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'sessions' | 'bookmarks'>('sessions');
@@ -198,6 +222,148 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <PanelLeftClose className="w-4 h-4" />
             </button>
           </div>
+
+          {/* Work Mode Switcher: Chat vs Code */}
+          <div className="px-3 pt-3 pb-1">
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/40 border border-white/10 backdrop-blur-md">
+              <button
+                type="button"
+                onClick={() => onToggleMode?.('chat')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  mode === 'chat'
+                    ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={t('mode_chat', '對話模式 (Chat)')}
+              >
+                <MessageSquare className="w-3.5 h-3.5" />
+                <span>{t('mode_chat_short', '對話模式')}</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => onToggleMode?.('code')}
+                className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                  mode === 'code'
+                    ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_14px_rgba(16,185,129,0.35)] font-bold'
+                    : 'text-slate-400 hover:text-slate-200'
+                }`}
+                title={t('mode_code', 'Code 模式 (Claude Code)')}
+              >
+                <Terminal className="w-3.5 h-3.5 text-emerald-200" />
+                <span>Code 模式</span>
+              </button>
+            </div>
+          </div>
+
+          {/* Code Mode Workspace Hub Panel in Sidebar */}
+          {mode === 'code' && (
+            <div className="mx-3 my-2 p-2.5 rounded-2xl bg-emerald-950/30 border border-emerald-500/30 space-y-2.5 shadow-[0_0_20px_rgba(16,185,129,0.12)] animate-in fade-in zoom-in-95 duration-150">
+              {/* Project Card */}
+              <div>
+                <div className="flex items-center justify-between text-[10px] font-bold text-emerald-400 uppercase tracking-wider mb-1">
+                  <span>{t('active_project_label', '當前專案')}</span>
+                  {onOpenNewProject && (
+                    <button
+                      type="button"
+                      onClick={onOpenNewProject}
+                      className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] normal-case"
+                      title="選擇資料夾 / 新建專案"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{t('new_project', '新建/切換')}</span>
+                    </button>
+                  )}
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenNewProject}
+                  className="w-full flex items-center justify-between p-2 rounded-xl bg-black/40 border border-emerald-500/30 hover:border-emerald-400 text-xs font-mono text-cyan-200 transition-all text-left group"
+                  title="點擊切換專案或自訂資料夾路徑"
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <FolderGit2 className="w-4 h-4 text-emerald-400 shrink-0" />
+                    <span className="font-bold truncate">
+                      {activeProject || t('root_workspace', '工作區根目錄 (Root)')}
+                    </span>
+                  </div>
+                  <ChevronDown className="w-3.5 h-3.5 text-slate-400 group-hover:text-white shrink-0" />
+                </button>
+              </div>
+
+              {/* Execution Mode (Auto / Accept Edit / Turbo) */}
+              <div>
+                <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider mb-1.5">
+                  {t('execution_mode_title', '執行模式 (Execution Mode)')}
+                </div>
+                <div className="grid grid-cols-3 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => onCodeExecutionModeChange?.('auto')}
+                    className={`p-1.5 rounded-lg text-center transition-all ${
+                      codeExecutionMode === 'auto'
+                        ? 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-400/60 shadow-sm'
+                        : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                    title="Auto 模式: 全自主讀寫程式碼與自我除錯"
+                  >
+                    <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
+                      <Bot className="w-3 h-3 text-emerald-400" />
+                      <span>Auto</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onCodeExecutionModeChange?.('accept_edit')}
+                    className={`p-1.5 rounded-lg text-center transition-all ${
+                      codeExecutionMode === 'accept_edit'
+                        ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-400/60 shadow-sm'
+                        : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                    title="Accept Edit 模式: 檔案修改前呈現 Diff 需經確認"
+                  >
+                    <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
+                      <ShieldCheck className="w-3 h-3 text-amber-400" />
+                      <span>Accept</span>
+                    </div>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => onCodeExecutionModeChange?.('turbo')}
+                    className={`p-1.5 rounded-lg text-center transition-all ${
+                      codeExecutionMode === 'turbo'
+                        ? 'bg-fuchsia-500/30 text-fuchsia-300 font-bold border border-fuchsia-400/60 shadow-sm'
+                        : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
+                    }`}
+                    title="Turbo 模式: 極速生成代碼，精簡思維鋪陳"
+                  >
+                    <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
+                      <Zap className="w-3 h-3 text-fuchsia-400" />
+                      <span>Turbo</span>
+                    </div>
+                  </button>
+                </div>
+              </div>
+
+              {/* Terminal Shortcut Button */}
+              {onToggleTerminal && (
+                <button
+                  type="button"
+                  onClick={onToggleTerminal}
+                  className={`w-full py-1.5 px-2.5 rounded-xl text-xs font-mono flex items-center justify-center gap-2 transition-all ${
+                    isTerminalOpen
+                      ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-400/50 shadow-[0_0_12px_rgba(16,185,129,0.3)] font-bold'
+                      : 'bg-black/40 text-slate-300 hover:text-white border border-white/10 hover:border-emerald-500/30'
+                  }`}
+                >
+                  <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                  <span>{isTerminalOpen ? '收合右側終端機' : '展開右側終端機 (>_)'}</span>
+                </button>
+              )}
+            </div>
+          )}
 
           {/* Action: New Chat */}
           <div className="p-3 pb-2">

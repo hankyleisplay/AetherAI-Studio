@@ -19,7 +19,9 @@ import {
   Sliders,
   Compass,
   Target,
-  Image as ImageIcon
+  Image as ImageIcon,
+  Terminal,
+  FolderGit2
 } from 'lucide-react';
 import { Message, AgentState, Persona } from '../types';
 import { MessageItem } from './MessageItem';
@@ -45,6 +47,12 @@ interface ChatViewProps {
   onTemperatureChange?: (temp: number) => void;
   personas?: Persona[];
   activePersona?: Persona;
+  mode?: 'chat' | 'code';
+  activeProject?: string | null;
+  codeExecutionMode?: 'auto' | 'accept_edit' | 'turbo';
+  onOpenNewProject?: () => void;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -58,7 +66,13 @@ export const ChatView: React.FC<ChatViewProps> = ({
   temperature = 0.7,
   onTemperatureChange,
   personas = [],
-  activePersona
+  activePersona,
+  mode = 'chat',
+  activeProject = null,
+  codeExecutionMode = 'auto',
+  onOpenNewProject,
+  isTerminalOpen = false,
+  onToggleTerminal
 }) => {
   const { t, currentLang } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -611,6 +625,46 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Reasoning Tuning Capsule & Chat Input Dock */}
       <div className="p-3 md:p-5 max-w-4xl w-full mx-auto space-y-2">
+        
+        {/* Code Mode Active Banner & Controls */}
+        {mode === 'code' && (
+          <div className="flex items-center justify-between px-3.5 py-2 rounded-xl bg-emerald-950/40 border border-emerald-500/35 backdrop-blur-md text-xs font-mono shadow-sm animate-in fade-in duration-150">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="flex items-center gap-1.5 text-emerald-400 font-bold shrink-0">
+                <Terminal className="w-3.5 h-3.5 text-emerald-400" />
+                <span className="hidden sm:inline">Code 模式:</span>
+              </span>
+              <button
+                type="button"
+                onClick={onOpenNewProject}
+                className="text-cyan-300 hover:text-cyan-200 underline decoration-cyan-500/50 flex items-center gap-1 font-semibold truncate max-w-[150px] sm:max-w-[220px]"
+                title="點擊切換專案或工作資料夾"
+              >
+                <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+                <span className="truncate">{activeProject || 'Root (工作區根目錄)'}</span>
+              </button>
+              <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-300 text-[10px] border border-emerald-500/40 font-bold uppercase shrink-0">
+                {codeExecutionMode}
+              </span>
+            </div>
+
+            {onToggleTerminal && (
+              <button
+                type="button"
+                onClick={onToggleTerminal}
+                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[11px] font-semibold transition-all shrink-0 ${
+                  isTerminalOpen
+                    ? 'bg-emerald-500/25 text-emerald-300 border border-emerald-500/40 font-bold shadow-[0_0_10px_rgba(16,185,129,0.25)]'
+                    : 'text-slate-300 hover:text-white bg-white/5 hover:bg-white/10'
+                }`}
+                title="開啟或收合右側終端機"
+              >
+                <Terminal className="w-3 h-3 text-emerald-400" />
+                <span>{isTerminalOpen ? '收合終端機' : '展開終端機 (>_)'}</span>
+              </button>
+            )}
+          </div>
+        )}
         
         {/* Inline Reasoning Temperature Capsule */}
         {onTemperatureChange && (
