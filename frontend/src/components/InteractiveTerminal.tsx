@@ -170,12 +170,12 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
 
   return (
     <div 
-      className={`fixed bottom-0 right-0 left-0 z-40 flex flex-col bg-[#070b14]/95 backdrop-blur-2xl border-t border-cyan-500/30 shadow-[0_-10px_35px_rgba(0,0,0,0.7)] transition-all duration-300 ease-in-out ${
-        isExpanded ? 'h-[80vh]' : 'h-80 md:h-96'
+      className={`fixed top-0 right-0 bottom-0 z-50 flex flex-col bg-[#070b14]/98 backdrop-blur-2xl border-l border-cyan-500/30 shadow-[-15px_0_40px_rgba(0,0,0,0.85)] transition-all duration-300 ease-in-out ${
+        isExpanded ? 'w-[75vw] md:w-[60vw]' : 'w-[420px] sm:w-[480px] md:w-[520px] max-w-[95vw]'
       }`}
     >
       {/* Terminal Title Bar */}
-      <div className="h-10 px-4 bg-black/40 border-b border-white/10 flex items-center justify-between gap-3 shrink-0 select-none">
+      <div className="h-12 px-4 bg-black/50 border-b border-white/10 flex items-center justify-between gap-3 shrink-0 select-none">
         <div className="flex items-center gap-2.5 min-w-0">
           <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-xs font-mono">
             <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse shrink-0" />
@@ -183,9 +183,9 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
             <span className="font-semibold">{t('terminal_title', '互動工作區終端 (Terminal)')}</span>
           </div>
 
-          <div className="flex items-center gap-1 text-[11px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-md truncate">
+          <div className="flex items-center gap-1 text-[11px] font-mono text-cyan-300 bg-cyan-950/40 border border-cyan-500/20 px-2 py-0.5 rounded-md truncate max-w-[130px] sm:max-w-[180px]">
             <FolderGit2 className="w-3 h-3 text-cyan-400 shrink-0" />
-            <span className="text-slate-400">{t('active_project_label', '當前專案:')}</span>
+            <span className="text-slate-400 hidden sm:inline">{t('active_project_label', '專案:')}</span>
             <span className="font-bold text-cyan-200 truncate">{currentProjectName}</span>
           </div>
         </div>
@@ -193,7 +193,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
         {/* Quick Commands & Window Actions */}
         <div className="flex items-center gap-1.5 shrink-0">
           {/* Quick Command Pills */}
-          <div className="hidden sm:flex items-center gap-1 mr-2 text-[10px] font-mono">
+          <div className="hidden sm:flex items-center gap-1 mr-1 text-[10px] font-mono">
             <button
               onClick={() => handleRunCommand('dir')}
               className="px-2 py-0.5 rounded glass-button text-slate-300 hover:text-cyan-300 transition-colors"
@@ -206,14 +206,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
               className="px-2 py-0.5 rounded glass-button text-slate-300 hover:text-cyan-300 transition-colors"
               title="執行主程式 (python main.py)"
             >
-              python main.py
-            </button>
-            <button
-              onClick={() => handleRunCommand('git status')}
-              className="px-2 py-0.5 rounded glass-button text-slate-300 hover:text-cyan-300 transition-colors"
-              title="檢視 Git 狀態 (git status)"
-            >
-              git status
+              python
             </button>
           </div>
 
@@ -228,7 +221,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
-            title={isExpanded ? '最小化' : '最大化'}
+            title={isExpanded ? '寬度收窄 (預設)' : '寬度展開 (寬螢幕)'}
           >
             {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>

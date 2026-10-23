@@ -46,6 +46,8 @@ interface HeaderProps {
   activeProject?: string | null;
   onSelectProject?: (name: string | null) => void;
   onOpenNewProject?: () => void;
+  codeExecutionMode?: 'auto' | 'accept_edit' | 'turbo';
+  onCodeExecutionModeChange?: (mode: 'auto' | 'accept_edit' | 'turbo') => void;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
 }
@@ -74,6 +76,8 @@ export const Header: React.FC<HeaderProps> = ({
   activeProject = null,
   onSelectProject,
   onOpenNewProject,
+  codeExecutionMode = 'auto',
+  onCodeExecutionModeChange,
   isTerminalOpen = false,
   onToggleTerminal
 }) => {
@@ -285,34 +289,66 @@ export const Header: React.FC<HeaderProps> = ({
             )}
           </div>
         )}
+
+        {/* Code Mode: Execution Mode Capsule (Auto / Accept Edit / Turbo) */}
+        {mode === 'code' && (
+          <div className="hidden sm:flex items-center p-0.5 rounded-xl bg-black/40 border border-white/10 shrink-0 text-[11px] font-mono ml-1">
+            <button
+              type="button"
+              onClick={() => onCodeExecutionModeChange?.('auto')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                codeExecutionMode === 'auto'
+                  ? 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Auto 模式: 全自主讀寫程式碼與自我除錯"
+            >
+              🤖 Auto
+            </button>
+            <button
+              type="button"
+              onClick={() => onCodeExecutionModeChange?.('accept_edit')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                codeExecutionMode === 'accept_edit'
+                  ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Accept Edit 模式: 檔案修改前呈現 Diff 需經確認"
+            >
+              🛡️ Accept
+            </button>
+            <button
+              type="button"
+              onClick={() => onCodeExecutionModeChange?.('turbo')}
+              className={`px-2 py-1 rounded-lg transition-all ${
+                codeExecutionMode === 'turbo'
+                  ? 'bg-fuchsia-500/30 text-fuchsia-300 font-bold border border-fuchsia-500/40 shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title="Turbo 模式: 極速生成代碼，精簡思維鋪陳"
+            >
+              ⚡ Turbo
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Right: Tools Switchers, Language Selector, Model Capsule & Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
-        {/* Code Mode: Expanded Context Badge */}
-        {mode === 'code' && (
-          <div 
-            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono shrink-0 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
-            title={t('context_expanded_badge', '🧠 上下文視窗: 32K~64K | 🚀 Token 限制放寬: 16K')}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
-            <span>32K Context / 16K Output</span>
-          </div>
-        )}
-
-        {/* Code Mode: Interactive Terminal Console Button */}
+        {/* Code Mode: Interactive Terminal Console Button (Docked Right) */}
         {mode === 'code' && onToggleTerminal && (
           <button
             onClick={onToggleTerminal}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono transition-all shadow-sm shrink-0 ${
               isTerminalOpen
-                ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/50 shadow-[0_0_12px_rgba(16,185,129,0.35)] font-bold'
                 : 'text-slate-300 hover:text-emerald-300 border-white/10 hover:border-emerald-500/30'
             }`}
-            title={t('terminal_title', '互動工作區終端 (Terminal)')}
+            title={t('terminal_title', '開啟/收合右側終端機 (Terminal)')}
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="hidden sm:inline font-semibold">{t('terminal_title', '終端機')}</span>
+            {isTerminalOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />}
           </button>
         )}
         {/* Quick Tools Toggle Pills - Only shown when sidebar is closed on ultra-wide viewports to prevent any overlap */}

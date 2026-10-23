@@ -58,10 +58,12 @@ class ChatRequest(BaseModel):
     images: Optional[List[str]] = None
     mode: Optional[str] = "chat"
     project: Optional[str] = None
+    code_execution_mode: Optional[str] = "auto"
 
 class ProjectCreatePayload(BaseModel):
     name: str
     template: Optional[str] = "python"
+    custom_path: Optional[str] = None
 
 class ProjectSelectPayload(BaseModel):
     name: Optional[str] = None
@@ -287,7 +289,8 @@ async def chat_stream(request: ChatRequest):
         config=active_config,
         persona_id=request.persona_id or "assistant",
         mode=request.mode or "chat",
-        project=request.project
+        project=request.project,
+        code_execution_mode=request.code_execution_mode or "auto"
     )
 
     async def event_generator():
@@ -798,18 +801,37 @@ async def list_projects():
     projects_dir = base / 'projects'
     projects_dir.mkdir(parents=True, exist_ok=True)
     project_list = []
+    seen_names = set()
     try:
         for entry in os.scandir(str(projects_dir)):
             if entry.is_dir() and not entry.name.startswith('.'):
+                seen_names.add(entry.name)
                 p_path = Path(entry.path)
                 f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.'))
                 stat = p_path.stat()
                 project_list.append({
                     'name': entry.name,
                     'path': f'projects/{entry.name}',
+                    'full_path': str(p_path.resolve()),
                     'file_count': f_count,
                     'updated_at': int(stat.st_mtime)
                 })
+        # Merge custom path projects
+        projects_meta = db.get_setting('projects_metadata') or {}
+        for name, meta in projects_meta.items():
+            if name not in seen_names:
+                p_path = Path(meta.get('path', ''))
+                if p_path.exists() and p_path.is_dir():
+                    seen_names.add(name)
+                    f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.'))
+                    stat = p_path.stat()
+                    project_list.append({
+                        'name': name,
+                        'path': str(p_path),
+                        'full_path': str(p_path.resolve()),
+                        'file_count': f_count,
+                        'updated_at': int(stat.st_mtime)
+                    })
     except Exception as e:
         print(f'[Projects] Scan warning: {e}')
     project_list.sort(key=lambda x: x['updated_at'], reverse=True)
@@ -829,34 +851,36 @@ async def create_project(payload: ProjectCreatePayload):
     if not clean_name:
         raise HTTPException(status_code=400, detail='無效的專案名稱。請使用英文字母、數字或底線/連字號。')
     base = settings.workspace_dir.resolve()
-    target = (base / 'projects' / clean_name).resolve()
-    if not target.is_relative_to(base):
-        raise HTTPException(status_code=403, detail='Access denied: Path escapes workspace')
-    if target.exists():
-        db.set_setting('active_project', clean_name)
-        return {'status': 'exists', 'project': clean_name, 'path': f'projects/{clean_name}'}
+    if payload.custom_path and payload.custom_path.strip():
+        target = Path(payload.custom_path.strip()).resolve()
+    else:
+        target = (base / 'projects' / clean_name).resolve()
     target.mkdir(parents=True, exist_ok=True)
     tpl = (payload.template or 'python').lower()
-    if tpl == 'python':
-        (target / 'main.py').write_text('# -*- coding: utf-8 -*-\n"""\nPython Project Initialized by Aether Code Agent\n"""\n\ndef main():\n    print("Hello from Aether Code Agent 🚀")\n\nif __name__ == "__main__":\n    main()\n', encoding='utf-8')
-        (target / 'requirements.txt').write_text('# Project Dependencies\n', encoding='utf-8')
-        (target / 'README.md').write_text(f'# {clean_name}\n\n自主工程專案已就緒。由 Aether Code Agent 支援。\n', encoding='utf-8')
-    elif tpl in ('web', 'frontend', 'html'):
-        (target / 'index.html').write_text(f'<!DOCTYPE html>\n<html lang="zh-TW">\n<head>\n  <meta charset="UTF-8">\n  <title>{clean_name}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <div id="app">\n    <h1>🚀 {clean_name} Web Project</h1>\n  </div>\n  <script src="app.js"></script>\n</body>\n</html>\n', encoding='utf-8')
-        (target / 'style.css').write_text('body { font-family: system-ui, sans-serif; background: #0b101e; color: #e2e8f0; margin: 2rem; }\n', encoding='utf-8')
-        (target / 'app.js').write_text('console.log("🚀 Project initialized by Aether Code Agent");\n', encoding='utf-8')
-        (target / 'README.md').write_text(f'# {clean_name}\n\n前端網頁工程專案。\n', encoding='utf-8')
-    elif tpl in ('node', 'javascript', 'js'):
-        (target / 'package.json').write_text('{\n  "name": "' + clean_name.lower() + '",\n  "version": "1.0.0",\n  "main": "index.js",\n  "scripts": {\n    "start": "node index.js"\n  }\n}\n', encoding='utf-8')
-        (target / 'index.js').write_text('console.log("Hello from Aether Code Agent in Node.js 🚀");\n', encoding='utf-8')
-        (target / 'README.md').write_text(f'# {clean_name}\n\nNode.js 工程專案。\n', encoding='utf-8')
-    else:
-        (target / 'README.md').write_text(f'# {clean_name}\n\n專案工作區已建立。\n', encoding='utf-8')
+    if not (target / 'README.md').exists():
+        if tpl == 'python':
+            (target / 'main.py').write_text('# -*- coding: utf-8 -*-\n"""\nPython Project Initialized by Aether Code Agent\n"""\n\ndef main():\n    print("Hello from Aether Code Agent 🚀")\n\nif __name__ == "__main__":\n    main()\n', encoding='utf-8')
+            (target / 'requirements.txt').write_text('# Project Dependencies\n', encoding='utf-8')
+            (target / 'README.md').write_text(f'# {clean_name}\n\n自主工程專案已就緒。由 Aether Code Agent 支援。\n', encoding='utf-8')
+        elif tpl in ('web', 'frontend', 'html'):
+            (target / 'index.html').write_text(f'<!DOCTYPE html>\n<html lang="zh-TW">\n<head>\n  <meta charset="UTF-8">\n  <title>{clean_name}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <div id="app">\n    <h1>🚀 {clean_name} Web Project</h1>\n  </div>\n  <script src="app.js"></script>\n</body>\n</html>\n', encoding='utf-8')
+            (target / 'style.css').write_text('body { font-family: system-ui, sans-serif; background: #0b101e; color: #e2e8f0; margin: 2rem; }\n', encoding='utf-8')
+            (target / 'app.js').write_text('console.log("🚀 Project initialized by Aether Code Agent");\n', encoding='utf-8')
+            (target / 'README.md').write_text(f'# {clean_name}\n\n前端網頁工程專案。\n', encoding='utf-8')
+        elif tpl in ('node', 'javascript', 'js'):
+            (target / 'package.json').write_text('{\n  "name": "' + clean_name.lower() + '",\n  "version": "1.0.0",\n  "main": "index.js",\n  "scripts": {\n    "start": "node index.js"\n  }\n}\n', encoding='utf-8')
+            (target / 'index.js').write_text('console.log("Hello from Aether Code Agent in Node.js 🚀");\n', encoding='utf-8')
+            (target / 'README.md').write_text(f'# {clean_name}\n\nNode.js 工程專案。\n', encoding='utf-8')
+        else:
+            (target / 'README.md').write_text(f'# {clean_name}\n\n專案工作區已建立。\n', encoding='utf-8')
     db.set_setting('active_project', clean_name)
+    projects_meta = db.get_setting('projects_metadata') or {}
+    projects_meta[clean_name] = {'path': str(target), 'custom': bool(payload.custom_path)}
+    db.set_setting('projects_metadata', projects_meta)
     return {
         'status': 'created',
         'project': clean_name,
-        'path': f'projects/{clean_name}',
+        'path': str(target),
         'template': tpl
     }
 
@@ -865,7 +889,11 @@ async def select_project(payload: ProjectSelectPayload):
     name = (payload.name or '').strip()
     if name:
         base = settings.workspace_dir.resolve()
-        target = (base / 'projects' / name).resolve()
+        projects_meta = db.get_setting('projects_metadata') or {}
+        if name in projects_meta:
+            target = Path(projects_meta[name].get('path', '')).resolve()
+        else:
+            target = (base / 'projects' / name).resolve()
         if not target.exists() or not target.is_dir():
             raise HTTPException(status_code=404, detail=f'專案 \'{name}\' 不存在')
         db.set_setting('active_project', name)
@@ -877,7 +905,11 @@ async def select_project(payload: ProjectSelectPayload):
 async def get_active_project():
     active = db.get_setting('active_project')
     base = settings.workspace_dir.resolve()
-    target_path = str(base / 'projects' / active) if active else str(base)
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if active and active in projects_meta:
+        target_path = projects_meta[active].get('path', str(base))
+    else:
+        target_path = str(base / 'projects' / active) if active else str(base)
     return {
         'active_project': active,
         'path': target_path
@@ -896,9 +928,14 @@ async def execute_terminal_command(payload: TerminalExecPayload):
             return {'stdout': '', 'stderr': f'Command rejected: contains dangerous pattern \'{d}\'', 'exit_code': 126, 'duration_ms': 0}
     base = settings.workspace_dir.resolve()
     project_name = payload.project or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
     if project_name:
-        cand = base / 'projects' / project_name
-        target_cwd = cand if cand.exists() and cand.is_dir() else base
+        if project_name in projects_meta:
+            cand = Path(projects_meta[project_name].get('path', '')).resolve()
+            target_cwd = cand if cand.exists() and cand.is_dir() else base
+        else:
+            cand = base / 'projects' / project_name
+            target_cwd = cand if cand.exists() and cand.is_dir() else base
     else:
         target_cwd = base
     start_time = time.time()

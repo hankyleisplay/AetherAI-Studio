@@ -1,4 +1,5 @@
 export type AgentState = 'idle' | 'thinking' | 'calling_tool' | 'generating' | 'error';
+export type CodeExecutionMode = 'auto' | 'accept_edit' | 'turbo';
 
 export interface ToolCall {
   id: string;

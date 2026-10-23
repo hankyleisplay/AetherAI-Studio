@@ -2,6 +2,7 @@ import re
 import json
 import time
 from typing import Dict, Any, List, AsyncGenerator, Optional
+from pathlib import Path
 import base64
 from backend.app.llm.provider import UnifiedLLMClient, ModelConfig, LLMResponseChunk
 from backend.app.tools.registry import registry
@@ -26,13 +27,15 @@ class AgentOrchestrator:
         config: ModelConfig,
         persona_id: str = "assistant",
         mode: str = "chat",
-        project: Optional[str] = None
+        project: Optional[str] = None,
+        code_execution_mode: str = "auto"
     ):
         self.config = config
         self.client = UnifiedLLMClient(config)
         self.persona_id = persona_id
         self.mode = mode
         self.project = project
+        self.code_execution_mode = code_execution_mode
         self.max_iterations = 8 if mode == "code" else 6
 
     def _get_persona_enabled_tools(self) -> Optional[set]:
@@ -89,13 +92,21 @@ class AgentOrchestrator:
         from backend.app.config import settings
         project_dir = settings.workspace_dir
         if self.project:
-            cand = settings.workspace_dir / "projects" / self.project
-            if cand.exists() and cand.is_dir():
-                project_dir = cand
+            projects_meta = db.get_setting("projects_metadata") or {}
+            if self.project in projects_meta:
+                p_cand = Path(projects_meta[self.project].get("path", ""))
+                if p_cand.exists() and p_cand.is_dir():
+                    project_dir = p_cand
+            elif Path(self.project).exists() and Path(self.project).is_dir():
+                project_dir = Path(self.project).resolve()
             else:
-                cand2 = settings.workspace_dir / self.project
-                if cand2.exists() and cand2.is_dir():
-                    project_dir = cand2
+                cand = settings.workspace_dir / "projects" / self.project
+                if cand.exists() and cand.is_dir():
+                    project_dir = cand
+                else:
+                    cand2 = settings.workspace_dir / self.project
+                    if cand2.exists() and cand2.is_dir():
+                        project_dir = cand2
 
         recent_files = []
         if project_dir.exists():
@@ -189,10 +200,26 @@ class AgentOrchestrator:
         code_mode_directive = ""
         if self.mode == "code":
             proj_name = self.project or "預設工作區"
+            exec_mode = getattr(self, "code_execution_mode", "auto")
+
+            if exec_mode == "accept_edit":
+                mode_guidance = (
+                    "- 🛡️ 【當前模式：Accept Edit 模式 (代碼審查核准)】：在建立或變更任何專案程式碼檔案（如調用 file_system write/edit）或執行具變更性指令前，你【必須】先向使用者呈現即將變更的檔案路徑與清晰的 Code Diff / 變更預覽，並明確提示：『🛡️ 【代碼變更審查】：請檢視上述預計變更，是否確認接受並執行？』獲得使用者確認後才正式執行變更。\n"
+                )
+            elif exec_mode == "turbo":
+                mode_guidance = (
+                    "- ⚡ 【當前模式：Turbo 模式 (極速模式)】：專為極速代碼生成而優化。跳過冗長的思維鋪陳與多餘客套，直接輸出最高效、最簡潔且立即可用的生產級程式碼與關鍵終端命令，最大化輸出速度與 Token 吞吐量！\n"
+                )
+            else:  # auto
+                mode_guidance = (
+                    "- 🤖 【當前模式：Auto 模式 (全自動推進)】：你擁有全自動自主研發權限，請自主讀寫專案檔案、調用 bash_executor 與 python_eval 執行單元測試或指令驗證，遇到報錯自動自我閉環修正，全流程主動閉環解決任務，無需反覆詢問使用者。\n"
+                )
+
             code_mode_directive = (
                 "### 💻 AETHER CODE AGENT (Claude Code Architecture & Autonomous Software Engineering):\n"
                 "你現在處於【Code 模式 (Claude Code Style)】，這是一個專為全端軟體工程、本地模型深度編程、除錯與終端自動化打造的高階工作區模式：\n"
                 f"- 📂 專案工程基準：當前活躍專案為 '{proj_name}'，所有代碼編寫與指令執行均以此專案目錄為工作核心。\n"
+                f"{mode_guidance}"
                 "- 🛠️ 自主工具調用準則：\n"
                 "  * 專案代碼讀寫：優先且積極調用 `file_system` 工具（read / write / list），自主建立、分析與修改專案模組程式碼。\n"
                 "  * 終端指令與測試執行：主動調用 `bash_executor` 執行專案目錄下的編譯、套件安裝、單元測試、程式運行驗證（例如 `python main.py`、`npm test` 等）。\n"

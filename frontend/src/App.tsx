@@ -9,7 +9,7 @@ import { WorkspaceDrawer } from './components/WorkspaceDrawer';
 import { SwarmModal } from './components/SwarmModal';
 import { InteractiveTerminal } from './components/InteractiveTerminal';
 import { ProjectModal } from './components/ProjectModal';
-import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall } from './types';
+import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall, CodeExecutionMode } from './types';
 import { useI18n } from './i18n/I18nContext';
 
 export const App: React.FC = () => {
@@ -37,6 +37,20 @@ export const App: React.FC = () => {
       return 'chat';
     }
   });
+  const [codeExecutionMode, setCodeExecutionMode] = useState<CodeExecutionMode>(() => {
+    try {
+      return (localStorage.getItem('aether_code_exec_mode') as CodeExecutionMode) || 'auto';
+    } catch {
+      return 'auto';
+    }
+  });
+
+  const handleSetCodeExecutionMode = (m: CodeExecutionMode) => {
+    setCodeExecutionMode(m);
+    try {
+      localStorage.setItem('aether_code_exec_mode', m);
+    } catch {}
+  };
   const [projects, setProjects] = useState<any[]>([]);
   const [activeProject, setActiveProject] = useState<string | null>(null);
   const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
@@ -566,7 +580,8 @@ export const App: React.FC = () => {
           assistant_message_id: assistantMsgId,
           images: images,
           mode: mode,
-          project: activeProject
+          project: activeProject,
+          code_execution_mode: codeExecutionMode
         }),
         signal: controller.signal
       });
@@ -861,16 +876,28 @@ export const App: React.FC = () => {
           onToggleEcoMode={handleToggleEcoMode}
           mode={mode}
           onToggleMode={(m) => {
-            setMode(m);
-            try {
-              localStorage.setItem('aether_mode', m);
-            } catch {}
             if (m === 'code') {
-              setIsTerminalOpen(true);
+              if (!activeProject) {
+                setIsNewProjectModalOpen(true);
+              } else {
+                setMode('code');
+                setIsTerminalOpen(true);
+                try {
+                  localStorage.setItem('aether_mode', 'code');
+                } catch {}
+              }
+            } else {
+              setMode('chat');
+              setIsTerminalOpen(false);
+              try {
+                localStorage.setItem('aether_mode', 'chat');
+              } catch {}
             }
           }}
           projects={projects}
           activeProject={activeProject}
+          codeExecutionMode={codeExecutionMode}
+          onCodeExecutionModeChange={handleSetCodeExecutionMode}
           onSelectProject={async (p) => {
             try {
               await fetch('/api/projects/select', {
@@ -962,14 +989,26 @@ export const App: React.FC = () => {
         onClose={() => setIsNewProjectModalOpen(false)}
         projects={projects}
         activeProject={activeProject}
-        onProjectCreated={(name) => {
+        codeExecutionMode={codeExecutionMode}
+        onSelectExecutionMode={handleSetCodeExecutionMode}
+        onProjectCreated={(name, execM) => {
           setActiveProject(name);
+          if (execM) handleSetCodeExecutionMode(execM);
+          setMode('code');
           fetchProjects();
           setIsTerminalOpen(true);
+          try {
+            localStorage.setItem('aether_mode', 'code');
+          } catch {}
         }}
         onSelectProject={(name) => {
           setActiveProject(name);
+          setMode('code');
           fetchProjects();
+          setIsTerminalOpen(true);
+          try {
+            localStorage.setItem('aether_mode', 'code');
+          } catch {}
         }}
       />
     </div>

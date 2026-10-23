@@ -9,9 +9,14 @@ import {
   FileCode2, 
   FileText, 
   Loader2,
-  FolderOpen
+  FolderOpen,
+  Terminal,
+  ShieldCheck,
+  Zap,
+  Bot
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
+import { CodeExecutionMode } from '../types';
 
 interface ProjectItem {
   name: string;
@@ -25,8 +30,10 @@ interface ProjectModalProps {
   onClose: () => void;
   projects: ProjectItem[];
   activeProject: string | null;
-  onProjectCreated: (name: string) => void;
+  codeExecutionMode?: CodeExecutionMode;
+  onProjectCreated: (name: string, execMode: CodeExecutionMode) => void;
   onSelectProject: (name: string | null) => void;
+  onSelectExecutionMode?: (mode: CodeExecutionMode) => void;
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -34,11 +41,16 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   onClose,
   projects,
   activeProject,
+  codeExecutionMode = 'auto',
   onProjectCreated,
-  onSelectProject
+  onSelectProject,
+  onSelectExecutionMode
 }) => {
   const { t } = useI18n();
+  const [folderType, setFolderType] = useState<'workspace' | 'custom'>('workspace');
+  const [customPath, setCustomPath] = useState('');
   const [projectName, setProjectName] = useState('');
+  const [execMode, setExecMode] = useState<CodeExecutionMode>(codeExecutionMode);
   const [template, setTemplate] = useState<'python' | 'web' | 'node' | 'empty'>('python');
   const [isCreating, setIsCreating] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -47,9 +59,14 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = projectName.trim().replace(/[^a-zA-Z0-9_-]/g, '');
+    const cleanName = projectName.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
     if (!cleanName) {
       setErrorMsg('請輸入有效的專案名稱 (僅支援英數字母、底線與連字號)');
+      return;
+    }
+
+    if (folderType === 'custom' && !customPath.trim()) {
+      setErrorMsg('請輸入自訂本機資料夾路徑');
       return;
     }
 
@@ -62,14 +79,19 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: cleanName,
-          template: template
+          template: template,
+          custom_path: folderType === 'custom' ? customPath.trim() : null
         })
       });
 
       if (res.ok) {
         const data = await res.json();
-        onProjectCreated(data.project);
+        if (onSelectExecutionMode) {
+          onSelectExecutionMode(execMode);
+        }
+        onProjectCreated(data.project, execMode);
         setProjectName('');
+        setCustomPath('');
         onClose();
       } else {
         const err = await res.json();
@@ -113,24 +135,51 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   ];
 
+  const executionModes = [
+    {
+      id: 'auto' as CodeExecutionMode,
+      name: t('exec_mode_auto', 'Auto 模式'),
+      badge: t('exec_mode_auto_badge', '全自動'),
+      desc: t('exec_mode_auto_desc', 'AI 全自主讀寫程式碼、調用終端機執行測試並自動修復 bug，全程主動閉環解決任務。'),
+      icon: <Bot className="w-4 h-4 text-emerald-400" />,
+      borderActive: 'border-emerald-400 bg-emerald-500/15 text-emerald-300 ring-1 ring-emerald-400/40'
+    },
+    {
+      id: 'accept_edit' as CodeExecutionMode,
+      name: t('exec_mode_accept', 'Accept Edit 模式'),
+      badge: t('exec_mode_accept_badge', '審查核准'),
+      desc: t('exec_mode_accept_desc', '變更任何程式碼檔案前均呈現 Diff 與說明，主動請求確認，經您核准後才正式落地變更。'),
+      icon: <ShieldCheck className="w-4 h-4 text-amber-400" />,
+      borderActive: 'border-amber-400 bg-amber-500/15 text-amber-300 ring-1 ring-amber-400/40'
+    },
+    {
+      id: 'turbo' as CodeExecutionMode,
+      name: t('exec_mode_turbo', 'Turbo 模式'),
+      badge: t('exec_mode_turbo_badge', '極速交付'),
+      desc: t('exec_mode_turbo_desc', '精簡思考鋪陳與多餘客套，最大化輸出速度與 Token 吞吐量，以極速生成生產級程式碼。'),
+      icon: <Zap className="w-4 h-4 text-fuchsia-400" />,
+      borderActive: 'border-fuchsia-400 bg-fuchsia-500/15 text-fuchsia-300 ring-1 ring-fuchsia-400/40'
+    }
+  ];
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-xl glass-modal rounded-3xl border border-cyan-500/30 shadow-[0_0_50px_rgba(6,182,212,0.15)] overflow-hidden flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+      <div className="w-full max-w-2xl glass-modal rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(6,182,212,0.2)] overflow-hidden flex flex-col max-h-[92vh]">
         {/* Header */}
-        <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0">
-          <div className="flex items-center gap-2.5">
-            <div className="w-9 h-9 rounded-xl bg-cyan-500/20 border border-cyan-500/40 flex items-center justify-center text-cyan-300">
-              <FolderGit2 className="w-5 h-5" />
+        <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0 bg-black/30">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 flex items-center justify-center text-emerald-300 shadow-sm">
+              <Terminal className="w-5 h-5 text-emerald-400" />
             </div>
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
-                <span>{t('new_project_modal_title', '新建工程專案 (New Project)')}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 font-mono">
-                  Code Mode
+                <span>{t('code_onboarding_title', '配置 Code 工程專案 (Code Mode)')}</span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-mono font-semibold">
+                  Claude Code Style
                 </span>
               </h2>
               <p className="text-xs text-slate-400">
-                {t('projects_title', '工作區專案管理 (Projects)')}
+                {t('code_mode_desc', '直接在專案目錄下寫程式、讀取與修改檔案、執行終端指令、自主測試與除錯。')}
               </p>
             </div>
           </div>
@@ -144,17 +193,73 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
         {/* Body */}
         <div className="p-6 overflow-y-auto space-y-5 flex-1">
-          {/* Create New Project Form */}
-          <form onSubmit={handleCreate} className="space-y-4">
+          <form onSubmit={handleCreate} className="space-y-5">
+            {/* 1. 資料夾目錄選擇 */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                {t('new_project_name', '專案名稱 (英文字母、數字或底線)')}
+              <label className="block text-xs font-semibold text-slate-200 mb-2">
+                📁 1. {t('select_folder_type', '選擇專案工作目錄 (Project Directory)')}
+              </label>
+              
+              <div className="grid grid-cols-2 gap-2 mb-2">
+                <button
+                  type="button"
+                  onClick={() => setFolderType('workspace')}
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
+                    folderType === 'workspace'
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 ring-1 ring-cyan-400/30'
+                      : 'bg-white/[0.03] border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FolderGit2 className="w-4 h-4 text-cyan-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold">{t('folder_workspace_preset', '工作區目錄 (預設)')}</div>
+                    <div className="text-[10px] text-slate-400 truncate">workspace/projects/</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setFolderType('custom')}
+                  className={`p-3 rounded-2xl border text-left transition-all flex items-center gap-2.5 ${
+                    folderType === 'custom'
+                      ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200 ring-1 ring-cyan-400/30'
+                      : 'bg-white/[0.03] border-white/10 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FolderOpen className="w-4 h-4 text-amber-400 shrink-0" />
+                  <div className="min-w-0">
+                    <div className="text-xs font-bold">{t('folder_custom_path', '自訂本機目錄路徑')}</div>
+                    <div className="text-[10px] text-slate-400 truncate">任何本機硬碟目錄</div>
+                  </div>
+                </button>
+              </div>
+
+              {folderType === 'custom' && (
+                <div className="animate-in fade-in duration-150 mt-2">
+                  <input
+                    type="text"
+                    value={customPath}
+                    onChange={(e) => setCustomPath(e.target.value)}
+                    placeholder="輸入本機目錄絕對路徑 (如 C:\Users\李秉翰\Documents\Project\test)"
+                    className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-amber-500/30 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
+                  />
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    💡 Agent 將直接以此目錄作為工作核心，讀寫專案檔案與在該目錄執行終端機命令。
+                  </p>
+                </div>
+              )}
+            </div>
+
+            {/* 2. Project 名稱設定 */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-200 mb-1.5">
+                🏷️ 2. {t('project_name_input', '專案名稱 (Project Name)')}
               </label>
               <input
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="例如: ai-data-crawler, vite-web-app"
+                placeholder="例如: ai-data-crawler, my-web-app, backend-api"
                 className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-white/15 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
                 autoFocus
               />
@@ -163,12 +268,51 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               )}
             </div>
 
-            {/* Template Selector */}
+            {/* 3. 執行模式選擇 (Auto / Accept Edit / Turbo) */}
+            <div>
+              <label className="block text-xs font-semibold text-slate-200 mb-2">
+                ⚙️ 3. {t('execution_mode_title', '選擇 Code 執行模式 (Execution Mode)')}
+              </label>
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                {executionModes.map((m) => {
+                  const isSelected = execMode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setExecMode(m.id)}
+                      className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                        isSelected
+                          ? m.borderActive
+                          : 'bg-white/[0.02] border-white/10 hover:border-white/20 text-slate-300'
+                      }`}
+                    >
+                      <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-1.5 font-bold text-xs">
+                          {m.icon}
+                          <span>{m.name}</span>
+                        </div>
+                        <span className={`text-[9px] px-1.5 py-0.5 rounded font-mono font-bold ${
+                          isSelected ? 'bg-white/20' : 'bg-white/5 text-slate-400'
+                        }`}>
+                          {m.badge}
+                        </span>
+                      </div>
+                      <div className="text-[11px] text-slate-400 mt-1 leading-relaxed">
+                        {m.desc}
+                      </div>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* 4. 初始樣板 */}
             <div>
               <label className="block text-xs font-semibold text-slate-300 mb-2">
-                {t('new_project_template', '初始樣板 (Starter Template)')}
+                📦 4. {t('new_project_template', '初始樣板 (Starter Template)')}
               </label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 {templates.map((tpl) => {
                   const isSelected = template === tpl.id;
                   return (
@@ -176,21 +320,18 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       key={tpl.id}
                       type="button"
                       onClick={() => setTemplate(tpl.id as any)}
-                      className={`p-3 rounded-2xl border text-left transition-all flex items-start gap-3 ${
+                      className={`p-2.5 rounded-xl border text-left transition-all flex flex-col items-start gap-1 ${
                         isSelected 
-                          ? `${tpl.color} border-cyan-400 ring-1 ring-cyan-400/40 shadow-[0_0_15px_rgba(6,182,212,0.15)]` 
+                          ? `${tpl.color} border-cyan-400 ring-1 ring-cyan-400/40 shadow-sm` 
                           : 'bg-white/[0.02] border-white/10 hover:border-white/20'
                       }`}
                     >
-                      <div className="mt-0.5 shrink-0">{tpl.icon}</div>
-                      <div className="min-w-0 flex-1">
-                        <div className="text-xs font-bold text-white flex items-center justify-between">
-                          <span>{tpl.title}</span>
-                          {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
-                        </div>
-                        <div className="text-[11px] text-slate-400 mt-0.5 line-clamp-2">
-                          {tpl.desc}
-                        </div>
+                      <div className="flex items-center justify-between w-full">
+                        {tpl.icon}
+                        {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </div>
+                      <div className="text-xs font-bold text-white mt-1">
+                        {tpl.title}
                       </div>
                     </button>
                   );
@@ -202,17 +343,17 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
               <button
                 type="submit"
                 disabled={isCreating || !projectName.trim()}
-                className="w-full py-2.5 px-4 rounded-xl glass-button-primary text-xs font-semibold text-white flex items-center justify-center gap-2 shadow-lg hover:shadow-cyan-500/25 disabled:opacity-40 transition-all"
+                className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-xs font-bold text-white flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(16,185,129,0.3)] disabled:opacity-40 transition-all"
               >
                 {isCreating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>建立中...</span>
+                    <span>正在建立並初始化專案...</span>
                   </>
                 ) : (
                   <>
-                    <Plus className="w-4 h-4" />
-                    <span>{t('btn_create_project', '立即建立並切換專案')}</span>
+                    <Terminal className="w-4 h-4 text-emerald-100" />
+                    <span>{t('btn_launch_code_mode', '🚀 啟動 Code 專案並開啟終端機')}</span>
                   </>
                 )}
               </button>
@@ -242,7 +383,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-48 overflow-y-auto pr-1">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 max-h-40 overflow-y-auto pr-1">
                 {projects.map((proj) => {
                   const isActive = activeProject === proj.name;
                   return (
