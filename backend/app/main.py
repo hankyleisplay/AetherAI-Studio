@@ -56,6 +56,19 @@ class ChatRequest(BaseModel):
     user_message_id: Optional[str] = None
     assistant_message_id: Optional[str] = None
     images: Optional[List[str]] = None
+    mode: Optional[str] = "chat"
+    project: Optional[str] = None
+
+class ProjectCreatePayload(BaseModel):
+    name: str
+    template: Optional[str] = "python"
+
+class ProjectSelectPayload(BaseModel):
+    name: Optional[str] = None
+
+class TerminalExecPayload(BaseModel):
+    command: str
+    project: Optional[str] = None
 
 class SessionCreate(BaseModel):
     title: Optional[str] = "新對話"
@@ -218,9 +231,18 @@ async def chat_stream(request: ChatRequest):
                 max_tokens=8192
             )
 
+    # Code Mode Context Window Expansion & Max Tokens Relaxation
+    if request.mode == "code":
+        cw = active_config.context_window or 16384
+        mt = active_config.max_tokens or 8192
+        active_config.context_window = max(cw, 32768)
+        active_config.max_tokens = max(mt, 16384)
+
     orchestrator = AgentOrchestrator(
         config=active_config,
-        persona_id=request.persona_id or "assistant"
+        persona_id=request.persona_id or "assistant",
+        mode=request.mode or "chat",
+        project=request.project
     )
 
     async def event_generator():
@@ -690,6 +712,171 @@ async def swarm_stream(request: SwarmRequest):
     return EventSourceResponse(swarm_generator())
 
 
+
+# Projects & Code Mode Endpoints
+@app.get('/api/projects')
+async def list_projects():
+    base = settings.workspace_dir.resolve()
+    projects_dir = base / 'projects'
+    projects_dir.mkdir(parents=True, exist_ok=True)
+    project_list = []
+    try:
+        for entry in os.scandir(str(projects_dir)):
+            if entry.is_dir() and not entry.name.startswith('.'):
+                p_path = Path(entry.path)
+                f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.'))
+                stat = p_path.stat()
+                project_list.append({
+                    'name': entry.name,
+                    'path': f'projects/{entry.name}',
+                    'file_count': f_count,
+                    'updated_at': int(stat.st_mtime)
+                })
+    except Exception as e:
+        print(f'[Projects] Scan warning: {e}')
+    project_list.sort(key=lambda x: x['updated_at'], reverse=True)
+    active_proj = db.get_setting('active_project')
+    if active_proj and not any(p['name'] == active_proj for p in project_list):
+        active_proj = None
+    return {
+        'projects': project_list,
+        'active_project': active_proj,
+        'workspace_path': str(base)
+    }
+
+@app.post('/api/projects')
+async def create_project(payload: ProjectCreatePayload):
+    import re
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '', payload.name.strip())
+    if not clean_name:
+        raise HTTPException(status_code=400, detail='無效的專案名稱。請使用英文字母、數字或底線/連字號。')
+    base = settings.workspace_dir.resolve()
+    target = (base / 'projects' / clean_name).resolve()
+    if not target.is_relative_to(base):
+        raise HTTPException(status_code=403, detail='Access denied: Path escapes workspace')
+    if target.exists():
+        db.set_setting('active_project', clean_name)
+        return {'status': 'exists', 'project': clean_name, 'path': f'projects/{clean_name}'}
+    target.mkdir(parents=True, exist_ok=True)
+    tpl = (payload.template or 'python').lower()
+    if tpl == 'python':
+        (target / 'main.py').write_text('# -*- coding: utf-8 -*-\n"""\nPython Project Initialized by Aether Code Agent\n"""\n\ndef main():\n    print("Hello from Aether Code Agent 🚀")\n\nif __name__ == "__main__":\n    main()\n', encoding='utf-8')
+        (target / 'requirements.txt').write_text('# Project Dependencies\n', encoding='utf-8')
+        (target / 'README.md').write_text(f'# {clean_name}\n\n自主工程專案已就緒。由 Aether Code Agent 支援。\n', encoding='utf-8')
+    elif tpl in ('web', 'frontend', 'html'):
+        (target / 'index.html').write_text(f'<!DOCTYPE html>\n<html lang="zh-TW">\n<head>\n  <meta charset="UTF-8">\n  <title>{clean_name}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <div id="app">\n    <h1>🚀 {clean_name} Web Project</h1>\n  </div>\n  <script src="app.js"></script>\n</body>\n</html>\n', encoding='utf-8')
+        (target / 'style.css').write_text('body { font-family: system-ui, sans-serif; background: #0b101e; color: #e2e8f0; margin: 2rem; }\n', encoding='utf-8')
+        (target / 'app.js').write_text('console.log("🚀 Project initialized by Aether Code Agent");\n', encoding='utf-8')
+        (target / 'README.md').write_text(f'# {clean_name}\n\n前端網頁工程專案。\n', encoding='utf-8')
+    elif tpl in ('node', 'javascript', 'js'):
+        (target / 'package.json').write_text('{\n  "name": "' + clean_name.lower() + '",\n  "version": "1.0.0",\n  "main": "index.js",\n  "scripts": {\n    "start": "node index.js"\n  }\n}\n', encoding='utf-8')
+        (target / 'index.js').write_text('console.log("Hello from Aether Code Agent in Node.js 🚀");\n', encoding='utf-8')
+        (target / 'README.md').write_text(f'# {clean_name}\n\nNode.js 工程專案。\n', encoding='utf-8')
+    else:
+        (target / 'README.md').write_text(f'# {clean_name}\n\n專案工作區已建立。\n', encoding='utf-8')
+    db.set_setting('active_project', clean_name)
+    return {
+        'status': 'created',
+        'project': clean_name,
+        'path': f'projects/{clean_name}',
+        'template': tpl
+    }
+
+@app.post('/api/projects/select')
+async def select_project(payload: ProjectSelectPayload):
+    name = (payload.name or '').strip()
+    if name:
+        base = settings.workspace_dir.resolve()
+        target = (base / 'projects' / name).resolve()
+        if not target.exists() or not target.is_dir():
+            raise HTTPException(status_code=404, detail=f'專案 \'{name}\' 不存在')
+        db.set_setting('active_project', name)
+    else:
+        db.set_setting('active_project', None)
+    return {'status': 'selected', 'active_project': name or None}
+
+@app.get('/api/projects/active')
+async def get_active_project():
+    active = db.get_setting('active_project')
+    base = settings.workspace_dir.resolve()
+    target_path = str(base / 'projects' / active) if active else str(base)
+    return {
+        'active_project': active,
+        'path': target_path
+    }
+
+@app.post('/api/terminal/exec')
+async def execute_terminal_command(payload: TerminalExecPayload):
+    import subprocess
+    import time
+    cmd = (payload.command or '').strip()
+    if not cmd:
+        return {'stdout': '', 'stderr': 'No command provided', 'exit_code': 1, 'duration_ms': 0}
+    dangerous = ['rm -rf /', 'mkfs', ':(){ :|:& };:', 'dd if=/dev/']
+    for d in dangerous:
+        if d in cmd:
+            return {'stdout': '', 'stderr': f'Command rejected: contains dangerous pattern \'{d}\'', 'exit_code': 126, 'duration_ms': 0}
+    base = settings.workspace_dir.resolve()
+    project_name = payload.project or db.get_setting('active_project')
+    if project_name:
+        cand = base / 'projects' / project_name
+        target_cwd = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_cwd = base
+    start_time = time.time()
+    env = os.environ.copy()
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONUTF8'] = '1'
+    try:
+        res = subprocess.run(
+            cmd,
+            shell=True,
+            capture_output=True,
+            timeout=30,
+            cwd=str(target_cwd),
+            env=env
+        )
+        duration_ms = round((time.time() - start_time) * 1000, 1)
+        def _decode(b):
+            if not b:
+                return ''
+            for enc in ('utf-8', 'cp950', 'gbk', 'latin1'):
+                try:
+                    return b.decode(enc)
+                except Exception:
+                    continue
+            return b.decode('utf-8', errors='replace')
+        out = _decode(res.stdout).strip()
+        err = _decode(res.stderr).strip()
+        return {
+            'stdout': out,
+            'stderr': err,
+            'exit_code': res.returncode,
+            'duration_ms': duration_ms,
+            'cwd': str(target_cwd),
+            'project': project_name
+        }
+    except subprocess.TimeoutExpired:
+        duration_ms = round((time.time() - start_time) * 1000, 1)
+        return {
+            'stdout': '',
+            'stderr': 'Command timed out after 30 seconds.',
+            'exit_code': 124,
+            'duration_ms': duration_ms,
+            'cwd': str(target_cwd),
+            'project': project_name
+        }
+    except Exception as e:
+        duration_ms = round((time.time() - start_time) * 1000, 1)
+        return {
+            'stdout': '',
+            'stderr': f'Execution failed: {str(e)}',
+            'exit_code': 1,
+            'duration_ms': duration_ms,
+            'cwd': str(target_cwd),
+            'project': project_name
+        }
+
 # Serve Frontend static assets if built
 FRONTEND_DIST = (BASE_DIR.parent / "frontend" / "dist").resolve()
 if (FRONTEND_DIST / "assets").exists():
@@ -707,4 +894,5 @@ async def serve_spa(full_path: str):
     if index_file.exists():
         return FileResponse(str(index_file))
     raise HTTPException(status_code=404, detail="index.html not found in frontend/dist.")
+
 

@@ -21,11 +21,19 @@ def is_vision_model(model_name: str, provider: str = "") -> bool:
     return any(k in name for k in VISION_MODEL_KEYWORDS)
 
 class AgentOrchestrator:
-    def __init__(self, config: ModelConfig, persona_id: str = "assistant"):
+    def __init__(
+        self,
+        config: ModelConfig,
+        persona_id: str = "assistant",
+        mode: str = "chat",
+        project: Optional[str] = None
+    ):
         self.config = config
         self.client = UnifiedLLMClient(config)
         self.persona_id = persona_id
-        self.max_iterations = 6
+        self.mode = mode
+        self.project = project
+        self.max_iterations = 8 if mode == "code" else 6
 
     def _get_persona_enabled_tools(self) -> Optional[set]:
         persona = db.get_persona(self.persona_id)
@@ -79,25 +87,35 @@ class AgentOrchestrator:
             tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
         
         from backend.app.config import settings
-        workspace_dir = settings.workspace_dir
+        project_dir = settings.workspace_dir
+        if self.project:
+            cand = settings.workspace_dir / "projects" / self.project
+            if cand.exists() and cand.is_dir():
+                project_dir = cand
+            else:
+                cand2 = settings.workspace_dir / self.project
+                if cand2.exists() and cand2.is_dir():
+                    project_dir = cand2
+
         recent_files = []
-        if workspace_dir.exists():
+        if project_dir.exists():
             try:
-                for f in sorted(workspace_dir.rglob("*"), key=lambda x: x.stat().st_mtime if x.is_file() else 0, reverse=True):
+                for f in sorted(project_dir.rglob("*"), key=lambda x: x.stat().st_mtime if x.is_file() else 0, reverse=True):
                     if f.is_file() and not f.name.startswith(".") and not f.name.endswith(".sqlite") and not f.name.endswith(".db"):
-                        rel = str(f.relative_to(workspace_dir)).replace("\\", "/")
+                        rel = str(f.relative_to(project_dir)).replace("\\", "/")
                         recent_files.append(rel)
-                        if len(recent_files) >= 12:
+                        if len(recent_files) >= (30 if self.mode == "code" else 15):
                             break
             except Exception:
                 pass
 
         workspace_context = ""
         if recent_files:
+            folder_label = f"專案 '{self.project}'" if self.project else "工作區"
             workspace_context = (
-                f"\n\n### Current Workspace Files (工作區現有檔案):\n"
-                f"目前工作區中存在的檔案: {', '.join(recent_files)}。\n"
-                "- 當用戶詢問或提及上述檔案、圖片、截圖或上傳項目時，請直接調用相應工具讀取與分析（圖像使用 `ocr_extractor`，代碼與文字檔案使用 `file_system` 或 `document_text_extractor`）。"
+                f"\n\n### Current {folder_label} Files ({folder_label}現有檔案清單):\n"
+                f"目前目錄中存在的檔案: {', '.join(recent_files)}。\n"
+                "- 當使用者詢問或提及專案代碼、文字或檔案結構時，請直接調用 `file_system` 讀取、分析或寫入對應檔案。"
             )
 
         disabled_directive = ""
@@ -161,9 +179,35 @@ class AgentOrchestrator:
                 "- 兼顧嚴謹性與創新探索，提供客觀、結構清晰、兼具深度與易讀性的完整高品質交付。\n\n"
             )
 
+        emoji_directive = (
+            "### 🎨 視覺排版與生動表情符號表達準則 (Vivid Emoji & Visual Style Directive):\n"
+            "- 在所有對話回答、步驟指引、程式碼解說、系統日誌、架構分析與重要結論中，請【積極、生動且自然地融入表情符號】（如 🚀, 💻, 🛠️, 💡, ⚡, 🔍, 📦, 🧠, ✅, ⚠️, 🎯, 📌, 🌟, 🛡️, 📂 等）！\n"
+            "- 善用表情符號建立清晰的視覺階層與標題排版（例如：🚀 【核心概述】、🛠️ 【技術實作與檔案修改】、💻 【完整原始碼】、⚠️ 【注意事項與邊界條件】、💡 【專家洞察與效能優化】）。\n"
+            "- 讓解說親切生動、結構躍然紙上，兼具頂尖專業工程深度與活潑互動體驗。\n\n"
+        )
+
+        code_mode_directive = ""
+        if self.mode == "code":
+            proj_name = self.project or "預設工作區"
+            code_mode_directive = (
+                "### 💻 AETHER CODE AGENT (Claude Code Architecture & Autonomous Software Engineering):\n"
+                "你現在處於【Code 模式 (Claude Code Style)】，這是一個專為全端軟體工程、本地模型深度編程、除錯與終端自動化打造的高階工作區模式：\n"
+                f"- 📂 專案工程基準：當前活躍專案為 '{proj_name}'，所有代碼編寫與指令執行均以此專案目錄為工作核心。\n"
+                "- 🛠️ 自主工具調用準則：\n"
+                "  * 專案代碼讀寫：優先且積極調用 `file_system` 工具（read / write / list），自主建立、分析與修改專案模組程式碼。\n"
+                "  * 終端指令與測試執行：主動調用 `bash_executor` 執行專案目錄下的編譯、套件安裝、單元測試、程式運行驗證（例如 `python main.py`、`npm test` 等）。\n"
+                "  * 數值演算與邏輯驗證：調用 `python_eval` 執行即時計算與演算法沙盒驗證。\n"
+                "  * 版本管理與代碼審查：調用 `git_version_control` 檢視檔案變更或檢查專案 Git 狀態。\n"
+                "- 📝 完整代碼輸出保證：Code 模式已全面放寬上下文視窗與 Token 輸出長度限制（Up to 32K~64K Context / 16K Output）！請永遠輸出【完整無省略】、語法正確且具備生產級強健度的完整程式碼，絕對不要使用「// 其餘代碼省略」或「...」！\n"
+                "- 🧪 自主閉環除錯：當執行代碼或測試遇到報錯時，自主分析 Stack Trace 與錯誤根因，直接修改檔案並再次執行驗證，直到程式能完美運行。\n"
+                "- 🚀 專業結構化總結：完成任務後，使用生動表情符號清楚總結變更檔案清單、核心實現邏輯、測試結果與後續維護建議。\n\n"
+            )
+
         system_instruction = (
             f"{base_prompt}\n\n"
             f"{developer_identity}\n\n"
+            f"{code_mode_directive}"
+            f"{emoji_directive}"
             f"{cognitive_directive}"
             f"{disabled_directive}"
             f"{available_section}"
@@ -210,8 +254,10 @@ class AgentOrchestrator:
             messages.append({"role": "user", "content": user_prompt})
             return messages
 
-        # Budget: up to 24,000 characters (~6,000 tokens) for prior dialogue
-        max_history_chars = 24000
+        # Budget: in Code Mode, context window is enlarged significantly (up to 120,000 characters ~30,000 tokens)
+        max_history_chars = 120000 if self.mode == "code" else 24000
+        msg_max_limit = 25000 if self.mode == "code" else 3500
+        max_turns = 32 if self.mode == "code" else 16
         current_chars = 0
         selected_history: List[Dict[str, Any]] = []
 
@@ -223,11 +269,11 @@ class AgentOrchestrator:
 
             raw_content = msg.get("content", "")
             # If an individual historical message is excessively large, condense its middle
-            if len(raw_content) > 3500:
+            if len(raw_content) > msg_max_limit:
                 content = (
-                    raw_content[:2000]
+                    raw_content[:int(msg_max_limit * 0.6)]
                     + "\n\n... [為保留上下文長度，歷史超長訊息中間已省略] ...\n\n"
-                    + raw_content[-1200:]
+                    + raw_content[-int(msg_max_limit * 0.35):]
                 )
             else:
                 content = raw_content
@@ -239,8 +285,8 @@ class AgentOrchestrator:
 
             selected_history.append({"role": role, "content": content})
             current_chars += msg_len
-            # Keep at most 16 messages
-            if len(selected_history) >= 16:
+            # Keep at most max_turns messages
+            if len(selected_history) >= max_turns:
                 break
 
         # Reverse back to chronological order

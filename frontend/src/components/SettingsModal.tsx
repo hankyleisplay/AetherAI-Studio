@@ -128,6 +128,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   };
 
+  const getLocalizedError = (errStr?: string) => {
+    if (!errStr) return '';
+    if (errStr.includes('Ollama')) return t('err_ollama_unreachable', '無法連線至本機 Ollama 服務，請確認 Ollama 是否已啟動。');
+    if (errStr.includes('API Key') || errStr.includes('API Key 無效')) return t('err_api_key_invalid', 'API Key 無效或未授權，已預載官方可用模型清單。');
+    if (errStr.includes('Connection failed') || errStr.includes('連線失敗')) return t('err_connection_failed', '伺服器連線失敗，請檢查網路連線或端點位址。');
+    return errStr;
+  };
+
   // Sync formData, tab and auto-probe models when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -603,7 +611,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     ) : (
                       <div>
                         <div className="font-semibold">{t('conn_failed', '連線失敗')}</div>
-                        <div className="text-[11px] text-rose-400/80 mt-0.5">{testResult.error}</div>
+                        <div className="text-[11px] text-rose-400/80 mt-0.5">{getLocalizedError(testResult.error)}</div>
                       </div>
                     )}
                   </div>
@@ -705,7 +713,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     </span>
                   </div>
                   <div className="text-[11px] text-slate-400 mt-0.5">
-                    {telegramStatus?.bot_username ? `綁定機器人: ${telegramStatus.bot_username}` : '尚未綁定 Bot'}
+                    {telegramStatus?.bot_username ? `${t('tg_bot_bound', '綁定機器人:')} ${telegramStatus.bot_username}` : t('tg_bot_unbound', '尚未綁定 Bot')}
                   </div>
                 </div>
               </div>
@@ -776,7 +784,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 type="text"
                 value={telegramConfig.chat_id}
                 onChange={(e) => setTelegramConfig({ ...telegramConfig, chat_id: e.target.value })}
-                placeholder="例如: 987654321"
+                placeholder={t('tg_chat_id_placeholder', '例如: 987654321')}
                 className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100"
               />
               <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
@@ -820,14 +828,14 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         <div className="font-semibold">{telegramTestResult.message}</div>
                         {telegramTestResult.bot_name && (
                           <div className="text-[11px] text-emerald-400/80 mt-0.5">
-                            Bot 名稱: {telegramTestResult.bot_name} ({telegramTestResult.bot_username})
+                            {t('tg_bot_name', 'Bot 名稱:')} {telegramTestResult.bot_name} ({telegramTestResult.bot_username})
                           </div>
                         )}
                       </div>
                     ) : (
                       <div>
-                        <div className="font-semibold">連線失敗</div>
-                        <div className="text-[11px] text-rose-400/80 mt-0.5">{telegramTestResult.error}</div>
+                        <div className="font-semibold">{t('conn_failed', '連線失敗')}</div>
+                        <div className="text-[11px] text-rose-400/80 mt-0.5">{getLocalizedError(telegramTestResult.error)}</div>
                       </div>
                     )}
                   </div>
@@ -939,7 +947,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="flex-1 overflow-y-auto pr-1 space-y-2.5 min-h-[300px]">
               {filteredTools.length === 0 ? (
                 <div className="text-center py-12 text-slate-400 text-xs">
-                  找不到符合「{toolSearch}」的工具
+                  {t('tools_not_found', '找不到符合「{toolSearch}」的工具').replace('{toolSearch}', toolSearch)}
                 </div>
               ) : (
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
@@ -995,13 +1003,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         {/* Badges footer */}
                         <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
                           <span className="text-slate-400 font-mono">
-                            {Object.keys(tool.parameters || {}).length} 參數
-                            {tool.required && tool.required.length > 0 && ` (${tool.required.length} 必要)`}
+                            {Object.keys(tool.parameters || {}).length} {t('tool_params', '參數')}
+                            {tool.required && tool.required.length > 0 && ` (${tool.required.length} ${t('tool_required', '必要')})`}
                           </span>
                           <div className="flex items-center gap-1.5">
                             {isSensitive && (
                               <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 border border-amber-500/30 text-amber-300">
-                                系統權限
+                                {t('tool_system_perm', '系統權限')}
                               </span>
                             )}
                             <span className={`px-1.5 py-0.5 rounded font-mono ${
@@ -1009,7 +1017,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                                 ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25'
                                 : 'bg-rose-500/15 text-rose-300 border border-rose-500/25'
                             }`}>
-                              {tool.enabled ? '已授權' : '已停用'}
+                              {tool.enabled ? t('tool_authorized', '已授權') : t('tool_disabled_state', '已停用')}
                             </span>
                           </div>
                         </div>
@@ -1024,7 +1032,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div className="p-3 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-xs text-cyan-200/90 flex items-start gap-2 shrink-0">
               <ShieldCheck className="w-4 h-4 text-cyan-400 shrink-0 mt-0.5" />
               <div className="text-[11px] leading-relaxed text-slate-300">
-                <span className="font-semibold text-cyan-300">安全合規與精準攔截：</span>
+                <span className="font-semibold text-cyan-300">{t('safety_compliance_intercept', '安全合規與精準攔截：')}</span>
                 {t('tools_tip', '停用的工具將從模型 Schema 中移除，且 Agent 內部決策與 ReAct 引擎將全面攔截調用，並主動告知使用者該工具目前已被停用。')}
               </div>
             </div>

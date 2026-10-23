@@ -68,9 +68,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.5.3 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.6.0 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "3.5.3"
+            assert res.json()["version"] == "3.6.0"
 
 
 
@@ -456,7 +456,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.5.3" in res.text
+            assert "Aether AI Studio 3.6.0" in res.text
 
 
 
@@ -510,6 +510,45 @@ async def run_tests():
 
 
 
+            # 12. Verify Projects Management API
+            p_list_res = await client.get("/api/projects")
+            assert p_list_res.status_code == 200
+            print("12. /api/projects:", p_list_res.status_code, "Count:", len(p_list_res.json().get("projects", [])))
+
+            p_create_res = await client.post("/api/projects", json={"name": "test_app", "template": "python"})
+            assert p_create_res.status_code == 200
+            assert p_create_res.json()["status"] in ("created", "exists")
+            print("12b. Project created:", p_create_res.json())
+
+            p_sel_res = await client.post("/api/projects/select", json={"name": "test_app"})
+            assert p_sel_res.status_code == 200
+            assert p_sel_res.json()["active_project"] == "test_app"
+            print("12c. Project selected:", p_sel_res.json())
+
+            # 13. Verify Terminal Execution API
+            term_res = await client.post("/api/terminal/exec", json={"command": "python main.py", "project": "test_app"})
+            assert term_res.status_code == 200
+            term_data = term_res.json()
+            assert term_data["exit_code"] == 0
+            assert "Hello from Aether Code Agent" in term_data["stdout"]
+            print("13. Terminal exec verified! Output:", term_data["stdout"], "Exit code:", term_data["exit_code"])
+
+            # 14. Verify Code Mode System Prompt & Emoji Directives
+            code_orch = AgentOrchestrator(ModelConfig(), mode="code", project="test_app")
+            code_sys_prompt = code_orch._get_system_prompt()
+            assert "AETHER CODE AGENT" in code_sys_prompt
+            assert "視覺排版與生動表情符號表達準則" in code_sys_prompt
+            assert "32K~64K Context / 16K Output" in code_sys_prompt
+            print("14. Code mode system prompt & emoji directive verified successfully!")
+
+            # Cleanup test project
+            import shutil
+            from backend.app.config import settings
+            test_proj_dir = settings.workspace_dir / "projects" / "test_app"
+            if test_proj_dir.exists():
+                shutil.rmtree(test_proj_dir)
+            db.set_setting("active_project", None)
+
             # Cleanup test session
 
             await client.delete(f"/api/sessions/{sess['id']}")
@@ -526,7 +565,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 3.5 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 3.6.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

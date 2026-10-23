@@ -7,6 +7,8 @@ import { SettingsModal } from './components/SettingsModal';
 import { PersonaModal } from './components/PersonaModal';
 import { WorkspaceDrawer } from './components/WorkspaceDrawer';
 import { SwarmModal } from './components/SwarmModal';
+import { InteractiveTerminal } from './components/InteractiveTerminal';
+import { ProjectModal } from './components/ProjectModal';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -26,6 +28,36 @@ export const App: React.FC = () => {
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
   const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
+
+  // Code Mode & Projects state
+  const [mode, setMode] = useState<'chat' | 'code'>(() => {
+    try {
+      return (localStorage.getItem('aether_mode') as 'chat' | 'code') || 'chat';
+    } catch {
+      return 'chat';
+    }
+  });
+  const [projects, setProjects] = useState<any[]>([]);
+  const [activeProject, setActiveProject] = useState<string | null>(null);
+  const [isTerminalOpen, setIsTerminalOpen] = useState<boolean>(false);
+  const [isNewProjectModalOpen, setIsNewProjectModalOpen] = useState<boolean>(false);
+
+  const fetchProjects = async () => {
+    try {
+      const res = await fetch('/api/projects');
+      if (res.ok) {
+        const data = await res.json();
+        setProjects(data.projects || []);
+        setActiveProject(data.active_project || null);
+      }
+    } catch (err) {
+      console.error('Failed to load projects:', err);
+    }
+  };
+
+  useEffect(() => {
+    fetchProjects();
+  }, []);
 
   // Hardware-saving Eco Mode state (can be triggered by URL ?eco=1 or localStorage)
   const [isEcoMode, setIsEcoMode] = useState<boolean>(() => {
@@ -506,7 +538,9 @@ export const App: React.FC = () => {
           model_config_override: modelConfig,
           user_message_id: userMsgId,
           assistant_message_id: assistantMsgId,
-          images: images
+          images: images,
+          mode: mode,
+          project: activeProject
         }),
         signal: controller.signal
       });
@@ -792,6 +826,34 @@ export const App: React.FC = () => {
           onRefreshModels={() => probeAvailableModels(modelConfig)}
           isEcoMode={isEcoMode}
           onToggleEcoMode={handleToggleEcoMode}
+          mode={mode}
+          onToggleMode={(m) => {
+            setMode(m);
+            try {
+              localStorage.setItem('aether_mode', m);
+            } catch {}
+            if (m === 'code') {
+              setIsTerminalOpen(true);
+            }
+          }}
+          projects={projects}
+          activeProject={activeProject}
+          onSelectProject={async (p) => {
+            try {
+              await fetch('/api/projects/select', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: p })
+              });
+              setActiveProject(p);
+              fetchProjects();
+            } catch (err) {
+              console.error('Failed to select project:', err);
+            }
+          }}
+          onOpenNewProject={() => setIsNewProjectModalOpen(true)}
+          isTerminalOpen={isTerminalOpen}
+          onToggleTerminal={() => setIsTerminalOpen(prev => !prev)}
         />
 
         {/* Chat Canvas & Input */}
@@ -846,6 +908,35 @@ export const App: React.FC = () => {
         personas={personas}
         onApplyToChat={handleApplySwarm}
         modelConfig={modelConfig}
+      />
+
+      {/* Code Mode Interactive Terminal */}
+      <InteractiveTerminal
+        isOpen={isTerminalOpen}
+        onClose={() => setIsTerminalOpen(false)}
+        activeProject={activeProject}
+        projects={projects}
+        onSelectProject={(p) => {
+          setActiveProject(p);
+          fetchProjects();
+        }}
+      />
+
+      {/* New Project Modal */}
+      <ProjectModal
+        isOpen={isNewProjectModalOpen}
+        onClose={() => setIsNewProjectModalOpen(false)}
+        projects={projects}
+        activeProject={activeProject}
+        onProjectCreated={(name) => {
+          setActiveProject(name);
+          fetchProjects();
+          setIsTerminalOpen(true);
+        }}
+        onSelectProject={(name) => {
+          setActiveProject(name);
+          fetchProjects();
+        }}
       />
     </div>
   );

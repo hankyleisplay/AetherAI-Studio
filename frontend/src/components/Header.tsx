@@ -15,7 +15,9 @@ import {
   Users,
   RefreshCw,
   Cpu,
-  Wrench
+  Wrench,
+  MessageSquare,
+  Plus
 } from 'lucide-react';
 import { ModelConfig, ToolDefinition, AgentState, Persona } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -38,6 +40,14 @@ interface HeaderProps {
   onRefreshModels?: () => void;
   isEcoMode?: boolean;
   onToggleEcoMode?: () => void;
+  mode?: 'chat' | 'code';
+  onToggleMode?: (m: 'chat' | 'code') => void;
+  projects?: Array<{ name: string; path: string; file_count: number }>;
+  activeProject?: string | null;
+  onSelectProject?: (name: string | null) => void;
+  onOpenNewProject?: () => void;
+  isTerminalOpen?: boolean;
+  onToggleTerminal?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -57,8 +67,18 @@ export const Header: React.FC<HeaderProps> = ({
   onSelectModel,
   onRefreshModels,
   isEcoMode = false,
-  onToggleEcoMode
+  onToggleEcoMode,
+  mode = 'chat',
+  onToggleMode,
+  projects = [],
+  activeProject = null,
+  onSelectProject,
+  onOpenNewProject,
+  isTerminalOpen = false,
+  onToggleTerminal
 }) => {
+  const [isProjectMenuOpen, setIsProjectMenuOpen] = useState(false);
+  const projectDropdownRef = useRef<HTMLDivElement>(null);
   const { currentLang, setLanguage, availableLanguages, t } = useI18n();
   const [isLangOpen, setIsLangOpen] = useState(false);
   const [isModelMenuOpen, setIsModelMenuOpen] = useState(false);
@@ -73,6 +93,9 @@ export const Header: React.FC<HeaderProps> = ({
       }
       if (modelDropdownRef.current && !modelDropdownRef.current.contains(e.target as Node)) {
         setIsModelMenuOpen(false);
+      }
+      if (projectDropdownRef.current && !projectDropdownRef.current.contains(e.target as Node)) {
+        setIsProjectMenuOpen(false);
       }
     };
     document.addEventListener('mousedown', handleClickOutside);
@@ -161,10 +184,137 @@ export const Header: React.FC<HeaderProps> = ({
           </span>
           {getStateBadge()}
         </div>
+
+        {/* Mode Switcher Capsule (Chat vs Code) */}
+        {onToggleMode && (
+          <div className="flex items-center p-0.5 rounded-xl bg-black/40 border border-white/10 shrink-0 ml-1">
+            <button
+              onClick={() => onToggleMode('chat')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'chat'
+                  ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-sm'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title={t('mode_chat', '對話模式 (Chat)')}
+            >
+              <MessageSquare className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">{t('mode_chat', '對話')}</span>
+            </button>
+
+            <button
+              onClick={() => onToggleMode('code')}
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                mode === 'code'
+                  ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_12px_rgba(16,185,129,0.35)]'
+                  : 'text-slate-400 hover:text-slate-200'
+              }`}
+              title={t('mode_code', 'Code 模式 (Claude Code)')}
+            >
+              <Terminal className="w-3.5 h-3.5 text-emerald-200" />
+              <span className="hidden md:inline">Code</span>
+            </button>
+          </div>
+        )}
+
+        {/* Code Mode: Project Selector Capsule */}
+        {mode === 'code' && (
+          <div className="relative flex items-center shrink-0 ml-1" ref={projectDropdownRef}>
+            <button
+              onClick={() => setIsProjectMenuOpen(!isProjectMenuOpen)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-cyan-300 border border-cyan-500/30 hover:border-cyan-400 transition-all shadow-sm"
+              title="切換或建立工程專案"
+            >
+              <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+              <span className="font-bold truncate max-w-[80px] sm:max-w-[120px]">
+                {activeProject || t('root_workspace', 'Root')}
+              </span>
+              <ChevronDown className={`w-3 h-3 text-cyan-400 transition-transform ${isProjectMenuOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isProjectMenuOpen && (
+              <div className="absolute left-0 top-full mt-2 w-60 glass-modal rounded-2xl border border-white/15 py-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 backdrop-blur-xl bg-[#0b101e]/95">
+                <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between text-[11px] font-bold text-slate-400 uppercase tracking-wider">
+                  <span>{t('projects_title', '專案管理')}</span>
+                  {onOpenNewProject && (
+                    <button
+                      onClick={() => {
+                        setIsProjectMenuOpen(false);
+                        onOpenNewProject();
+                      }}
+                      className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] normal-case"
+                    >
+                      <Plus className="w-3 h-3" />
+                      <span>{t('new_project', '新建專案')}</span>
+                    </button>
+                  )}
+                </div>
+
+                <div className="max-h-52 overflow-y-auto py-1">
+                  <button
+                    onClick={() => {
+                      if (onSelectProject) onSelectProject(null);
+                      setIsProjectMenuOpen(false);
+                    }}
+                    className={`w-full px-3 py-2 text-left text-xs font-mono flex items-center justify-between ${
+                      activeProject === null ? 'bg-cyan-500/15 text-cyan-300 font-bold' : 'text-slate-300 hover:bg-white/10'
+                    }`}
+                  >
+                    <span>{t('root_workspace', '工作區根目錄 (Root)')}</span>
+                    {activeProject === null && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                  </button>
+                  {projects.map((p) => {
+                    const isSelected = activeProject === p.name;
+                    return (
+                      <button
+                        key={p.name}
+                        onClick={() => {
+                          if (onSelectProject) onSelectProject(p.name);
+                          setIsProjectMenuOpen(false);
+                        }}
+                        className={`w-full px-3 py-2 text-left text-xs font-mono flex items-center justify-between ${
+                          isSelected ? 'bg-cyan-500/15 text-cyan-300 font-bold' : 'text-slate-300 hover:bg-white/10'
+                        }`}
+                      >
+                        <span className="truncate pr-2">{p.name}</span>
+                        {isSelected && <Check className="w-3.5 h-3.5 text-cyan-400" />}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* Right: Tools Switchers, Language Selector, Model Capsule & Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        {/* Code Mode: Expanded Context Badge */}
+        {mode === 'code' && (
+          <div 
+            className="hidden xl:flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-cyan-950/40 border border-cyan-500/30 text-cyan-300 text-[11px] font-mono shrink-0 shadow-[0_0_10px_rgba(6,182,212,0.15)]"
+            title={t('context_expanded_badge', '🧠 上下文視窗: 32K~64K | 🚀 Token 限制放寬: 16K')}
+          >
+            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
+            <span>32K Context / 16K Output</span>
+          </div>
+        )}
+
+        {/* Code Mode: Interactive Terminal Console Button */}
+        {mode === 'code' && onToggleTerminal && (
+          <button
+            onClick={onToggleTerminal}
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono transition-all shadow-sm shrink-0 ${
+              isTerminalOpen
+                ? 'bg-emerald-500/25 text-emerald-300 border-emerald-500/40 shadow-[0_0_12px_rgba(16,185,129,0.3)]'
+                : 'text-slate-300 hover:text-emerald-300 border-white/10 hover:border-emerald-500/30'
+            }`}
+            title={t('terminal_title', '互動工作區終端 (Terminal)')}
+          >
+            <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
+            <span className="hidden sm:inline font-semibold">{t('terminal_title', '終端機')}</span>
+          </button>
+        )}
         {/* Quick Tools Toggle Pills - Only shown when sidebar is closed on ultra-wide viewports to prevent any overlap */}
         <div className={`${isSidebarOpen ? 'hidden' : 'hidden 2xl:flex'} items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5 shrink-0`}>
           {tools.slice(0, 4).map((tool) => (

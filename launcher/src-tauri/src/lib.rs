@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
-const CURRENT_VERSION: &str = "3.5.3";
+const CURRENT_VERSION: &str = "3.6.0";
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
 
@@ -741,7 +741,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "desktop" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.6.0 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -769,7 +769,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "cli" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.6.0 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -797,7 +797,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "browser" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.5.3 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
+                "chcp 65001 >nul & title Aether AI Studio 3.6.0 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
                 port_str,
                 quoted_python,
                 port_str,
@@ -918,7 +918,7 @@ fn run_health_check() -> Result<String, String> {
     };
 
     let exec_cmd = format!(
-        "chcp 65001 >nul & title Aether AI Studio 3.5.3 [系統檢測] & {} test_backend.py & pause",
+        "chcp 65001 >nul & title Aether AI Studio 3.6.0 [系統檢測] & {} test_backend.py & pause",
         python_bin
     );
 
