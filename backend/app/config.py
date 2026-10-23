@@ -22,9 +22,9 @@ DB_PATH = DATA_DIR / "agent_store.sqlite"
 
 class Settings(BaseModel):
 
-    app_name: str = "Aether AI Studio 3.6.0 (AetherAgent)"
+    app_name: str = "Aether AI Studio 3.6.1 (AetherAgent)"
 
-    version: str = "3.6.0"
+    version: str = "3.6.1"
 
     host: str = "0.0.0.0"
 

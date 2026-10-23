@@ -20,7 +20,8 @@ import {
   Cpu,
   Loader2,
   RotateCw,
-  Zap
+  Zap,
+  Pencil
 } from 'lucide-react';
 import { Message, Persona, AgentState } from '../types';
 import { ToolCallCard } from './ToolCallCard';
@@ -32,6 +33,7 @@ interface MessageItemProps {
   message: Message;
   isStreaming?: boolean;
   onBookmarkToggle?: (messageId: string) => void;
+  onEditPrompt?: (messageId: string, newContent: string) => void;
   persona?: Persona;
   agentState?: AgentState;
 }
@@ -40,6 +42,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   message, 
   isStreaming,
   onBookmarkToggle,
+  onEditPrompt,
   persona,
   agentState
 }) => {
@@ -49,6 +52,12 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   const [copiedMarkdown, setCopiedMarkdown] = useState(false);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [sloganIdx, setSloganIdx] = useState(0);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState(message.content);
+
+  useEffect(() => {
+    setEditContent(message.content);
+  }, [message.content]);
 
   const isUser = message.role === 'user';
   const isBookmarked = Boolean(message.is_bookmarked);
@@ -229,15 +238,79 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                 })}
               </div>
             )}
-            <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
-              <p className="whitespace-pre-wrap break-words">{message.content}</p>
-            </div>
+            {isEditing ? (
+              <div className="w-full space-y-2 animate-in fade-in duration-200">
+                <textarea
+                  value={editContent}
+                  onChange={(e) => setEditContent(e.target.value)}
+                  rows={Math.min(10, Math.max(2, editContent.split('\n').length))}
+                  className="w-full p-3.5 rounded-2xl bg-black/75 border border-cyan-400/60 text-slate-100 text-sm md:text-[15px] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 font-sans leading-relaxed resize-y shadow-2xl backdrop-blur-xl"
+                  autoFocus
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      if (editContent.trim() && onEditPrompt) {
+                        onEditPrompt(message.id, editContent.trim());
+                        setIsEditing(false);
+                      }
+                    } else if (e.key === 'Escape') {
+                      setIsEditing(false);
+                      setEditContent(message.content);
+                    }
+                  }}
+                />
+                <div className="flex items-center justify-end gap-2 text-xs">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsEditing(false);
+                      setEditContent(message.content);
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 transition-colors"
+                  >
+                    {t('cancel_edit', '取消')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editContent.trim() && onEditPrompt) {
+                        onEditPrompt(message.id, editContent.trim());
+                        setIsEditing(false);
+                      }
+                    }}
+                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all flex items-center gap-1.5 cursor-pointer"
+                  >
+                    <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                    <span>{t('save_and_resend', '儲存並重新發送')}</span>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
+                <p className="whitespace-pre-wrap break-words">{message.content}</p>
+              </div>
+            )}
             
             {/* User Message Action Toolbar */}
             <div className="mt-1.5 flex items-center gap-2 text-xs text-slate-400">
               <span className="text-[11px] text-slate-400 font-mono">
                 {message.created_at ? new Date(message.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : ''}
               </span>
+
+              {/* Edit prompt button */}
+              {onEditPrompt && !isStreaming && !isEditing && (
+                <button
+                  onClick={() => {
+                    setIsEditing(true);
+                    setEditContent(message.content);
+                  }}
+                  className="p-1 px-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] text-slate-400 hover:text-cyan-300 opacity-80 sm:opacity-0 group-hover:opacity-100 transition-opacity"
+                  title={t('edit_prompt', '更改提示詞')}
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline">{t('edit_prompt', '更改提示詞')}</span>
+                </button>
+              )}
 
               {/* Bookmark Toggle Button for User Message */}
               {onBookmarkToggle && (

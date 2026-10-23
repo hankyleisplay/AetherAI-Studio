@@ -236,6 +236,16 @@ class Database:
                 messages.append(d)
             return messages
 
+    def delete_message(self, message_id: str):
+        with self.get_connection() as conn:
+            conn.execute('DELETE FROM messages WHERE id = ?', (message_id,))
+            conn.commit()
+
+    def update_message_content(self, message_id: str, content: str):
+        with self.get_connection() as conn:
+            conn.execute('UPDATE messages SET content = ? WHERE id = ?', (content, message_id))
+            conn.commit()
+
     def toggle_message_bookmark(self, message_id: str) -> bool:
         with self.get_connection() as conn:
             row = conn.execute("SELECT is_bookmarked FROM messages WHERE id = ?", (message_id,)).fetchone()

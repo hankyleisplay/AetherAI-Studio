@@ -197,22 +197,67 @@ async def test_model_connection(config: ModelConfig):
     result = await client.test_connection()
     return result
 
+async def generate_ai_session_title(session_id: str, prompt_snippet: str, config: ModelConfig) -> str:
+    """Generate a concise, insightful conversation title (4-8 Chinese characters) using AI."""
+    import re
+    try:
+        title_config = config.model_copy(update={"max_tokens": 40, "temperature": 0.3})
+        client = UnifiedLLMClient(title_config)
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "你是一個專業的對話主題命名助手。請針對使用者的提問或對話內容，提煉出一個極具代表性、精簡精準的對話標題。\n"
+                    "【命名原則】：\n"
+                    "1. 長度嚴格限制在 4 到 8 個繁體中文字以內。\n"
+                    "2. 嚴禁輸出任何引號、前綴（如「標題：」）、標點符號或任何解釋說明。\n"
+                    "3. 直接輸出純文字標題名稱。"
+                )
+            },
+            {
+                "role": "user",
+                "content": f"使用者提問內容：\n{prompt_snippet[:200]}\n\n請輸出 4-8 字主題標題："
+            }
+        ]
+        title_text = ""
+        async for chunk in client.stream_chat(messages):
+            if chunk.type == "token" and chunk.content:
+                title_text += chunk.content
+        clean_title = title_text.strip().replace('"', '').replace("'", '').replace("《", "").replace("》", "").replace("「", "").replace("」", "").replace("標題：", "").replace("標題:", "").strip()
+        clean_title = re.sub(r'[，。！？\.,!?]+$', '', clean_title).strip()
+        if clean_title:
+            if len(clean_title) > 15:
+                clean_title = clean_title[:15]
+            db.update_session(session_id, title=clean_title)
+            return clean_title
+    except Exception as e:
+        print(f"[AISessionTitle] Failed to generate title: {e}")
+    clean_fallback = prompt_snippet.strip()[:10]
+    if clean_fallback:
+        db.update_session(session_id, title=clean_fallback)
+        return clean_fallback
+    return ""
+
 # Chat Streaming Endpoint (SSE)
 @app.post("/api/chat/stream")
 async def chat_stream(request: ChatRequest):
     # Determine session
     session_id = request.session_id
+    needs_ai_title = False
     if not session_id:
-        # Generate initial title from first 20 chars of message
-        title = request.message[:20] + ("..." if len(request.message) > 20 else "")
+        needs_ai_title = True
+        title = "新對話"
         new_sess = db.create_session(title=title, persona_id=request.persona_id or "assistant")
         session_id = new_sess["id"]
     else:
         # Verify session exists
         sess = db.get_session(session_id)
         if not sess:
-            title = request.message[:20] + ("..." if len(request.message) > 20 else "")
+            needs_ai_title = True
+            title = "新對話"
             db.create_session(title=title, persona_id=request.persona_id or "assistant", session_id=session_id)
+        elif sess.get("title") in ("新對話", "開啟新對話", "New Session", "新会话") or not sess.get("title"):
+            needs_ai_title = True
 
     # Determine Model Config
     if request.model_config_override:
@@ -264,6 +309,15 @@ async def chat_stream(request: ChatRequest):
                     "event": ev_type,
                     "data": json.dumps(ev, ensure_ascii=False)
                 }
+
+            # Generate insightful AI title for new sessions
+            if needs_ai_title:
+                ai_title = await generate_ai_session_title(session_id, request.message, active_config)
+                if ai_title:
+                    yield {
+                        "event": "session_title",
+                        "data": json.dumps({"session_id": session_id, "title": ai_title}, ensure_ascii=False)
+                    }
         except Exception as e:
             yield {
                 "event": "error",
@@ -416,6 +470,25 @@ async def update_session(session_id: str, payload: Dict[str, Any]):
     db.update_session(session_id, title=title, persona_id=persona_id)
     return {"status": "updated", "id": session_id}
 
+# On-Demand AI Session Title Generation
+@app.post("/api/sessions/{session_id}/ai_title")
+async def generate_session_ai_title_endpoint(session_id: str):
+    sess = db.get_session(session_id)
+    if not sess:
+        raise HTTPException(status_code=404, detail="Session not found")
+    messages = db.get_messages(session_id)
+    if not messages:
+        raise HTTPException(status_code=400, detail="No messages in session")
+    user_msgs = [m["content"] for m in messages if m["role"] == "user"]
+    context = "\n".join(user_msgs[:2]) if user_msgs else (messages[0].get("content") or "")
+    saved = db.get_setting("active_model_config")
+    active_config = ModelConfig(**saved) if saved else ModelConfig(provider="ollama", base_url="http://localhost:11434", model="llama3:latest")
+    new_title = await generate_ai_session_title(session_id, context, active_config)
+    if not new_title:
+        new_title = context[:12]
+        db.update_session(session_id, title=new_title)
+    return {"status": "success", "session_id": session_id, "title": new_title}
+
 # Memories Endpoints
 @app.get("/api/memories")
 async def get_memories():
@@ -461,6 +534,11 @@ async def toggle_message_bookmark_endpoint(message_id: str):
 @app.get("/api/bookmarks")
 async def get_bookmarks_endpoint():
     return db.get_bookmarked_messages()
+
+@app.delete("/api/messages/{message_id}")
+async def delete_message_endpoint(message_id: str):
+    db.delete_message(message_id)
+    return {"status": "deleted", "id": message_id}
 
 # ================= Workspace File Explorer & Artifacts =================
 

@@ -483,6 +483,32 @@ export const App: React.FC = () => {
     setAgentState('idle');
   };
 
+  const handleEditPrompt = async (messageId: string, newContent: string) => {
+    if (!newContent.trim() || isStreaming) return;
+
+    const msgIdx = messages.findIndex(m => m.id === messageId);
+    if (msgIdx === -1) return;
+
+    // Collect all subsequent messages (including preceding assistant reply) to delete
+    const idsToDelete: string[] = [];
+    for (let i = msgIdx + 1; i < messages.length; i++) {
+      idsToDelete.push(messages[i].id);
+    }
+    // Delete the original user message as well
+    idsToDelete.push(messageId);
+
+    // Delete from backend DB
+    await Promise.allSettled(
+      idsToDelete.map(id => fetch(`/api/messages/${id}`, { method: 'DELETE' }))
+    );
+
+    // Slice local messages state
+    setMessages(prev => prev.slice(0, msgIdx));
+
+    // Re-send revised prompt
+    handleSendMessage(newContent);
+  };
+
   const handleSendMessage = async (text: string, images?: string[]) => {
     if ((!text.trim() && (!images || images.length === 0)) || isStreaming) return;
 
@@ -581,6 +607,10 @@ export const App: React.FC = () => {
                 }
                 if (data.user_message_id) {
                   setMessages(prev => prev.map(m => m.id === userMsgId ? { ...m, id: data.user_message_id } : m));
+                }
+              } else if (currentEvent === 'session_title' || data.type === 'session_title') {
+                if (data.session_id && data.title) {
+                  setSessions(prev => prev.map(s => s.id === data.session_id ? { ...s, title: data.title } : s));
                 }
               } else if (currentEvent === 'status' || data.type === 'status') {
                 if (data.stage) setAgentState(data.stage);
@@ -803,6 +833,9 @@ export const App: React.FC = () => {
         bookmarkVersion={bookmarkVersion}
         onSelectBookmark={handleSelectBookmark}
         onBookmarkToggle={handleBookmarkToggle}
+        onUpdateSessionTitle={(id, title) => {
+          setSessions(prev => prev.map(s => s.id === id ? { ...s, title } : s));
+        }}
       />
 
       {/* Main Chat Workspace Area */}
@@ -864,6 +897,7 @@ export const App: React.FC = () => {
           onStopGeneration={handleStopGeneration}
           isStreaming={isStreaming}
           onBookmarkToggle={handleBookmarkToggle}
+          onEditPrompt={handleEditPrompt}
           temperature={modelConfig.temperature}
           onTemperatureChange={handleTemperatureChange}
           personas={personas}

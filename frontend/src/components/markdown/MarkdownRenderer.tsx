@@ -133,7 +133,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     // 5. Math: $...$, \(...\)
     // 6. Code: `...`
     // 7. Bold: **...**, Strikethrough: ~~...~~, Italic: *...*, _..._
-    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:```[\s\S]+?```)|(?:``[\s\S]+?``)|(?:`[^`\r\n]+?`)|(?:\|\|[\s\S]+?\|\|)|(?:>![\s\S]+?!<)|(?:<spoiler>[\s\S]*?<\/spoiler>)|(?:==[^=\n]+?==)|(?:<kbd>[\s\S]*?<\/kbd>)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/gi;
+    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:```[\s\S]+?```)|(?:``[\s\S]+?``)|(?:`[^`\r\n]+?`)|(?:\|\|[\s\S]+?\|\|)|(?:>![\s\S]+?!<)|(?:<spoiler>[\s\S]*?<\/spoiler>)|(?:==[\s\S]+?==)|(?:<mark\b[^>]*>[\s\S]*?<\/mark>)|(?:<strong>[\s\S]*?<\/strong>)|(?:<b>[\s\S]*?<\/b>)|(?:<em>[\s\S]*?<\/em>)|(?:<i>[\s\S]*?<\/i>)|(?:<del>[\s\S]*?<\/del>)|(?:<s>[\s\S]*?<\/s>)|(?:<br\s*\/?>)|(?:<kbd>[\s\S]*?<\/kbd>)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/gi;
 
     const parts = text.split(inlineRegex);
 
@@ -239,12 +239,71 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
         );
       }
 
-      // Highlight: ==text==
-      if (part.startsWith('==') && part.endsWith('==') && part.length >= 4) {
+      // Highlight: ==text== or <mark>text</mark>
+      if (
+        (part.startsWith('==') && part.endsWith('==') && part.length >= 4) ||
+        (part.toLowerCase().startsWith('<mark') && part.toLowerCase().endsWith('</mark>'))
+      ) {
+        let highlightText = '';
+        if (part.startsWith('==')) {
+          highlightText = part.slice(2, -2);
+        } else {
+          highlightText = part.replace(/^<mark\b[^>]*>/i, '').replace(/<\/mark>$/i, '');
+        }
         return (
-          <mark key={idx} className="px-1.5 py-0.5 mx-0.5 rounded-md bg-amber-400/20 text-amber-200 border-b border-amber-400 font-medium">
-            {renderInline(part.slice(2, -2))}
+          <mark key={idx} className="mark-highlight px-1.5 py-0.5 mx-0.5 rounded-md font-semibold">
+            {renderInline(highlightText)}
           </mark>
+        );
+      }
+
+      // HTML Linebreak: <br>, <br/>, <br />
+      if (/^<br\s*\/?>$/i.test(part)) {
+        return <br key={idx} />;
+      }
+
+      // HTML Bold: <strong>...</strong> or <b>...</b>
+      if (
+        (part.toLowerCase().startsWith('<strong>') && part.toLowerCase().endsWith('</strong>')) ||
+        (part.toLowerCase().startsWith('<b>') && part.toLowerCase().endsWith('</b>'))
+      ) {
+        const boldText = part.toLowerCase().startsWith('<strong>')
+          ? part.slice(8, -9)
+          : part.slice(3, -4);
+        return (
+          <strong key={idx} className="font-bold text-white">
+            {renderInline(boldText)}
+          </strong>
+        );
+      }
+
+      // HTML Italic: <em>...</em> or <i>...</i>
+      if (
+        (part.toLowerCase().startsWith('<em>') && part.toLowerCase().endsWith('</em>')) ||
+        (part.toLowerCase().startsWith('<i>') && part.toLowerCase().endsWith('</i>'))
+      ) {
+        const italicText = part.toLowerCase().startsWith('<em>')
+          ? part.slice(4, -5)
+          : part.slice(3, -4);
+        return (
+          <em key={idx} className="italic text-slate-300">
+            {renderInline(italicText)}
+          </em>
+        );
+      }
+
+      // HTML Strikethrough: <del>...</b> or <s>...</s>
+      if (
+        (part.toLowerCase().startsWith('<del>') && part.toLowerCase().endsWith('</del>')) ||
+        (part.toLowerCase().startsWith('<s>') && part.toLowerCase().endsWith('</s>'))
+      ) {
+        const delText = part.toLowerCase().startsWith('<del>')
+          ? part.slice(5, -6)
+          : part.slice(3, -4);
+        return (
+          <del key={idx} className="line-through text-slate-500">
+            {renderInline(delText)}
+          </del>
         );
       }
 

@@ -68,9 +68,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.6.0 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.6.1 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "3.6.0"
+            assert res.json()["version"] == "3.6.1"
 
 
 
@@ -456,7 +456,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.6.0" in res.text
+            assert "Aether AI Studio 3.6.1" in res.text
 
 
 
@@ -541,6 +541,19 @@ async def run_tests():
             assert "32K~64K Context / 16K Output" in code_sys_prompt
             print("14. Code mode system prompt & emoji directive verified successfully!")
 
+            # 15. Verify Message Deletion & AI Session Title Endpoints
+            test_msg = db.add_message(sess["id"], role="user", content="測試提示詞修改與刪除功能")
+            del_res = await client.delete(f"/api/messages/{test_msg['id']}")
+            assert del_res.status_code == 200
+            assert del_res.json()["status"] == "deleted"
+
+            db.add_message(sess["id"], role="user", content="討論量子計算與超導體架構設計")
+            title_res = await client.post(f"/api/sessions/{sess['id']}/ai_title")
+            assert title_res.status_code == 200
+            assert "title" in title_res.json()
+            assert len(title_res.json()["title"]) > 0
+            print("15. Message deletion and AI session title API verified successfully! Title:", title_res.json()["title"])
+
             # Cleanup test project
             import shutil
             from backend.app.config import settings
@@ -565,7 +578,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 3.6.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 3.6.1 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

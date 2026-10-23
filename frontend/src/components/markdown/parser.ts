@@ -289,7 +289,13 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
       if (summaryMatch) {
         body = body.replace(summaryMatch[0], '');
       }
-      body = body.trim();
+      
+      // Clean up and normalize HTML paragraphs and linebreaks from AI output inside spoilers
+      body = body
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n\n')
+        .replace(/<\/?p\b[^>]*>/gi, '')
+        .trim();
 
       tokens.push({
         type: 'details',
@@ -328,18 +334,33 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
     }
 
     if (pLines.length > 0) {
-      tokens.push({
-        type: 'paragraph',
-        text: pLines.join('\n')
-      });
+      const cleanedPText = pLines.join('\n')
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/p>\s*<p\b[^>]*>/gi, '\n\n')
+        .replace(/<\/?p\b[^>]*>/gi, '');
+
+      const subParagraphs = cleanedPText.split('\n\n').map(sp => sp.trim()).filter(Boolean);
+      if (subParagraphs.length > 1) {
+        for (const sp of subParagraphs) {
+          tokens.push({ type: 'paragraph', text: sp });
+        }
+      } else if (subParagraphs.length === 1) {
+        tokens.push({ type: 'paragraph', text: subParagraphs[0] });
+      }
     }
 
     // Emergency safeguard: if no parser rule advanced i, advance it by 1 line to prevent browser lockup
     if (i === startI) {
-      tokens.push({
-        type: 'paragraph',
-        text: lines[i]
-      });
+      const fallbackClean = lines[i]
+        .replace(/<br\s*\/?>/gi, '\n')
+        .replace(/<\/?p\b[^>]*>/gi, '')
+        .trim();
+      if (fallbackClean) {
+        tokens.push({
+          type: 'paragraph',
+          text: fallbackClean
+        });
+      }
       i++;
     }
   }

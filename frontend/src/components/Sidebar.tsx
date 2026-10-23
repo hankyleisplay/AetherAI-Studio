@@ -34,6 +34,7 @@ interface SidebarProps {
   bookmarkVersion?: number;
   onSelectBookmark?: (sessionId: string, messageId: string) => void;
   onBookmarkToggle?: (messageId: string) => void;
+  onUpdateSessionTitle?: (id: string, newTitle: string) => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -53,6 +54,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   bookmarkVersion,
   onSelectBookmark,
   onBookmarkToggle,
+  onUpdateSessionTitle,
 }) => {
   const { t } = useI18n();
   const [activeTab, setActiveTab] = useState<'sessions' | 'bookmarks'>('sessions');
@@ -60,6 +62,26 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [searchResults, setSearchResults] = useState<Session[] | null>(null);
   const [bookmarks, setBookmarks] = useState<Message[]>([]);
   const [isSearching, setIsSearching] = useState<boolean>(false);
+  const [generatingTitleId, setGeneratingTitleId] = useState<string | null>(null);
+
+  const handleAiTitle = async (sessionId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (generatingTitleId) return;
+    setGeneratingTitleId(sessionId);
+    try {
+      const res = await fetch(`/api/sessions/${sessionId}/ai_title`, { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.title && onUpdateSessionTitle) {
+          onUpdateSessionTitle(sessionId, data.title);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to generate AI title:', err);
+    } finally {
+      setGeneratingTitleId(null);
+    }
+  };
 
   // Live search debounced
   useEffect(() => {
@@ -331,13 +353,25 @@ export const Sidebar: React.FC<SidebarProps> = ({
                           <span className="truncate">{s.title}</span>
                         </div>
 
-                        <button
-                          onClick={(e) => onDeleteSession(s.id, e)}
-                          className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity rounded hover:bg-white/10 shrink-0"
-                          title={t('delete_session', '刪除會話')}
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        <div className="flex items-center gap-1 shrink-0">
+                          <button
+                            type="button"
+                            onClick={(e) => handleAiTitle(s.id, e)}
+                            disabled={generatingTitleId === s.id}
+                            className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:text-cyan-300 transition-opacity rounded hover:bg-white/10"
+                            title={generatingTitleId === s.id ? t('generating_title', 'AI 正在發想標題...') : t('ai_generate_title', 'AI 發想標題')}
+                          >
+                            <Sparkles className={`w-3.5 h-3.5 text-cyan-400 ${generatingTitleId === s.id ? 'animate-spin' : ''}`} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => onDeleteSession(s.id, e)}
+                            className="opacity-70 md:opacity-0 group-hover:opacity-100 p-1 hover:text-rose-400 transition-opacity rounded hover:bg-white/10 shrink-0"
+                            title={t('delete_session', '刪除會話')}
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </div>
                     );
                   })

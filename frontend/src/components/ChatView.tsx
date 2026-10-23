@@ -40,6 +40,7 @@ interface ChatViewProps {
   onStopGeneration: () => void;
   isStreaming: boolean;
   onBookmarkToggle?: (messageId: string) => void;
+  onEditPrompt?: (messageId: string, newContent: string) => void;
   temperature?: number;
   onTemperatureChange?: (temp: number) => void;
   personas?: Persona[];
@@ -53,6 +54,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onStopGeneration,
   isStreaming,
   onBookmarkToggle,
+  onEditPrompt,
   temperature = 0.7,
   onTemperatureChange,
   personas = [],
@@ -577,6 +579,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               message={m}
               isStreaming={isStreaming && idx === messages.length - 1 && m.role === 'assistant'}
               onBookmarkToggle={onBookmarkToggle}
+              onEditPrompt={onEditPrompt}
               persona={personas.find(p => p.id === m.persona_id) || activePersona}
               agentState={isStreaming && idx === messages.length - 1 ? agentState : undefined}
             />
