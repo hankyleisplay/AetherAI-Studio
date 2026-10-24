@@ -30,6 +30,35 @@ export interface ToolDisplay {
   todos?: TodoItem[];
 }
 
+export interface MediaItem {
+  id: string;
+  kind: 'image' | 'video';
+  prompt: string;
+  provider: string;
+  model?: string;
+  status: 'pending' | 'running' | 'done' | 'failed';
+  error?: string;
+  created_at?: string;
+  url: string | null;
+  meta?: { aspect?: string; progress?: number; [key: string]: any };
+}
+
+export interface MediaConfig {
+  image_provider: string;
+  video_provider: string;
+  openai_api_key?: string;
+  gemini_api_key?: string;
+  has_openai_api_key?: boolean;
+  has_gemini_api_key?: boolean;
+  sd_base_url: string;
+  openai_image_model: string;
+  gemini_image_model: string;
+  veo_model: string;
+  sora_model: string;
+  image_providers?: string[];
+  video_providers?: string[];
+}
+
 export interface CodeToolInfo {
   name: string;
   description: string;

@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.2 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.1.0 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "4.0.2"
+            assert res.json()["version"] == "4.1.0"
 
 
 
@@ -287,7 +287,7 @@ async def run_tests():
 
             # 3l. Test Prompt Enhancer API (3.5 Preview)
 
-            enh_res = await client.post("/api/prompt/enhance", json={"prompt": "編寫一個貪吃蛇遊戲", "temperature": 0.2})
+            enh_res = await client.post("/api/prompt/enhance", json={"prompt": "編寫一個貪吃蛇遊戲", "temperature": 0.2, "use_ai": False})
 
             assert enh_res.status_code == 200
 
@@ -295,12 +295,16 @@ async def run_tests():
 
 
 
-            enh_creative = await client.post("/api/prompt/enhance", json={"prompt": "設計一個魔幻時鐘", "temperature": 1.1})
+            enh_creative = await client.post("/api/prompt/enhance", json={"prompt": "設計一個魔幻時鐘", "temperature": 1.1, "use_ai": False})
 
             assert enh_creative.status_code == 200
 
             assert "🎨 發散創意模式" in enh_creative.json()["enhanced_prompt"]
 
+            enh_en = await client.post("/api/prompt/enhance", json={"prompt": "build a snake game", "temperature": 0.7, "language": "en", "use_ai": False})
+            assert "Balanced mode" in enh_en.json()["enhanced_prompt"]
+            enh_ja = await client.post("/api/prompt/enhance", json={"prompt": "ゲームを作る", "temperature": 0.2, "language": "ja", "use_ai": False})
+            assert "厳密モード" in enh_ja.json()["enhanced_prompt"]
             print("3l. AI Prompt Enhancer API verified across temperature modes!")
 
 
@@ -449,7 +453,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.2" in res.text
+            assert "Aether AI Studio 4.1.0" in res.text
 
 
 
@@ -587,6 +591,23 @@ async def run_tests():
             assert disable_res.json()["pin_protected"] == False
             print("16. Web Access PIN security verified successfully!")
 
+            # 16b. Project removal: hidden from the list, files kept unless requested; re-creating restores it
+            await client.post("/api/projects", json={"name": "rm_check_proj", "template": "python"})
+            await client.delete("/api/projects/rm_check_proj")
+            listed = [p["name"] for p in (await client.get("/api/projects")).json()["projects"]]
+            assert "rm_check_proj" not in listed
+            del_res = await client.delete("/api/projects/rm_check_proj?delete_files=true")
+            assert del_res.json()["files_deleted"] is True
+            print("16b. Project removal verified successfully!")
+
+            # 16c. Media studio config and API-key validation (no network calls)
+            media_cfg = (await client.get("/api/media/config")).json()
+            assert "pollinations" in media_cfg["image_providers"] and "gemini_veo" in media_cfg["video_providers"]
+            assert media_cfg["openai_api_key"] == ""  # secrets are never sent to the browser
+            no_prompt = await client.post("/api/media/image", json={"prompt": "  "})
+            assert no_prompt.status_code == 400
+            print("16c. Media studio config verified successfully!")
+
             # 17. Verify Web Filesystem Browser
             drives_res = await client.get("/api/system/fs-browse")
             assert drives_res.status_code == 200
@@ -646,7 +667,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 4.0.2 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.1.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

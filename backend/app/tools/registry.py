@@ -2165,3 +2165,43 @@ async def tool_network_dns_whois_lookup(
         return f"❌ 未知的診斷操作 '{action}'。支援: dns_resolve, port_check, http_headers。"
 
 
+
+
+@registry.register(
+    name="generate_image",
+    description=(
+        "Generate an image from a text description (illustrations, photos, concept art, icons, UI mockups). "
+        "Write the prompt in English with concrete details: subject, style, composition, lighting, colours. "
+        "The image is shown to the user automatically; do not repeat its URL."
+    ),
+    parameters={
+        "prompt": {"type": "string", "description": "Detailed description of the image."},
+        "aspect": {"type": "string", "enum": ["1:1", "16:9", "9:16", "4:3", "3:4"], "description": "Aspect ratio (default 1:1)."},
+    },
+    required=["prompt"]
+)
+async def generate_image(prompt: str, aspect: str = "1:1", **kwargs) -> str:
+    from backend.app.services import media
+    item = await media.generate_image(prompt, aspect=aspect or "1:1")
+    return json.dumps({"is_media": True, **media.public_item(item)}, ensure_ascii=False)
+
+
+@registry.register(
+    name="generate_video",
+    description=(
+        "Start generating a short video clip (about 4-12 seconds) from a text description. Generation runs in the "
+        "background and takes several minutes; the user sees its progress and the finished video automatically. "
+        "Write the prompt in English: subject, action, camera movement, style and mood."
+    ),
+    parameters={
+        "prompt": {"type": "string", "description": "Detailed description of the video."},
+        "aspect": {"type": "string", "enum": ["16:9", "9:16"], "description": "Aspect ratio (default 16:9)."},
+        "seconds": {"type": "integer", "description": "Length in seconds (4-12, default 8)."},
+    },
+    required=["prompt"]
+)
+async def generate_video(prompt: str, aspect: str = "16:9", seconds: int = 8, **kwargs) -> str:
+    from backend.app.services import media
+    item = media.start_video(prompt, aspect=aspect or "16:9", seconds=int(seconds or 8))
+    return json.dumps({"is_media": True, **media.public_item(item),
+                       "note": "Video generation started in the background; it will appear when ready."}, ensure_ascii=False)

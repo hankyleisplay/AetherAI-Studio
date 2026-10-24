@@ -22,6 +22,7 @@ import { CodeExecutionMode } from '../types';
 interface ProjectItem {
   name: string;
   path: string;
+  custom?: boolean;
   file_count: number;
   updated_at: number;
 }
@@ -35,6 +36,7 @@ interface ProjectModalProps {
   onProjectCreated: (name: string, execMode: CodeExecutionMode) => void;
   onSelectProject: (name: string | null) => void;
   onSelectExecutionMode?: (mode: CodeExecutionMode) => void;
+  onProjectRemoved?: (name: string) => void;
 }
 
 export const ProjectModal: React.FC<ProjectModalProps> = ({
@@ -45,7 +47,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   codeExecutionMode = 'auto',
   onProjectCreated,
   onSelectProject,
-  onSelectExecutionMode
+  onSelectExecutionMode,
+  onProjectRemoved
 }) => {
   const { t } = useI18n();
   const [folderType, setFolderType] = useState<'workspace' | 'custom'>('workspace');
@@ -125,23 +128,27 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     }
   };
 
-  const handleDeleteProject = async (e: React.MouseEvent, name: string) => {
+  const handleDeleteProject = async (e: React.MouseEvent, proj: ProjectItem) => {
     e.stopPropagation();
+    const name = proj.name;
     if (!window.confirm(t('confirm_remove_project', '確定要從專案列表中移除「{name}」嗎？（本機實體檔案仍會保留）', { name }))) {
       return;
     }
+    // Only projects created inside the app's workspace can also have their files deleted
+    const deleteFiles = !proj.custom && window.confirm(
+      t('confirm_delete_project_files', '是否也要永久刪除「{name}」在工作區中的所有檔案？此操作無法復原。按「取消」則只從列表移除。', { name })
+    );
     try {
-      const res = await fetch(`/api/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
-      if (res.ok) {
-        if (activeProject === name) {
-          onSelectProject(null);
-        }
-        if (onProjectCreated) {
-          onProjectCreated(name, execMode);
-        }
+      const res = await fetch(`/api/projects/${encodeURIComponent(name)}?delete_files=${deleteFiles}`, { method: 'DELETE' });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        setErrorMsg(err.detail || t('operation_failed', '操作失敗: {error}', { error: String(res.status) }));
+        return;
       }
+      onProjectRemoved?.(name);
     } catch (err) {
       console.error('Failed to remove project:', err);
+      setErrorMsg(t('operation_failed', '操作失敗: {error}', { error: String(err) }));
     }
   };
 
@@ -624,7 +631,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         )}
                         <button
                           type="button"
-                          onClick={(e) => handleDeleteProject(e, proj.name)}
+                          onClick={(e) => handleDeleteProject(e, proj)}
                           title={t('remove_project', '從專案列表移除')}
                           className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
                         >

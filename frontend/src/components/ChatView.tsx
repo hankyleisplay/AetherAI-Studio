@@ -102,7 +102,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
         body: JSON.stringify({
           prompt: inputText,
           temperature: temperature,
-          persona_id: activePersona?.id || 'assistant'
+          persona_id: activePersona?.id || 'assistant',
+          // Template fallback uses the UI language; the AI rewrite keeps the prompt's own language
+          language: currentLang
         })
       });
       if (res.ok) {

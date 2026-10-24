@@ -33,7 +33,9 @@ import {
   Trash2,
   MoveRight,
   ShieldQuestion,
-  Link2
+  Link2,
+  ImagePlus,
+  Film
 } from 'lucide-react';
 import { ToolCall } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -89,6 +91,9 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         return a.url;
       case 'web_search':
         return a.query;
+      case 'generate_image':
+      case 'generate_video':
+        return a.prompt;
       case 'run_command':
         return a.command;
       case 'grep':
@@ -173,6 +178,10 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         return <ShieldQuestion className="w-4 h-4 text-teal-400" />;
       case 'web_fetch':
         return <Link2 className="w-4 h-4 text-sky-400" />;
+      case 'generate_image':
+        return <ImagePlus className="w-4 h-4 text-fuchsia-400" />;
+      case 'generate_video':
+        return <Film className="w-4 h-4 text-fuchsia-400" />;
       default:
         return <Wrench className="w-4 h-4 text-cyan-400" />;
     }

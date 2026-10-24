@@ -82,6 +82,23 @@ class Database:
                 )
             """)
 
+            # Generated images / videos (files live in workspace/media)
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS media_items (
+                    id TEXT PRIMARY KEY,
+                    kind TEXT NOT NULL,
+                    prompt TEXT NOT NULL,
+                    provider TEXT NOT NULL,
+                    model TEXT DEFAULT '',
+                    status TEXT NOT NULL,
+                    file_name TEXT DEFAULT '',
+                    error TEXT DEFAULT '',
+                    meta TEXT DEFAULT '{}',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )
+            """)
+
             # Auto-migrate: check if is_bookmarked and images column exist in messages
             cursor.execute("PRAGMA table_info(messages)")
             columns = [col[1] for col in cursor.fetchall()]
@@ -103,7 +120,7 @@ class Database:
                 "description": "全功能主控自主決策核心，精通複雜系統規劃與自主工具鏈調度",
                 "icon": "Sparkles",
                 "system_prompt": "你是 Aether AI Studio 4.0 (AetherAgent) 核心自主代理系統。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造，可以去 GitHub (https://github.com/hankyleisplay) 和 npm (https://www.npmjs.com/~hankyleisplay 或 https://github.com/hankyleisplay/AetherAI-Studio/pkgs/npm/aetherai-studio) 查看個人主頁與專案源碼。你具備即時深度思維鏈分析能力與自主工具鏈調度權限。面對複雜工程或研發任務，你將以嚴謹、清晰、高度專業的繁體中文提供深度架構方案與精確執行。",
-                "enabled_tools": ["web_search", "python_eval", "bash_executor", "file_system", "system_status", "datetime_calc", "read_url", "knowledge_memory", "generate_chart", "http_request_api", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "ocr_extractor", "image_to_text", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor", "network_dns_whois_lookup"]
+                "enabled_tools": ["web_search", "python_eval", "bash_executor", "file_system", "system_status", "datetime_calc", "read_url", "knowledge_memory", "generate_chart", "http_request_api", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "ocr_extractor", "image_to_text", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor", "network_dns_whois_lookup", "generate_image", "generate_video"]
             },
             {
                 "id": "coder",
@@ -111,7 +128,7 @@ class Database:
                 "description": "專精於大型軟體工程、生產級演算法設計、程式碼審查與架構重構",
                 "icon": "Code2",
                 "system_prompt": "你是一位世界級首席軟體系統架構師。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造（GitHub: https://github.com/hankyleisplay）。你熱愛撰寫優雅、模組化、強健且生產級的高效能程式碼。在當前已授權工具鏈的支援下協助進行專案架構與演算法驗證。請隨時提供完備且符合行業最佳實踐的程式碼與技術剖析。",
-                "enabled_tools": ["python_eval", "file_system", "bash_executor", "system_status", "generate_chart", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor"]
+                "enabled_tools": ["python_eval", "file_system", "bash_executor", "system_status", "generate_chart", "document_text_extractor", "mermaid_generator", "code_linter_analyzer", "git_version_control", "database_sqlite_inspector", "data_transformer_converter", "hash_crypto_inspector", "regex_pattern_matcher", "archive_compressor", "generate_image", "generate_video"]
             },
             {
                 "id": "researcher",
@@ -119,7 +136,7 @@ class Database:
                 "description": "專攻前沿科技全網檢索、跨領域情報交叉驗證與高價值研報產出",
                 "icon": "Search",
                 "system_prompt": "你是一名資深高階技術情報分析研究員。我是由 hankyledevteam 開發的，主要是 Hanson Lee 開發打造（GitHub: https://github.com/hankyleisplay）。在當前已授權工具鏈的支援下檢索一手科技動態，並對複雜來源資訊進行多維度交叉查核與深度結構化研析。請保持嚴密、客觀、高信息密度並附帶完整參考來源。",
-                "enabled_tools": ["web_search", "read_url", "datetime_calc", "file_system", "knowledge_memory", "http_request_api", "document_text_extractor", "generate_chart", "ocr_extractor", "database_sqlite_inspector", "data_transformer_converter", "network_dns_whois_lookup"]
+                "enabled_tools": ["web_search", "read_url", "datetime_calc", "file_system", "knowledge_memory", "http_request_api", "document_text_extractor", "generate_chart", "ocr_extractor", "database_sqlite_inspector", "data_transformer_converter", "network_dns_whois_lookup", "generate_image", "generate_video"]
             },
             {
                 "id": "sysadmin",
@@ -194,6 +211,57 @@ class Database:
             conn.execute("DELETE FROM messages WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM agent_sessions WHERE session_id = ?", (session_id,))
             conn.execute("DELETE FROM sessions WHERE id = ?", (session_id,))
+            conn.commit()
+
+    # Generated media
+    def _media_row(self, r) -> Dict[str, Any]:
+        d = dict(r)
+        try:
+            d["meta"] = json.loads(d.get("meta") or "{}")
+        except Exception:
+            d["meta"] = {}
+        return d
+
+    def add_media(self, kind: str, prompt: str, provider: str, model: str = "", status: str = "pending",
+                  meta: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
+        media_id = uuid.uuid4().hex
+        now = datetime.now().isoformat()
+        with self.get_connection() as conn:
+            conn.execute(
+                "INSERT INTO media_items (id, kind, prompt, provider, model, status, meta, created_at, updated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                (media_id, kind, prompt, provider, model, status, json.dumps(meta or {}, ensure_ascii=False), now, now)
+            )
+            conn.commit()
+        return self.get_media(media_id)
+
+    def update_media(self, media_id: str, **fields):
+        allowed = {"status", "file_name", "error", "model", "meta"}
+        sets = {k: (json.dumps(v, ensure_ascii=False) if k == "meta" else v) for k, v in fields.items() if k in allowed}
+        if not sets:
+            return
+        sets["updated_at"] = datetime.now().isoformat()
+        cols = ", ".join(f"{k} = ?" for k in sets)
+        with self.get_connection() as conn:
+            conn.execute(f"UPDATE media_items SET {cols} WHERE id = ?", (*sets.values(), media_id))
+            conn.commit()
+
+    def get_media(self, media_id: str) -> Optional[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            row = conn.execute("SELECT * FROM media_items WHERE id = ?", (media_id,)).fetchone()
+            return self._media_row(row) if row else None
+
+    def list_media(self, kind: Optional[str] = None, limit: int = 200) -> List[Dict[str, Any]]:
+        with self.get_connection() as conn:
+            if kind:
+                rows = conn.execute("SELECT * FROM media_items WHERE kind = ? ORDER BY created_at DESC LIMIT ?", (kind, limit)).fetchall()
+            else:
+                rows = conn.execute("SELECT * FROM media_items ORDER BY created_at DESC LIMIT ?", (limit,)).fetchall()
+            return [self._media_row(r) for r in rows]
+
+    def delete_media(self, media_id: str):
+        with self.get_connection() as conn:
+            conn.execute("DELETE FROM media_items WHERE id = ?", (media_id,))
             conn.commit()
 
     # Code-mode agent state

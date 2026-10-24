@@ -1,7 +1,7 @@
 [package]
 name = "aether-launcher"
-version = "4.0.2"
-description = "Aether AI Studio 4.0.2 官方專屬啟動器"
+version = "4.1.0"
+description = "Aether AI Studio 4.1.0 官方專屬啟動器"
 authors = ["Aether AI Studio Team"]
 edition = "2021"
 

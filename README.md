@@ -1,294 +1,113 @@
-# 💧 Aether AI Studio 4.0 (AetherAgent)
+<p align="center">
+  <b>繁體中文</b> ·
+  <a href="README.zh-CN.md">简体中文</a> ·
+  <a href="README.en.md">English</a> ·
+  <a href="README.ja.md">日本語</a>
+</p>
 
-> **極致美感 Liquid Glass（流光水感毛玻璃 / Apple VisionOS 前瞻設計風格）本地與雲端雙模自主 AI Agent 系統。**  
-> 全新 4.0 版本升級：全面重構的自主編程 Agent（Code 模式：精準編輯、程式碼搜尋、跨回合記憶、Accept Edit 真實審核關卡）、硬體效能評估、生成速度大幅優化。
-> 既有功能：原生獨立桌面應用程式 (Desktop App)、Ctrl+V 貼上/拖曳圖片多模態視覺識別、雙軌視覺路由 (Dual-Track Vision Routing)、Windows 本機 OCR 引擎、22 大智慧工具鏈與跨平台免安裝一鍵啟動。
+# 💧 Aether AI Studio 4.1
+
+> 本機與雲端雙模的自主 AI Agent 工作室，Liquid Glass 毛玻璃介面。
+> 對話、自主寫程式、生成圖片與影片，支援 Ollama／LM Studio 本機模型與 OpenAI、Anthropic、Gemini、DeepSeek、Groq 等雲端模型。
 
 ---
 
-## ⚡ 零安裝快速啟動 (One-Step Quick Start)
+## ✨ 主要功能
 
-無需繁瑣手動安裝環境，直接 Clone 儲存庫並執行啟動腳本，系統將全自動配置依賴並引導啟動：
+### 💻 自主編程 Agent（Code 模式）
+像 Claude Code、Cursor Agent 一樣：先搜尋與閱讀程式碼，再精準修改，最後自己執行測試驗證，直到任務完成。
+- **15 個專用工具**：`list_dir`、`glob`、`grep`、`read_file`、`edit_file`、`multi_edit`、`write_file`、`delete_path`、`move_path`、`run_command`、`git`、`check_syntax`、`web_fetch`、`web_search`、`todo_write`，可在「設定 → 工具箱 → Code Agent 工具」個別開關。
+- **跨回合記憶**：完整保存工具呼叫與結果，說「繼續」或追加需求即可接著做；上下文快滿時自動精簡。
+- **三種執行模式**：Auto（全自動）、Accept Edit（每次改檔或執行指令前顯示 diff／指令，由你允許或拒絕並可附說明）、Turbo（精簡快速）。
+- **防呆與防作弊**：未讀不可改、容忍縮排差異、拒絕刪除既有函式或修改既有測試斷言、偵測重複操作與卡住迴圈。
+- 專案根目錄的 `AGENTS.md`／`CLAUDE.md` 會自動讀入作為專案規範。
+
+### 🎨 圖片與影片生成（媒體工作室）
+- **圖片**：Pollinations（免費、免 API Key）、OpenAI `gpt-image-1`、Google Imagen、本機 Stable Diffusion（AUTOMATIC1111／Forge）。
+- **影片**：Google Veo、OpenAI Sora，於背景生成並自動輪詢進度。
+- 作品庫可預覽、下載、刪除；對話中直接說「幫我畫…」，助理會呼叫 `generate_image`／`generate_video` 並在訊息中顯示成品。
+
+### 🧠 對話 Agent 與 24 個工具
+網路搜尋、網頁閱讀、Python 沙盒、終端機、檔案、長期記憶、圖表、Mermaid、文件擷取、OCR、Git、SQLite、資料轉換、雜湊、正規表達式、壓縮、網路診斷、圖片與影片生成等。支援原生 Function Calling，並為本機小模型提供文字格式的工具呼叫後援。
+
+### ⚡ 本機模型最佳化
+- **硬體效能評估**：調整最大輸出長度與上下文視窗時，自動讀取 GPU 顯存與模型架構，預估記憶體並判斷是否會卸載到 CPU，提供建議值。
+- Ollama 模型常駐、精簡系統提示詞、串流渲染節流等生成速度優化。
+
+### 👁️ 多模態視覺
+Ctrl+V 貼上或拖曳圖片；視覺模型直接看圖，純文字模型則先由背景視覺模型或 Windows OCR 擷取內容。
+
+### 🌐 其他
+- 四種介面語言：繁體中文、简体中文、English、日本語（AI 回覆語言跟隨介面）。
+- AI 提示詞優化：以目前模型改寫提示詞，保持原本語言；無模型時改用四語範本。
+- 原生桌面版、Tauri 啟動器（自動更新）、Telegram Bot 橋接。
+- 外網存取 PIN 碼保護（由後端強制驗證）。
+
+---
+
+## 🚀 快速開始
 
 ```bash
 git clone https://github.com/hankyleisplay/AetherAI-Studio.git
 cd AetherAI-Studio
 ```
 
-啟動互動式導航（會主動詢問您要啟動「獨立桌面視窗版」、「一般網頁瀏覽器版」或「檢查並更新至最新版本」）：
+**Windows**：執行 `launch.bat`（或 `.\launch.ps1`），可選擇桌面版、瀏覽器版或更新。
+也可以到 [Releases](https://github.com/hankyleisplay/AetherAI-Studio/releases) 下載 `AetherLauncher.exe` 啟動器。
 
-```cmd
-.\launch.bat
-```
-
-或在 Windows PowerShell 中執行：
-
-```powershell
-.\launch.ps1
-```
-
-> 💡 **啟動腳本將引導您選擇**：
-> - `[1] 獨立桌面視窗版 (Desktop App)`：啟動原生獨立應用程式視窗，享受無邊框 Liquid Glass 沉浸體驗 (`.\run.ps1 -Desktop`)。
-> - `[2] 一般網頁瀏覽器版 (Web Browser)`：在預設瀏覽器分頁開啟 Web 介面 (`.\run.ps1`)。
-> - `[3] 檢查並更新至最新版本 (Update to Latest Version)`：自動拉取遠端最新版本，並保護本機對話與工作區資料不衝突。
->
-> 亦可建立桌面專屬圖示捷徑：雙擊執行 `create_desktop_shortcut.bat`。
-
----
-
-## 🔄 系統一鍵更新 (Smart Auto-Update)
-
-如果您已經 Clone 過專案，當有新版本發布時，請**不要再次 `git clone`**（Git 會因目錄非空而報錯），您可以使用以下任一方式極速更新：
-
-### 方法一：專屬一鍵更新腳本（最簡單推薦）
-在專案根目錄下直接雙擊或執行：
-```cmd
-.\update.bat
-```
-或在 PowerShell 執行：
-```powershell
-.\update.ps1
-```
-*(腳本會自動保護您的工作區與資料庫、拉取 GitHub 最新程式碼、自動配置新依賴，並詢問是否立即啟動！)*
-
-### 方法二：在啟動選單中直接選擇更新
-執行 `.\launch.bat` 或 `.\launch.ps1`，輸入 `[3]` 即可一鍵檢查並升級至最新版。
-
-### 方法三：全自動智慧指令（已下載則自動更新，未下載則自動 Clone）
-
-* **Windows PowerShell（分行腳本）：**
-  ```powershell
-  if (Test-Path AetherAI-Studio) {
-      cd AetherAI-Studio
-      .\update.ps1
-  } else {
-      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
-      cd AetherAI-Studio
-      .\launch.ps1
-  }
-  ```
-
-* **Windows CMD 批次檔（分行腳本）：**
-  ```cmd
-  if exist AetherAI-Studio (
-      cd AetherAI-Studio
-      call update.bat
-  ) else (
-      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
-      cd AetherAI-Studio
-      call launch.bat
-  )
-  ```
-
-* **Linux / macOS Bash（分行腳本）：**
-  ```bash
-  if [ -d "AetherAI-Studio" ]; then
-      cd AetherAI-Studio
-      ./update.sh
-  else
-      git clone https://github.com/hankyleisplay/AetherAI-Studio.git
-      cd AetherAI-Studio
-      ./run.sh
-  fi
-  ```
-
----
-
-## ✨ 3.0 核心特色亮點
-
-### 1. 👁️ 多模態視覺識別與雙軌路由 (Multimodal Vision & Dual-Track Routing)
-* **便捷輸入支援**：直接在輸入框 **Ctrl+V 貼上截圖** 或 **拖曳圖像檔案**，即刻呈現精美毛玻璃縮圖微縮預覽。
-* **雙軌智能路由架構**：
-  - **軌道 A（多模態視覺模型，如 `qwen2.5-vl`、`llava`、`gemini-1.5/2.5`）**：圖片自動轉換乾淨 Base64，原生封裝至模型 `images` 欄位進行高解析度視覺推理。
-  - **軌道 B（純文字模型，如 `llama3`、`deepseek-r1`、`mistral`）**：背景自動調度視覺模型或 Windows 原生 OCR 引擎提取文字與空間結構，將深度視覺摘要自動注入 Prompt，讓純文字模型也能精準「看懂」圖片與圖表！
-* **`ocr_extractor` 專屬核心工具**：支援工作區圖片的光學字符識別、區塊劃分與文字萃取。
-
-### 2. 🖥️ 原生獨立桌面版 (Native Desktop App)
-* 透過原生視窗引擎獨立運行，擺脫瀏覽器分頁干擾。
-* 隨附 `create_desktop_shortcut.bat` 一鍵在 Windows 桌面生成 Aether AI Studio 4.0 專屬圖示捷徑。
-
-### 3. 🌊 Liquid Glass 3.0 水感極致美學 (Liquid Glass Aesthetics)
-* **動態流體光球反應（Adaptive Ambient Fluid）**：背景光暈球依據 Agent 當前運作狀態即時變幻色彩與脈動律動：
-  - 🌌 **閒置待命（Idle）**：深邃星空藍與青藍微光流轉。
-  - 🔮 **深度思考（Thinking）**：紫羅蘭與洋紅波紋脈衝，展開即時思維鏈（Reasoning Chain）。
-  - 🌿 **執行工具（Calling Tool）**：翡翠綠與琉璃金流光迴旋，清晰呈現調用參數與毫秒級執行結果。
-  - ⚡ **串流生成（Streaming）**：高科技電光青與藍調流體漣漪。
-* **高階光學毛玻璃（Optical Glassmorphism）**：`backdrop-blur-2xl` 高斯模糊、折射鏡面反光邊框（Specular Highlights）與半透明浮雕陰影。
-
-### 4. ✈️ Telegram 雙向智能體橋接 (Telegram Bot Bridge)
-* **背景非同步長輪詢守護行程**：基於 Python `asyncio` + `httpx`，無需公網 Webhook，內網或本機環境即可直連 Telegram。
-* **無縫銜接 Agent 核心**：在 Telegram 中傳送文字，Agent 會自動發送 `typing` 打字狀態，自主思考並調用 22 大企業級工具執行任務後回傳。
-
-### 5. 📐 科學級 LaTeX 數學公式排版 (LaTeX Math Typesetting)
-* **輕量無依賴公式引擎**：融合數學符號解析系統，自動識別並美化公式。
-* 行內公式（`$e^{i\pi} + 1 = 0$`）與獨立區塊公式（`$$\int_{0}^{\infty} e^{-x^2} dx = \frac{\sqrt{\pi}}{2}$$`）。
-
-### 6. 🧠 雙模推理引擎（Dual-Mode Reasoning Engine）
-* **原生 Function Calling**：完美對接 GPT-4o、Claude 3.5 Sonnet、Gemini 2.5 Flash、DeepSeek-V3 等雲端高階模型的標準 JSON Tool Calling 協議。
-* **智慧 ReAct 文字推理後備機制（Smart ReAct Fallback）**：針對 7B/8B 本地量化模型（如 Llama 3、Mistral、Qwen 等）不擅長輸出 JSON Schema 的情況，內建文字 ReAct 解析器，讓小參數本地模型也能順暢調用工具！
-
-### 7. 🔌 開箱即用的 22 大企業級強大工具箱（Pluggable Tools）
-* 🔍 **全網即時檢索 (`web_search`)**：免 API Key，直接透過 DuckDuckGo 即時搜尋全網資訊並擷取權威摘要。
-* 👁️ **光學字符識別 (`ocr_extractor` / `image_to_text`)**：快速提取圖片文字內容、座標排版與表格結構。
-* 🌐 **網頁深度提煉 (`read_url`)**：給定任意 URL，自動解析去除雜訊與廣告，提煉乾淨可讀正文內容。
-* 🧠 **跨會話長效記憶庫 (`knowledge_memory`)**：持久化儲存特定背景、偏好與知識要點，打破會話隔閡。
-* 📊 **數據圖表繪製 (`generate_chart`)**：生成長條圖、折線圖與比例圖數據，UI 即時繪製玻璃感動態圖表。
-* 🐍 **Python 沙盒計算機 (`python_eval`)**：即時編譯執行 Python 腳本、數學計算與演算法驗證。
-* 📂 **工作區檔案系統 (`file_system`)**：受沙盒防護的安全本地檔案讀取、寫入、追加與檔案清單管理。
-* 🖥️ **命令列終端執行器 (`bash_executor`)**：受控執行的 Shell 指令環境（具備危險指令攔截與逾時保護機制）。
-* 📈 **主機系統狀態診斷 (`system_status`)**：即時讀取 CPU 核心負載、記憶體剩餘、磁碟可用容量與作業系統資訊。
-* ⏰ **日期時間與時區運算 (`datetime_calc`)**：精確的時間日期運算、倒數計時與全球時區解析。
-* 🌐 **外部 API 整合 (`http_request_api`)**：支援 GET, POST, PUT, DELETE 呼叫任意第三方 RESTful API。
-* 📑 **多格式文檔萃取 (`document_text_extractor`)**：直接解析 PDF, DOCX, XLSX, CSV, JSON, TXT, MD 文件文字內容。
-* 📐 **Mermaid 架構圖生成 (`mermaid_generator`)**：自動產出標準流程圖、時序圖、類別圖、狀態圖或實體關聯圖。
-* 🛡️ **代碼品質靜態分析 (`code_linter_analyzer`)**：對 Python、JS、TS 進行語法檢查、安全風險與最佳實踐診斷。
-* 🌿 **Git 版本控制檢視 (`git_version_control`)**：檢視儲存庫狀態、提交紀錄 (`log`)、代碼差異 (`diff`) 與分支詳情。
-* 🗄️ **SQLite 資料庫探查 (`database_sqlite_inspector`)**：自動探索工作區 SQLite 資料庫綱要、資料表取樣與唯讀查詢。
-* 🔄 **資料格式萬能轉換 (`data_transformer_converter`)**：JSON ↔ YAML ↔ CSV ↔ Markdown Table 雙向轉換，Base64/URL 編解碼。
-* 🔐 **密碼學與雜湊校驗 (`hash_crypto_inspector`)**：SHA-256、SHA-512、MD5、CRC32、HMAC 雜湊碼生成與檔案完整性校驗。
-* 🎯 **正則表達式解析與匹配 (`regex_pattern_matcher`)**：正規表示式語法驗證、群組捕獲提取 (`find_all`) 與批次替換 (`replace`)。
-* 📦 **壓縮封包管理器 (`archive_compressor`)**：ZIP、TAR、TGZ 壓縮包解壓與封裝（內建嚴格目錄遍歷 Zip Slip 防禦）。
-* 🌍 **網路與 DNS 診斷探針 (`network_dns_whois_lookup`)**：支援 DNS 解析 (A, AAAA, MX, TXT)、TCP 端口延遲測量與 HTTP 標頭檢驗。
-
-### 8. 📝 企業級全功能 Markdown 系統 (Powerful Markdown Engine)
-* 📊 **Mermaid 視覺化向量圖表**：支援流程圖（`flowchart TD/LR`）與時序序列圖（`sequenceDiagram`），具備圖表/原始碼雙模式切換、縮放與 SVG 向量圖匯出。
-* 💻 **高級代碼語法高亮**：支援 Python, TS, JS, Bash, SQL, Rust, Go 等多語言詞法著色，獨立行號槽、超過 20 行智慧折疊與一鍵下載代碼檔案。
-* 🚨 **GitHub 風格五大警示塊**：原生支援 `> [!NOTE]`、`> [!TIP]`、`> [!IMPORTANT]`、`> [!WARNING]` 與 `> [!CAUTION]` 毛玻璃光澤卡片。
-
-### 9. 🌐 全方位多國語言國際化 (Multi-Language i18n)
-* 支援 4 大主要語系：🇹🇼 **繁體中文 (`zh-TW`)**、🇨🇳 **简体中文 (`zh-CN`)**、🇺🇸 **English (`en`)**、🇯🇵 **日本語 (`ja`)**。
-
-### 10. 🎙️ 雙向語音互動
-* 🎤 **語音聽寫輸入（Voice Dictation）**：採用 Web Speech API 即時語音轉文字。
-* 🔊 **語音朗讀合成（Text-to-Speech）**：修復單詞重複問題，平滑自然朗讀。
-
----
-
-## 🏗️ 系統架構
-
-```mermaid
-flowchart TD
-    User([使用者 / 瀏覽器]) <-->|Liquid Glass UI / SSE 串流| Frontend[React 18 + Vite + Tailwind + Glass CSS]
-    TelegramUser([Telegram 用戶]) <-->|Telegram Bot API / Long-Polling| TelegramBridge[Telegram 雙向橋接守護服務]
-    
-    Frontend <-->|RESTful API + Server-Sent Events| FastAPI[FastAPI 後端核心服務]
-    TelegramBridge <-->|非同步事件調度| FastAPI
-    
-    subgraph Agent Core [雙模智能體核心]
-        FastAPI --> Orchestrator[AgentOrchestrator 推理調度中心]
-        Orchestrator --> LLMClient[UnifiedLLMClient 統一模型客戶端]
-        Orchestrator <--> ToolRegistry[ToolRegistry 工具箱註冊中心]
-    end
-
-    subgraph LLM Providers [支援模型提供端]
-        LLMClient -.->|本地 /api/chat| Ollama[Ollama 本地模型]
-        LLMClient -.->|本地 /v1| LMStudio[LM Studio / vLLM / llama.cpp]
-        LLMClient -.->|雲端 API| DeepSeek[DeepSeek V3 / R1]
-        LLMClient -.->|雲端 API| OpenAI[OpenAI GPT-4o]
-        LLMClient -.->|雲端 API| Claude[Anthropic Claude 3.5]
-        LLMClient -.->|雲端 API| Gemini[Google Gemini 1.5 / 2.5]
-        LLMClient -.->|雲端 API| Groq[Groq Llama-3.3]
-    end
-
-    subgraph Tools [實體工具集]
-        ToolRegistry --> T1[web_search 網路搜尋]
-        ToolRegistry --> T2[python_eval 沙盒執行]
-        ToolRegistry --> T3[file_system 檔案讀寫]
-        ToolRegistry --> T4[bash_executor 終端執行]
-        ToolRegistry --> T5[system_status 系統監控]
-        ToolRegistry --> T6[datetime_calc 時區計算]
-        ToolRegistry --> T7[read_url 網頁內容提取]
-        ToolRegistry --> T8[knowledge_memory 長效記憶]
-        ToolRegistry --> T9[generate_chart 圖表視覺化]
-    end
-
-    subgraph Storage [持久化儲存]
-        FastAPI <--> SQLite[(SQLite: Sessions, Messages & Settings)]
-    end
-```
-
----
-
-## 🚀 快速開始
-
-### 方式 A：Windows 使用者（PowerShell 一鍵啟動）
-
-在專案目錄下開啟 PowerShell 執行：
-
-```powershell
-# 啟動伺服器並自動開啟瀏覽器
-.\run.ps1
-```
-
-首次安裝可執行：
-```powershell
-.\install.ps1
-```
-
-選項參數：
-```powershell
-.\run.ps1 -Port 8888      # 自訂連接埠
-.\run.ps1 -Dev            # 同時啟動 FastAPI 與 Vite 前端熱重載
-.\run.ps1 -Check          # 執行環境與 9 大工具自我診斷
-```
-
----
-
-### 方式 B：Linux / macOS 使用者
-
-執行一鍵啟動腳本：
-
+**Linux／macOS**：
 ```bash
 chmod +x run.sh
 ./run.sh
 ```
+或 `python3 start.py`。
 
-或使用全能啟動器：
-```bash
-python3 start.py
-```
+啟動後開啟 `http://localhost:8000`。
 
-自檢診斷：
-```bash
-python3 start.py --check
+### 更新
+已 Clone 過的專案請執行 `update.bat`（Windows）或 `./update.sh`（Linux／macOS），會保留工作區與對話資料。
+
+---
+
+## ⚙️ 設定
+
+| 項目 | 位置 |
+|---|---|
+| 模型端點、API Key、溫度、最大輸出長度、上下文視窗（含硬體評估） | 右上角「設定 → 模型」 |
+| 對話工具與 Code Agent 工具的開關 | 「設定 → 工具箱」 |
+| 圖片／影片服務、API Key、Stable Diffusion 位址 | 頂端列「媒體 → 設定」 |
+| Telegram Bot 橋接 | 「設定 → Telegram」 |
+| 外網存取 PIN 碼 | 「設定 → 外網安全」 |
+
+**本機模型**：選 Ollama 或 LM Studio 即可，免 API Key。
+**Telegram**：向 [@BotFather](https://t.me/BotFather) 取得 Token，貼到設定中並啟用。
+
+---
+
+## 🏗️ 架構
+
+```mermaid
+flowchart LR
+    UI[React + Vite 前端] <-->|REST + SSE| API[FastAPI 後端]
+    TG[Telegram] <--> API
+    API --> Chat[對話 Agent<br/>24 個工具]
+    API --> Code[Code Agent<br/>15 個編程工具]
+    API --> Media[媒體服務<br/>圖片／影片]
+    Chat & Code --> LLM[統一模型客戶端]
+    LLM --> Local[Ollama / LM Studio]
+    LLM --> Cloud[OpenAI / Anthropic / Gemini / DeepSeek / Groq]
+    Media --> MP[Pollinations / OpenAI / Imagen / Veo / Sora / Stable Diffusion]
+    API <--> DB[(SQLite)]
 ```
 
 ---
 
-## ⚙️ 模型與 Telegram 設定
-
-啟動後於瀏覽器造訪 `http://localhost:8000`，點擊右上角 **⚙️ 設定圖示**：
-
-### 1. 模型端點設定
-* **本地模型**：選擇「Ollama」或「LM Studio」，免填 API Key，點擊「測試連線並拉取模型」可自動探測已下載的模型清單。
-* **雲端模型**：支援切換至 OpenAI、Anthropic Claude、Google Gemini、DeepSeek 或 Groq，貼上 API Key 即刻生效。
-
-### 2. Telegram Bot 橋接設定
-1. 向 [@BotFather](https://t.me/BotFather) 發送 `/newbot` 取得 Bot Token。
-2. 在設定中心貼上 Token。
-3. （可選）向 [@userinfobot](https://t.me/userinfobot) 取得您的 Chat ID 並填入以啟用安全存取白名單。
-4. 打開「啟用 Telegram 智能代理橋接」開關並點擊儲存，服務即在背景自動運作！
-
----
-
-## 🧪 自我診斷與測試
-
-本專案提供端到端自動化整合測試套件：
+## 🧪 測試
 
 ```bash
-python3 test_backend.py
+python test_backend.py
 ```
 
-測試涵蓋：
-* 系統健康狀態與 SQLite 資料庫連線
-* 模型設定保存與動態探測
-* 9 大內建工具執行能力
-* 對話 Session 建立與 Markdown 匯出
-* Telegram 橋接器狀態與配置端點
-* Liquid Glass 前端 SPA 靜態託管
+## 📄 授權
 
----
-
-## 📄 開源授權
-
-本專案採用 [MIT License](LICENSE) 授權。由 Hankyle 打造，歡迎 Star 與共同貢獻！
+[MIT License](LICENSE)。由 hankyledevteam（Hanson Lee）開發，歡迎 Star 與貢獻！

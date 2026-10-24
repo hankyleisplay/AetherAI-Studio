@@ -420,6 +420,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
   const getToolMeta = (name: string) => {
     switch (name) {
+      case 'generate_image':
+      case 'generate_video':
+        return { icon: <Sparkles className="w-4 h-4 text-fuchsia-400" />, category: t('tool_cat_media', '媒體生成'), bg: 'bg-fuchsia-500/15 border-fuchsia-500/30' };
       case 'bash_executor':
         return { icon: <Terminal className="w-4 h-4 text-emerald-400" />, category: t('tool_cat_terminal', '系統終端'), bg: 'bg-emerald-500/15 border-emerald-500/30' };
       case 'system_status':

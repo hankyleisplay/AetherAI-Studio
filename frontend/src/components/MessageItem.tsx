@@ -27,6 +27,7 @@ import {
 import { Message, Persona, AgentState } from '../types';
 import { ToolCallCard } from './ToolCallCard';
 import { ChartWidget, ChartData } from './ChartWidget';
+import { MediaWidget } from './MediaWidget';
 import { MarkdownRenderer } from './markdown/MarkdownRenderer';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -477,6 +478,14 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                 {message.tool_calls.filter(tc => tc.name !== 'todo_write').map((tc, idx) => (
                   <React.Fragment key={tc.id || idx}>
                     <ToolCallCard tool={tc} />
+                    {(tc.name === 'generate_image' || tc.name === 'generate_video') && tc.output && (() => {
+                      try {
+                        const parsed = JSON.parse(tc.output);
+                        return parsed.is_media ? <MediaWidget initial={parsed} /> : null;
+                      } catch {
+                        return null;
+                      }
+                    })()}
                     {tc.name === 'generate_chart' && tc.output && (() => {
                       try {
                         const parsed = JSON.parse(tc.output);

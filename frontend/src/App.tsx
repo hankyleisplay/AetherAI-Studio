@@ -10,6 +10,7 @@ import { SwarmModal } from './components/SwarmModal';
 import { InteractiveTerminal } from './components/InteractiveTerminal';
 import { ProjectModal } from './components/ProjectModal';
 import { PinLockModal } from './components/PinLockModal';
+import { MediaStudioModal } from './components/MediaStudioModal';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall, CodeExecutionMode } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -30,6 +31,7 @@ export const App: React.FC = () => {
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
   const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
+  const [isMediaStudioOpen, setIsMediaStudioOpen] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
 
   const checkAuthStatus = async () => {
@@ -1002,6 +1004,7 @@ export const App: React.FC = () => {
           onExportSession={handleExportSession}
           onOpenWorkspace={() => setIsWorkspaceDrawerOpen(true)}
           onOpenSwarm={() => setIsSwarmModalOpen(true)}
+          onOpenMedia={() => setIsMediaStudioOpen(true)}
           activePersona={activePersona}
           availableModels={availableModels}
           isProbingModels={isProbingModels}
@@ -1097,6 +1100,11 @@ export const App: React.FC = () => {
       />
 
       {/* Multi-Agent Swarm Roundtable Modal */}
+      <MediaStudioModal
+        isOpen={isMediaStudioOpen}
+        onClose={() => setIsMediaStudioOpen(false)}
+      />
+
       <SwarmModal
         isOpen={isSwarmModalOpen}
         onClose={() => setIsSwarmModalOpen(false)}
@@ -1139,6 +1147,10 @@ export const App: React.FC = () => {
         activeProject={activeProject}
         codeExecutionMode={codeExecutionMode}
         onSelectExecutionMode={handleSetCodeExecutionMode}
+        onProjectRemoved={(name) => {
+          if (activeProject === name) setActiveProject(null);
+          fetchProjects();
+        }}
         onProjectCreated={(name, execM) => {
           setActiveProject(name);
           if (execM) handleSetCodeExecutionMode(execM);

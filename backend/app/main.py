@@ -34,6 +34,11 @@ async def lifespan(app: FastAPI):
         await telegram_bridge.start()
     except Exception as e:
         print(f"[TelegramBridge] Startup warning: {e}")
+    try:
+        from backend.app.services.media import recover_interrupted_jobs
+        recover_interrupted_jobs()
+    except Exception as e:
+        print(f"[Media] Startup warning: {e}")
     yield
     # Shutdown
     try:
@@ -154,6 +159,9 @@ class PromptEnhanceRequest(BaseModel):
     prompt: str
     temperature: Optional[float] = 0.7
     persona_id: Optional[str] = "assistant"
+    language: Optional[str] = "zh-TW"
+    use_ai: Optional[bool] = True
+    model_config_override: Optional[ModelConfig] = None
 
 # Health Check
 @app.get("/api/health")
@@ -172,40 +180,27 @@ async def enhance_prompt_endpoint(req: PromptEnhanceRequest):
     if not raw_prompt:
         raise HTTPException(status_code=400, detail="Prompt cannot be empty")
 
+    from backend.app.services.prompt_enhancer import ai_enhance, template_enhance
     temp = float(req.temperature if req.temperature is not None else 0.7)
-    if temp <= 0.3:
-        enhanced = (
-            f"【🎯 精確嚴謹模式 (Precise & Rigorous)】請針對以下工程需求進行全方位架構拆解與可驗證實作：\n"
-            f"1. 核心目標與邊界條件 (Scope & Strict Boundary Constraints)\n"
-            f"2. 嚴密邏輯推論、演算法設計與極限邊界案例 (Edge Cases & Invariants)\n"
-            f"3. 完整技術實作、型別安全定義與驗證測試步驟 (Types, Code & Tests)\n\n"
-            f"原始需求指令：\n{raw_prompt}\n\n"
-            f"請輸出具備高確定性、零假設、可直接部署驗證的工業級方案。"
-        )
-    elif temp >= 0.9:
-        enhanced = (
-            f"【🎨 發散創意模式 (Creative & Visionary)】請針對以下創意靈感進行跨界探索與前瞻性架構延伸：\n"
-            f"1. 顛覆性概念設計與未來感視覺/互動體驗 (Avant-Garde Architecture & UX)\n"
-            f"2. 多維度創新方案探索與彩蛋驚喜構思 (Novel Variations & Easter Eggs)\n"
-            f"3. 具備視覺魅力、生動細膩且引人入勝的完整實作藍圖 (Vibrant & Expressive Implementation)\n\n"
-            f"原始需求靈感：\n{raw_prompt}\n\n"
-            f"請發揮最高想像力與聯想力，帶來超乎預期的驚艷技術與藝術交付！"
-        )
-    else:
-        enhanced = (
-            f"【⚖️ 標準平衡模式 (Balanced)】請針對以下需求提供高規格、結構化且具備深度實踐價值的解答：\n"
-            f"1. 需求分析與最佳實踐架構設計\n"
-            f"2. 模組化程式碼實作與關鍵註解說明\n"
-            f"3. 潛在風險排查與效能優化建議\n\n"
-            f"原始需求：\n{raw_prompt}\n\n"
-            f"請輸出結構清晰、條理分明、兼顧理論深度與工程可維護性的高品質回覆。"
-        )
+    enhanced, method = None, "template"
+    if req.use_ai:
+        cfg = req.model_config_override
+        if not cfg:
+            saved = db.get_setting("active_model_config")
+            cfg = ModelConfig(**saved) if saved else None
+        if cfg and cfg.model:
+            enhanced = await ai_enhance(raw_prompt, cfg)
+            if enhanced:
+                method = "ai"
+    if not enhanced:
+        enhanced = template_enhance(raw_prompt, temp, req.language or "zh-TW")
 
     return {
         "success": True,
         "enhanced_prompt": enhanced,
         "original_prompt": raw_prompt,
-        "temperature": temp
+        "temperature": temp,
+        "method": method
     }
 
 # Active Model Config API
@@ -478,6 +473,89 @@ async def code_stop(session_id: str):
 async def code_reset(session_id: str):
     db.delete_agent_session(session_id)
     return {"status": "reset"}
+
+# ================= Image & video generation =================
+class MediaImageRequest(BaseModel):
+    prompt: str
+    provider: Optional[str] = None
+    aspect: Optional[str] = "1:1"
+    negative_prompt: Optional[str] = ""
+    seed: Optional[int] = None
+
+class MediaVideoRequest(BaseModel):
+    prompt: str
+    provider: Optional[str] = None
+    aspect: Optional[str] = "16:9"
+    seconds: Optional[int] = 8
+
+@app.get("/api/media/config")
+async def get_media_config():
+    from backend.app.services import media
+    return {**media.get_config(include_secrets=False),
+            "image_providers": media.IMAGE_PROVIDERS, "video_providers": media.VIDEO_PROVIDERS}
+
+@app.post("/api/media/config")
+async def save_media_config(payload: Dict[str, Any]):
+    from backend.app.services import media
+    return media.save_config(payload)
+
+@app.post("/api/media/image")
+async def create_image(req: MediaImageRequest):
+    from backend.app.services import media
+    try:
+        item = await media.generate_image(req.prompt, req.provider, req.aspect or "1:1", req.negative_prompt or "", req.seed)
+    except media.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return media.public_item(item)
+
+@app.post("/api/media/video")
+async def create_video(req: MediaVideoRequest):
+    from backend.app.services import media
+    try:
+        item = media.start_video(req.prompt, req.provider, req.aspect or "16:9", req.seconds or 8)
+    except media.MediaError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return media.public_item(item)
+
+@app.get("/api/media")
+async def list_media_items(kind: Optional[str] = None):
+    from backend.app.services import media
+    return [media.public_item(i) for i in db.list_media(kind=kind)]
+
+@app.get("/api/media/file/{media_id}")
+async def get_media_file(media_id: str):
+    from backend.app.services import media
+    item = db.get_media(media_id)
+    if not item or not item.get("file_name"):
+        raise HTTPException(status_code=404, detail="Media not found")
+    path = (media.media_dir() / item["file_name"]).resolve()
+    if media.media_dir() not in path.parents or not path.exists():
+        raise HTTPException(status_code=404, detail="Media file missing")
+    return FileResponse(str(path))
+
+@app.get("/api/media/{media_id}")
+async def get_media_item(media_id: str):
+    from backend.app.services import media
+    item = db.get_media(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media not found")
+    return media.public_item(item)
+
+@app.delete("/api/media/{media_id}")
+async def delete_media_item(media_id: str):
+    from backend.app.services import media
+    item = db.get_media(media_id)
+    if not item:
+        raise HTTPException(status_code=404, detail="Media not found")
+    job = media._running_jobs.pop(media_id, None)
+    if job:
+        job.cancel()
+    if item.get("file_name"):
+        path = (media.media_dir() / item["file_name"]).resolve()
+        if media.media_dir() in path.parents and path.exists():
+            path.unlink()
+    db.delete_media(media_id)
+    return {"status": "deleted"}
 
 # Code agent toolset (separate from the 22 chat tools): list and enable/disable
 @app.get("/api/code/tools")
@@ -1038,9 +1116,14 @@ async def list_projects():
     project_list = []
     seen_names = set()
     
+    # Projects the user removed from the list; their folders may still exist on disk
+    hidden = set(db.get_setting('hidden_projects') or [])
+
     # 1. Prioritize custom projects registered in projects_metadata
     projects_meta = db.get_setting('projects_metadata') or {}
     for name, meta in projects_meta.items():
+        if name in hidden:
+            continue
         p_path = Path(meta.get('path', '')).resolve()
         if p_path.exists() and p_path.is_dir():
             seen_names.add(name)
@@ -1063,7 +1146,7 @@ async def list_projects():
     # 2. Add projects under default workspace/projects
     try:
         for entry in os.scandir(str(projects_dir)):
-            if entry.is_dir() and not entry.name.startswith('.') and entry.name not in seen_names:
+            if entry.is_dir() and not entry.name.startswith('.') and entry.name not in seen_names and entry.name not in hidden:
                 seen_names.add(entry.name)
                 p_path = Path(entry.path).resolve()
                 f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.') and 'node_modules' not in _.parts and '.git' not in _.parts)
@@ -1127,6 +1210,8 @@ async def create_project(payload: ProjectCreatePayload):
             (target / "README.md").write_text(f"# {clean_name}\n\n專案工作區已建立。\n", encoding="utf-8")
 
     db.set_setting('active_project', clean_name)
+    hidden = [h for h in (db.get_setting('hidden_projects') or []) if h != clean_name]
+    db.set_setting('hidden_projects', hidden)
     projects_meta = db.get_setting('projects_metadata') or {}
     projects_meta[clean_name] = {'path': str(target), 'custom': is_custom}
     db.set_setting('projects_metadata', projects_meta)
@@ -1155,16 +1240,35 @@ async def select_project(payload: ProjectSelectPayload):
     return {'status': 'selected', 'active_project': name or None}
 
 @app.delete('/api/projects/{name}')
-async def delete_project(name: str):
+async def delete_project(name: str, delete_files: bool = False):
+    """Remove a project from the list. Files stay on disk unless delete_files is set, and even then only
+    projects inside the app's own workspace/projects folder are deleted, never a linked folder elsewhere."""
+    import shutil
     clean_name = name.strip()
+    projects_dir = (settings.base_workspace_dir / 'projects').resolve()
     projects_meta = db.get_setting('projects_metadata') or {}
-    if clean_name in projects_meta:
-        del projects_meta[clean_name]
-        db.set_setting('projects_metadata', projects_meta)
-    active = db.get_setting('active_project')
-    if active == clean_name:
+    meta = projects_meta.pop(clean_name, None)
+    db.set_setting('projects_metadata', projects_meta)
+
+    path = Path(meta['path']).resolve() if meta and meta.get('path') else (projects_dir / clean_name).resolve()
+    files_deleted = False
+    if delete_files:
+        if projects_dir not in path.parents:
+            raise HTTPException(status_code=400, detail='Only projects inside the workspace projects folder can have their files deleted.')
+        if path.exists():
+            shutil.rmtree(path)
+            files_deleted = True
+
+    hidden = set(db.get_setting('hidden_projects') or [])
+    if path.exists():
+        hidden.add(clean_name)
+    else:
+        hidden.discard(clean_name)
+    db.set_setting('hidden_projects', sorted(hidden))
+
+    if db.get_setting('active_project') == clean_name:
         db.set_setting('active_project', None)
-    return {'status': 'deleted', 'name': clean_name}
+    return {'status': 'deleted', 'name': clean_name, 'files_deleted': files_deleted}
 
 @app.get('/api/projects/active')
 async def get_active_project():

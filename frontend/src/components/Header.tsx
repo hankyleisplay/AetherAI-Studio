@@ -13,6 +13,7 @@ import {
   ChevronDown,
   Check,
   Users,
+  ImagePlus,
   RefreshCw,
   Cpu,
   Wrench,
@@ -33,6 +34,7 @@ interface HeaderProps {
   onExportSession?: () => void;
   onOpenWorkspace?: () => void;
   onOpenSwarm?: () => void;
+  onOpenMedia?: () => void;
   activePersona?: Persona;
   availableModels?: string[];
   isProbingModels?: boolean;
@@ -63,6 +65,7 @@ export const Header: React.FC<HeaderProps> = ({
   onExportSession,
   onOpenWorkspace,
   onOpenSwarm,
+  onOpenMedia,
   activePersona,
   availableModels = [],
   isProbingModels = false,
@@ -107,19 +110,40 @@ export const Header: React.FC<HeaderProps> = ({
       window.removeEventListener('resize', measure);
     };
   }, []);
-  const showToolPills = !isSidebarOpen && headerWidth >= 1560;
-  const showButtonLabels = headerWidth >= 1180;
-  const showLangLabel = headerWidth >= 1040;
-  const showCodeBadge = mode === 'code' && headerWidth >= 960;
-  const showStateText = headerWidth >= 880;
-  const showPersonaName = headerWidth >= 760;
-  const showSecondary = headerWidth >= 680;
-  const showProvider = headerWidth >= 900;
-  const showModelName = headerWidth >= 560;
+  // Label widths differ a lot between languages ("工作區" vs "Workspace"), so fixed breakpoints can't work.
+  // Instead start from the fullest layout and drop one collapse level at a time until it actually fits.
+  const leftGroupRef = useRef<HTMLDivElement>(null);
+  const rightGroupRef = useRef<HTMLDivElement>(null);
+  const MAX_LEVEL = 7;
+  const [level, setLevel] = useState(0);
+  const fitKey = [headerWidth, currentLang, isSidebarOpen, mode, activeProject, codeExecutionMode,
+    modelConfig.provider, modelConfig.model, agentState, isEcoMode, tools.length].join('|');
+  useLayoutEffect(() => {
+    setLevel(0);
+  }, [fitKey]);
+  useLayoutEffect(() => {
+    const header = headerRef.current, left = leftGroupRef.current, right = rightGroupRef.current;
+    if (!header || !left || !right || level >= MAX_LEVEL) return;
+    const style = getComputedStyle(header);
+    const available = header.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight) - 8;
+    // The left group stretches to fill free space, so measure what its children actually need
+    const kids = Array.from(left.children) as HTMLElement[];
+    const leftNeeded = kids.reduce((sum, el) => sum + el.scrollWidth, 0) + Math.max(0, kids.length - 1) * 12;
+    if (leftNeeded + right.scrollWidth > available) setLevel(l => Math.min(MAX_LEVEL, l + 1));
+  });
+  const showToolPills = !isSidebarOpen && level < 1;
+  const showButtonLabels = level < 2;
+  const showLangLabel = level < 3;
+  const showProvider = level < 3;
+  const showCodeBadge = mode === 'code' && level < 4;
+  const showStateText = level < 5;
+  const showPersonaName = level < 5;
+  const showSecondary = level < 6;
+  const showModelName = level < 7;
   // The Code-mode bar under the chat already has a terminal toggle, so the header copy can go first on phones
-  const showTerminalBtn = headerWidth >= 560;
-  const showToolButton = headerWidth >= 520;
-  const modelNameMax = headerWidth >= 1180 ? 'max-w-[160px]' : headerWidth >= 900 ? 'max-w-[110px]' : 'max-w-[72px]';
+  const showTerminalBtn = level < 7;
+  const showToolButton = level < 7;
+  const modelNameMax = level < 3 ? 'max-w-[160px]' : level < 5 ? 'max-w-[110px]' : 'max-w-[72px]';
 
   // Close dropdowns on click outside
   useEffect(() => {
@@ -202,7 +226,7 @@ export const Header: React.FC<HeaderProps> = ({
   return (
     <header ref={headerRef} className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 relative z-30 shrink-0">
       {/* Left: Sidebar Toggle & Persona Title (clipped rather than overlapping the right group) */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
+      <div ref={leftGroupRef} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
         {!isSidebarOpen && (
           <button
             onClick={onToggleSidebar}
@@ -239,7 +263,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right: Tools Switchers, Language Selector, Model Capsule & Actions */}
-      <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+      <div ref={rightGroupRef} className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Code Mode: Interactive Terminal Console Button (Docked Right) */}
         {mode === 'code' && onToggleTerminal && showTerminalBtn && (
           <button
@@ -474,6 +498,18 @@ export const Header: React.FC<HeaderProps> = ({
             </div>
           )}
         </div>
+
+        {/* Media Studio (image / video generation) */}
+        {onOpenMedia && (
+          <button
+            onClick={onOpenMedia}
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-medium text-fuchsia-300 border border-fuchsia-500/30 hover:border-fuchsia-400 hover:bg-fuchsia-500/10 transition-all shadow-sm whitespace-nowrap shrink-0"
+            title={t('media_studio_title', '媒體工作室')}
+          >
+            <ImagePlus className="w-3.5 h-3.5 text-fuchsia-400 shrink-0" />
+            {showButtonLabels && <span className="whitespace-nowrap">{t('media_btn', '媒體')}</span>}
+          </button>
+        )}
 
         {/* Swarm Roundtable Debate Button */}
         {onOpenSwarm && showSecondary && (
