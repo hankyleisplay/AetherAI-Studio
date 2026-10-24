@@ -154,8 +154,10 @@ def truncate_middle(text: str, limit: int = MAX_OUTPUT_CHARS) -> str:
 
 
 class CodingToolset:
-    def __init__(self, root: Path, state: Dict[str, Any]):
+    def __init__(self, root: Path, state: Dict[str, Any], disabled: Optional[List[str]] = None):
         self.root = root.resolve()
+        # Tools the user switched off in Settings: hidden from the model and refused if called anyway
+        self.disabled = set(disabled or [])
         # Per-session state persisted by the agent: files read (with mtime), todo list
         self.state = state
         self.state.setdefault("read_files", {})
@@ -942,7 +944,7 @@ class CodingToolset:
 
     # ---------------------------------------------------------------- dispatch
     def schemas(self) -> List[Dict[str, Any]]:
-        return [s.schema() for s in self.specs.values()]
+        return [s.schema() for s in self.specs.values() if s.name not in self.disabled]
 
     # Names local models reach for when they guess instead of using the provided schema
     TOOL_ALIASES = {
@@ -999,8 +1001,12 @@ class CodingToolset:
     def execute(self, name: str, args: Any) -> ToolResult:
         name = self.canonical_name(name, args)
         spec = self.specs.get(name)
+        enabled = [n for n in self.specs if n not in self.disabled]
         if not spec:
-            return ToolResult(False, f"Unknown tool '{name}'. Available tools: {', '.join(self.specs)}.")
+            return ToolResult(False, f"Unknown tool '{name}'. Available tools: {', '.join(enabled)}.")
+        if name in self.disabled:
+            return ToolResult(False, f"The tool '{name}' has been disabled by the user in Settings. Use another approach "
+                                     f"with the available tools: {', '.join(enabled)}.")
         clean = self._normalize_args(name, args)
         missing = [r for r in spec.required if r not in clean or clean[r] is None]
         if missing:

@@ -119,7 +119,7 @@ class CodingAgent:
             saved = {}
         self.transcript: List[Dict[str, Any]] = saved.get("messages", [])
         self.state: Dict[str, Any] = saved.get("state", {})
-        self.tools = CodingToolset(self.root, self.state)
+        self.tools = CodingToolset(self.root, self.state, disabled=db.get_setting("disabled_code_tools") or [])
 
     # ------------------------------------------------------------ persistence
     def _prune_deleted_turns(self):

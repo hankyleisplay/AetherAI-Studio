@@ -33,7 +33,7 @@ import {
   Cpu,
   AlertTriangle
 } from 'lucide-react';
-import { ModelConfig, ToolDefinition, HardwareCheckResult, HardwareIssue } from '../types';
+import { ModelConfig, ToolDefinition, HardwareCheckResult, HardwareIssue, CodeToolInfo } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 
 interface SettingsModalProps {
@@ -74,6 +74,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [hwCheck, setHwCheck] = useState<HardwareCheckResult | null>(null);
+  // Toolbox has two sets: the 22 chat tools and the Code-mode agent's own coding tools
+  const [toolScope, setToolScope] = useState<'chat' | 'code'>('chat');
+  const [codeTools, setCodeTools] = useState<CodeToolInfo[]>([]);
   const [isCheckingHw, setIsCheckingHw] = useState(false);
 
   // Telegram Bridge State
@@ -126,6 +129,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   useEffect(() => {
     if (activeTab === 'security') fetchPinStatus();
   }, [activeTab]);
+
+  const fetchCodeTools = async () => {
+    try {
+      const res = await fetch('/api/code/tools');
+      if (res.ok) setCodeTools(await res.json());
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (isOpen && activeTab === 'tools') fetchCodeTools();
+  }, [isOpen, activeTab]);
+
+  const handleToggleCodeTool = async (name: string, enabled: boolean) => {
+    setCodeTools(prev => prev.map(ct => ct.name === name ? { ...ct, enabled } : ct));
+    try {
+      const res = await fetch(`/api/code/tools/${name}/toggle`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled })
+      });
+      if (!res.ok) throw new Error(String(res.status));
+    } catch {
+      fetchCodeTools();
+    }
+  };
 
   const handleSavePin = async (enable: boolean) => {
     setIsSavingPin(true);
@@ -536,7 +564,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <Wrench className="w-3.5 h-3.5 text-amber-400" />
-            <span>{t('tab_tools', '工具箱管理 (22 大工具)')}</span>
+            <span>{t('tab_toolbox', '工具箱管理')}</span>
             <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
               tools.filter(t => t.enabled).length > 0
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
@@ -1074,6 +1102,82 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         {/* Content Body: Tab 3 - Tools Management */}
         {activeTab === 'tools' && (
           <div className="p-6 space-y-4 max-h-[72vh] flex flex-col overflow-hidden">
+            {/* Which tool set: chat-mode tools or the Code agent's coding tools */}
+            <div className="flex p-1 rounded-xl bg-black/25 border border-white/10 shrink-0 self-start">
+              <button
+                type="button"
+                onClick={() => setToolScope('chat')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${toolScope === 'chat' ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-500/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                {t('toolscope_chat', '對話模式工具')} ({tools.filter(tl => tl.enabled).length}/{tools.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setToolScope('code')}
+                className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${toolScope === 'code' ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/40' : 'text-slate-400 hover:text-slate-200 border border-transparent'}`}
+              >
+                {t('toolscope_code', 'Code Agent 工具')} ({codeTools.filter(ct => ct.enabled).length}/{codeTools.length})
+              </button>
+            </div>
+
+            {toolScope === 'code' && (
+              <div className="flex-1 overflow-y-auto pr-1 space-y-3 min-h-[300px]">
+                <p className="text-[11px] text-slate-400 leading-relaxed">
+                  {t('code_tools_intro', '這些是 Code 模式自主編程 Agent 專用的工具，與對話模式的工具分開管理。停用的工具不會提供給模型。標示「需確認」的工具在 Accept Edit 模式下執行前會先請你同意。')}
+                </p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                  {codeTools.map((ct) => (
+                    <div
+                      key={ct.name}
+                      className={`p-3 rounded-2xl border transition-all flex flex-col justify-between ${
+                        ct.enabled
+                          ? 'bg-emerald-950/20 border-emerald-500/30'
+                          : 'bg-white/[0.02] border-white/5 opacity-60 hover:opacity-85'
+                      }`}
+                    >
+                      <div>
+                        <div className="flex items-center justify-between gap-2 mb-1.5">
+                          <span className={`text-xs font-mono font-bold truncate ${ct.enabled ? 'text-white' : 'text-slate-400'}`}>
+                            {ct.name}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleToggleCodeTool(ct.name, !ct.enabled)}
+                            aria-label={ct.name}
+                            className={`relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none ${
+                              ct.enabled ? 'bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.4)]' : 'bg-slate-700'
+                            }`}
+                          >
+                            <span
+                              className={`pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-lg ring-0 transition duration-200 ease-in-out ${
+                                ct.enabled ? 'translate-x-4' : 'translate-x-0'
+                              }`}
+                            />
+                          </button>
+                        </div>
+                        <p className="text-[11px] text-slate-300/80 leading-relaxed">
+                          {t(`code_tool_${ct.name}`, ct.description)}
+                        </p>
+                      </div>
+                      <div className="mt-2.5 pt-2 border-t border-white/5 flex items-center justify-between text-[10px]">
+                        <span className="text-slate-500 font-mono truncate">{ct.parameters.join(', ')}</span>
+                        {ct.mutating ? (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/15 border border-amber-500/30 text-amber-300 shrink-0">
+                            {t('code_tool_needs_approval', '需確認')}
+                          </span>
+                        ) : (
+                          <span className="px-1.5 py-0.5 rounded text-[9px] bg-sky-500/10 border border-sky-500/25 text-sky-300 shrink-0">
+                            {t('code_tool_read_only', '唯讀')}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {toolScope === 'chat' && (<>
             {/* Top Toolbar: Search & Batch Actions */}
             <div className="flex flex-col sm:flex-row gap-2.5 items-stretch sm:items-center justify-between pb-3 border-b border-white/10 shrink-0">
               {/* Search Box */}
@@ -1228,6 +1332,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 {t('tools_tip', '停用的工具將從模型 Schema 中移除，且 Agent 內部決策與 ReAct 引擎將全面攔截調用，並主動告知使用者該工具目前已被停用。')}
               </div>
             </div>
+            </>)}
 
             {/* Close footer button */}
             <div className="pt-1 flex items-center justify-end shrink-0">

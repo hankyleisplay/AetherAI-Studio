@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.1 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.0.2 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "4.0.1"
+            assert res.json()["version"] == "4.0.2"
 
 
 
@@ -449,7 +449,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.1" in res.text
+            assert "Aether AI Studio 4.0.2" in res.text
 
 
 
@@ -646,7 +646,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 4.0.1 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.0.2 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

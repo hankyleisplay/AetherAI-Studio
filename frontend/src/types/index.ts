@@ -30,6 +30,15 @@ export interface ToolDisplay {
   todos?: TodoItem[];
 }
 
+export interface CodeToolInfo {
+  name: string;
+  description: string;
+  parameters: string[];
+  required: string[];
+  mutating: boolean;
+  enabled: boolean;
+}
+
 export interface ToolApproval {
   request_id: string;
   status: 'pending' | 'approved' | 'rejected';

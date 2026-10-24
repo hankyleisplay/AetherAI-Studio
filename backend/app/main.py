@@ -479,6 +479,37 @@ async def code_reset(session_id: str):
     db.delete_agent_session(session_id)
     return {"status": "reset"}
 
+# Code agent toolset (separate from the 22 chat tools): list and enable/disable
+@app.get("/api/code/tools")
+async def list_code_tools():
+    from backend.app.coding.tools import CodingToolset
+    disabled = set(db.get_setting("disabled_code_tools") or [])
+    toolset = CodingToolset(settings.base_workspace_dir, {})
+    return [
+        {
+            "name": spec.name,
+            "description": spec.description,
+            "parameters": list(spec.parameters.keys()),
+            "required": spec.required,
+            "mutating": spec.mutating,
+            "enabled": spec.name not in disabled,
+        }
+        for spec in toolset.specs.values()
+    ]
+
+@app.post("/api/code/tools/{name}/toggle")
+async def toggle_code_tool(name: str, payload: ToolToggle):
+    from backend.app.coding.tools import CodingToolset
+    if name not in CodingToolset(settings.base_workspace_dir, {}).specs:
+        raise HTTPException(status_code=404, detail=f"Unknown code tool: {name}")
+    disabled = set(db.get_setting("disabled_code_tools") or [])
+    if payload.enabled:
+        disabled.discard(name)
+    else:
+        disabled.add(name)
+    db.set_setting("disabled_code_tools", sorted(disabled))
+    return {"name": name, "enabled": payload.enabled}
+
 # Sessions Endpoints
 @app.get("/api/sessions")
 async def list_sessions():
