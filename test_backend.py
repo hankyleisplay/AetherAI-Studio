@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.6.3 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 3.7.0 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "3.6.3"
+            assert res.json()["version"] == "3.7.0"
 
 
 
@@ -449,7 +449,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.6.3" in res.text
+            assert "Aether AI Studio 3.7.0" in res.text
 
 
 
@@ -547,6 +547,61 @@ async def run_tests():
             assert len(title_res.json()["title"]) > 0
             print("15. Message deletion and AI session title API verified successfully! Title:", title_res.json()["title"])
 
+            # 16. Verify PIN Auth Security Endpoints
+            auth_st1 = await client.get("/api/auth/status")
+            assert auth_st1.status_code == 200
+
+            set_pin_res = await client.post("/api/auth/set-pin", json={"new_pin": "9999", "enabled": True})
+            assert set_pin_res.status_code == 200
+            assert set_pin_res.json()["pin_protected"] == True
+
+            verify_fail = await client.post("/api/auth/verify-pin", json={"pin": "0000"})
+            assert verify_fail.status_code == 401
+
+            verify_ok = await client.post("/api/auth/verify-pin", json={"pin": "9999"})
+            assert verify_ok.status_code == 200
+            assert verify_ok.json()["authenticated"] == True
+
+            # Disable PIN
+            disable_res = await client.post("/api/auth/set-pin", json={"old_pin": "9999", "enabled": False})
+            assert disable_res.status_code == 200
+            assert disable_res.json()["pin_protected"] == False
+            print("16. Web Access PIN security verified successfully!")
+
+            # 17. Verify Web Filesystem Browser
+            drives_res = await client.get("/api/system/fs-browse")
+            assert drives_res.status_code == 200
+            assert "items" in drives_res.json()
+            assert len(drives_res.json()["items"]) > 0
+
+            browse_proj = await client.get(f"/api/system/fs-browse?path={PROJECT_ROOT}")
+            assert browse_proj.status_code == 200
+            items_names = [i["name"] for i in browse_proj.json()["items"]]
+            assert "backend" in items_names or "frontend" in items_names
+            print("17. Web Filesystem Browser verified successfully!")
+
+            # 18. Verify Git Status & AI Commit Endpoints
+            import subprocess
+            from backend.app.config import settings
+            test_p_dir = settings.workspace_dir
+            subprocess.run(["git", "init"], cwd=str(test_p_dir), capture_output=True)
+            git_st_res = await client.get("/api/git/status")
+            assert git_st_res.status_code == 200
+            assert git_st_res.json()["is_git"] == True
+            assert "branch" in git_st_res.json()
+
+            ai_msg_res = await client.post("/api/git/ai-commit-msg")
+            assert ai_msg_res.status_code == 200
+            assert "commit_message" in ai_msg_res.json()
+            assert len(ai_msg_res.json()["commit_message"]) > 0
+            print("18. Git Status & AI Commit Message API verified successfully! Generated msg:", ai_msg_res.json()["commit_message"])
+
+            # 19. Verify Terminal Process Kill
+            kill_res = await client.post("/api/terminal/kill")
+            assert kill_res.status_code == 200
+            assert kill_res.json()["status"] == "ok"
+            print("19. Terminal process kill management verified successfully!")
+
             # Cleanup test project
             import shutil
             from backend.app.config import settings
@@ -572,7 +627,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 3.6.3 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 3.7.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { 
-  FolderGit2, 
+  FolderGit2, Folder, 
   Plus, 
   X, 
   Code2, 
@@ -56,6 +56,45 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [isCreating, setIsCreating] = useState(false);
   const [isBrowsing, setIsBrowsing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [isWebPickerOpen, setIsWebPickerOpen] = useState(false);
+  const [webPickerCurrent, setWebPickerCurrent] = useState('');
+  const [webPickerParent, setWebPickerParent] = useState<string | null>(null);
+  const [webPickerItems, setWebPickerItems] = useState<Array<{ name: string; path: string; is_dir: boolean }>>([]);
+  const [isWebPickerLoading, setIsWebPickerLoading] = useState(false);
+
+  const loadWebPicker = async (targetPath: string = '') => {
+    setIsWebPickerLoading(true);
+    setErrorMsg('');
+    try {
+      const url = targetPath ? `/api/system/fs-browse?path=${encodeURIComponent(targetPath)}` : '/api/system/fs-browse';
+      const res = await fetch(url);
+      if (res.ok) {
+        const data = await res.json();
+        setWebPickerCurrent(data.current || '');
+        setWebPickerParent(data.parent || null);
+        setWebPickerItems(data.items || []);
+        setIsWebPickerOpen(true);
+      } else {
+        setErrorMsg('無法讀取目錄清單');
+      }
+    } catch (e: any) {
+      setErrorMsg(`目錄讀取失敗: ${e.message}`);
+    } finally {
+      setIsWebPickerLoading(false);
+    }
+  };
+
+  const handleSelectWebDirectory = (dirPath: string, dirName?: string) => {
+    setCustomPath(dirPath);
+    setFolderType('custom');
+    if (!projectName.trim() || projectName === customPath.split(/[\\/]/).pop()) {
+      const name = dirName || dirPath.split(/[\\/]/).filter(Boolean).pop() || '';
+      const clean = name.replace(/[^a-zA-Z0-9_\-]/g, '');
+      if (clean) setProjectName(clean);
+    }
+    setIsWebPickerOpen(false);
+  };
+
 
   if (!isOpen) return null;
 
@@ -285,24 +324,122 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
               {folderType === 'custom' && (
                 <div className="animate-in fade-in duration-150 mt-2 space-y-2">
-                  <button
-                    type="button"
-                    onClick={handleBrowseFolder}
-                    disabled={isBrowsing}
-                    className="w-full py-2.5 px-4 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
-                  >
-                    {isBrowsing ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                        <span>{t('folder_browsing', '正在開啟系統資料夾選取視窗...')}</span>
-                      </>
-                    ) : (
-                      <>
-                        <FolderOpen className="w-4 h-4 text-amber-400" />
-                        <span>{t('btn_browse_folder', '📂 點擊用圖形介面瀏覽選擇本機資料夾 (GUI Picker)')}</span>
-                      </>
-                    )}
-                  </button>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    <button
+                      type="button"
+                      onClick={handleBrowseFolder}
+                      disabled={isBrowsing}
+                      className="py-2.5 px-3 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
+                      title="呼叫 Windows 原生資料夾選擇視窗 (本機桌面可用)"
+                    >
+                      {isBrowsing ? (
+                        <>
+                          <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                          <span>開啟本機視窗中...</span>
+                        </>
+                      ) : (
+                        <>
+                          <FolderOpen className="w-4 h-4 text-amber-400" />
+                          <span>📂 本機視窗選擇 (GUI Picker)</span>
+                        </>
+                      )}
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (isWebPickerOpen) {
+                          setIsWebPickerOpen(false);
+                        } else {
+                          loadWebPicker(customPath || '');
+                        }
+                      }}
+                      className="py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 hover:from-cyan-500/25 hover:to-indigo-500/25 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
+                      title="直接在網頁彈窗內瀏覽選取磁碟與資料夾 (手機與遠端連線專用)"
+                    >
+                      <Globe className="w-4 h-4 text-cyan-400" />
+                      <span>{isWebPickerOpen ? '🔼 收合網頁目錄' : '🌐 網頁樹狀目錄 (手機/遠端專用)'}</span>
+                    </button>
+                  </div>
+
+                  {/* Web Folder Browser Panel */}
+                  {isWebPickerOpen && (
+                    <div className="p-3.5 rounded-2xl bg-black/60 border border-cyan-500/40 space-y-2.5 animate-in fade-in duration-150">
+                      <div className="flex items-center justify-between text-xs">
+                        <span className="font-bold text-cyan-300 flex items-center gap-1.5">
+                          <FolderOpen className="w-4 h-4 text-cyan-400" />
+                          <span>當前瀏覽：</span>
+                          <span className="font-mono text-white truncate max-w-[200px] md:max-w-xs">{webPickerCurrent || '根目錄 (磁碟機)'}</span>
+                        </span>
+                        <div className="flex items-center gap-1.5">
+                          {webPickerParent && (
+                            <button
+                              type="button"
+                              onClick={() => loadWebPicker(webPickerParent)}
+                              className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-bold"
+                            >
+                              ⬆️ 上一層
+                            </button>
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => loadWebPicker('')}
+                            className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-bold"
+                          >
+                            🔄 磁碟機
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Folder Listing */}
+                      <div className="max-h-48 overflow-y-auto rounded-xl bg-black/40 border border-white/10 p-1.5 space-y-1">
+                        {isWebPickerLoading ? (
+                          <div className="py-6 flex items-center justify-center gap-2 text-xs text-slate-400">
+                            <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
+                            <span>讀取目錄中...</span>
+                          </div>
+                        ) : webPickerItems.length === 0 ? (
+                          <div className="py-6 text-center text-xs text-slate-400">
+                            此目錄下無子資料夾
+                          </div>
+                        ) : (
+                          webPickerItems.map((item) => (
+                            <div
+                              key={item.path}
+                              onClick={() => loadWebPicker(item.path)}
+                              className="group p-2 rounded-lg hover:bg-cyan-500/20 text-xs text-slate-200 flex items-center justify-between cursor-pointer transition-colors"
+                            >
+                              <div className="flex items-center gap-2 min-w-0">
+                                <Folder className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                                <span className="font-mono truncate">{item.name}</span>
+                              </div>
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleSelectWebDirectory(item.path, item.name);
+                                }}
+                                className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 text-[10px] font-bold opacity-80 group-hover:opacity-100 shrink-0"
+                              >
+                                選定此夾
+                              </button>
+                            </div>
+                          ))
+                        )}
+                      </div>
+
+                      {webPickerCurrent && (
+                        <button
+                          type="button"
+                          onClick={() => handleSelectWebDirectory(webPickerCurrent)}
+                          className="w-full py-2 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>✅ 將當前目錄「{webPickerCurrent.split(/[\\/]/).filter(Boolean).pop()}」設為專案工作區</span>
+                        </button>
+                      )}
+                    </div>
+                  )}
                   <div className="relative">
                     <input
                       type="text"

@@ -98,6 +98,24 @@ class SwarmRequest(BaseModel):
     rounds: Optional[int] = 1
     model_config_override: Optional[ModelConfig] = None
 
+class PinVerifyPayload(BaseModel):
+    pin: str
+
+class PinSetPayload(BaseModel):
+    old_pin: Optional[str] = None
+    new_pin: Optional[str] = None
+    enabled: bool = True
+
+class GitCommitPayload(BaseModel):
+    message: str
+    stage_all: bool = True
+    project: Optional[str] = None
+
+class GitPushPayload(BaseModel):
+    remote: Optional[str] = "origin"
+    branch: Optional[str] = None
+    project: Optional[str] = None
+
 class PromptEnhanceRequest(BaseModel):
     prompt: str
     temperature: Optional[float] = 0.7
@@ -1112,6 +1130,358 @@ async def execute_terminal_command(payload: TerminalExecPayload):
             'cwd': str(target_cwd),
             'project': project_name
         }
+
+# ================= Web Access PIN Security =================
+
+@app.get('/api/auth/status')
+async def auth_status(request: Request):
+    pin = db.get_setting("web_access_pin")
+    if not pin:
+        return {"pin_protected": False, "authenticated": True}
+    token = request.headers.get("x-access-token") or request.headers.get("x-access-pin")
+    if not token:
+        token = request.cookies.get("aether_access_token")
+    is_authed = (token == pin)
+    return {"pin_protected": True, "authenticated": is_authed}
+
+@app.post('/api/auth/verify-pin')
+async def verify_pin(payload: PinVerifyPayload):
+    configured_pin = db.get_setting("web_access_pin")
+    if not configured_pin:
+        return {"status": "ok", "authenticated": True, "token": "open"}
+    if payload.pin == configured_pin:
+        return {"status": "ok", "authenticated": True, "token": configured_pin}
+    raise HTTPException(status_code=401, detail="PIN 碼錯誤，請重新輸入")
+
+@app.post('/api/auth/set-pin')
+async def set_pin(payload: PinSetPayload):
+    configured_pin = db.get_setting("web_access_pin")
+    if configured_pin:
+        if payload.old_pin != configured_pin:
+            raise HTTPException(status_code=403, detail="原 PIN 碼驗證失敗，無法修改")
+    if not payload.enabled or not payload.new_pin:
+        db.set_setting("web_access_pin", None)
+        return {"status": "disabled", "pin_protected": False}
+    new_pin_clean = payload.new_pin.strip()
+    if len(new_pin_clean) < 4:
+        raise HTTPException(status_code=400, detail="PIN 碼長度至少需 4 位數")
+    db.set_setting("web_access_pin", new_pin_clean)
+    return {"status": "updated", "pin_protected": True}
+
+# ================= Web Filesystem Tree Browser (for Remote & Mobile) =================
+
+@app.get('/api/system/fs-browse')
+async def browse_filesystem(path: Optional[str] = None):
+    """
+    In-browser directory tree browser for mobile / remote control without GUI dialog.
+    """
+    if not path or not path.strip():
+        if os.name == 'nt':
+            import string
+            drives = []
+            for letter in string.ascii_uppercase:
+                drive_str = f"{letter}:\\"
+                if os.path.exists(drive_str):
+                    drives.append({
+                        "name": f"{letter}:",
+                        "path": drive_str,
+                        "is_dir": True
+                    })
+            return {"current": "", "parent": None, "items": drives}
+        else:
+            path = "/"
+
+    target = Path(path).resolve()
+    if not target.exists() or not target.is_dir():
+        raise HTTPException(status_code=404, detail="Directory not found")
+
+    items = []
+    try:
+        for entry in os.scandir(str(target)):
+            if entry.is_dir(follow_symlinks=False):
+                name = entry.name
+                if name.startswith('$') or name in ('System Volume Information', 'Recovery', '.git', 'node_modules', '__pycache__'):
+                    continue
+                try:
+                    items.append({
+                        "name": name,
+                        "path": str(Path(entry.path).resolve()),
+                        "is_dir": True
+                    })
+                except Exception:
+                    continue
+    except PermissionError:
+        pass
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+
+    items.sort(key=lambda x: x["name"].lower())
+    parent_path = str(target.parent) if target.parent != target else None
+    return {
+        "current": str(target),
+        "parent": parent_path,
+        "items": items
+    }
+
+# ================= Streaming Terminal & Process Management =================
+
+active_terminal_processes: Dict[str, Any] = {}
+
+@app.post('/api/terminal/stream')
+async def stream_terminal_command(payload: TerminalExecPayload):
+    import subprocess
+    import uuid
+    import time
+    cmd = (payload.command or '').strip()
+    if not cmd:
+        raise HTTPException(status_code=400, detail="No command provided")
+    dangerous = ['rm -rf /', 'mkfs', ':(){ :|:& };:', 'dd if=/dev/']
+    for d in dangerous:
+        if d in cmd:
+            raise HTTPException(status_code=400, detail=f"Command rejected: contains dangerous pattern '{d}'")
+    
+    base = settings.workspace_dir.resolve()
+    project_name = payload.project or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if project_name:
+        if project_name in projects_meta:
+            cand = Path(projects_meta[project_name].get('path', '')).resolve()
+            target_cwd = cand if cand.exists() and cand.is_dir() else base
+        else:
+            cand = base / 'projects' / project_name
+            target_cwd = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_cwd = base
+
+    env = os.environ.copy()
+    env['PYTHONIOENCODING'] = 'utf-8'
+    env['PYTHONUTF8'] = '1'
+
+    proc_id = str(uuid.uuid4())
+
+    async def terminal_generator():
+        start_time = time.time()
+        yield {
+            "event": "start",
+            "data": json.dumps({"command": cmd, "cwd": str(target_cwd), "proc_id": proc_id})
+        }
+        try:
+            proc = subprocess.Popen(
+                cmd,
+                shell=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                cwd=str(target_cwd),
+                env=env,
+                text=True,
+                encoding='utf-8',
+                errors='replace',
+                bufsize=1
+            )
+            active_terminal_processes[proc_id] = proc
+            
+            loop = asyncio.get_event_loop()
+            while True:
+                line = await loop.run_in_executor(None, proc.stdout.readline)
+                if not line:
+                    if proc.poll() is not None:
+                        break
+                    await asyncio.sleep(0.05)
+                    continue
+                yield {
+                    "event": "line",
+                    "data": json.dumps({"text": line})
+                }
+            
+            rc = proc.wait()
+            duration_ms = round((time.time() - start_time) * 1000, 1)
+            yield {
+                "event": "done",
+                "data": json.dumps({"exit_code": rc, "duration_ms": duration_ms, "proc_id": proc_id})
+            }
+        except Exception as e:
+            yield {
+                "event": "error",
+                "data": json.dumps({"error": str(e)})
+            }
+        finally:
+            active_terminal_processes.pop(proc_id, None)
+
+    return EventSourceResponse(terminal_generator())
+
+@app.post('/api/terminal/kill')
+async def kill_terminal_command(payload: Optional[Dict[str, str]] = None):
+    proc_id = (payload or {}).get("proc_id")
+    killed = 0
+    if proc_id and proc_id in active_terminal_processes:
+        p = active_terminal_processes.pop(proc_id, None)
+        if p:
+            try:
+                p.kill()
+                killed += 1
+            except Exception:
+                pass
+    else:
+        for pid, p in list(active_terminal_processes.items()):
+            try:
+                p.kill()
+                killed += 1
+            except Exception:
+                pass
+        active_terminal_processes.clear()
+    return {"status": "ok", "killed": killed}
+
+# ================= Git Visual Control & Auto-Commit =================
+
+@app.get('/api/git/status')
+async def get_git_status(project: Optional[str] = None):
+    import subprocess
+    base = settings.workspace_dir.resolve()
+    target_project = project or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if target_project and target_project in projects_meta:
+        cand = Path(projects_meta[target_project].get('path', '')).resolve()
+        target_dir = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_dir = base
+
+    git_dir = target_dir / '.git'
+    if not git_dir.exists():
+        return {
+            "is_git": False,
+            "branch": None,
+            "status": "not_a_repo",
+            "modified": [],
+            "untracked": [],
+            "clean": True,
+            "path": str(target_dir)
+        }
+
+    try:
+        branch_res = subprocess.run(
+            ["git", "branch", "--show-current"],
+            capture_output=True, text=True, cwd=str(target_dir), timeout=5
+        )
+        branch = branch_res.stdout.strip() or "main"
+
+        status_res = subprocess.run(
+            ["git", "status", "--porcelain=v1"],
+            capture_output=True, text=True, cwd=str(target_dir), timeout=5
+        )
+        lines = [l for l in status_res.stdout.splitlines() if l.strip()]
+        modified = []
+        untracked = []
+        for l in lines:
+            prefix = l[:2]
+            fpath = l[3:].strip()
+            if prefix.startswith('?') or prefix.endswith('?'):
+                untracked.append(fpath)
+            else:
+                modified.append(fpath)
+
+        return {
+            "is_git": True,
+            "branch": branch,
+            "modified": modified,
+            "untracked": untracked,
+            "clean": len(lines) == 0,
+            "total_changes": len(lines),
+            "path": str(target_dir)
+        }
+    except Exception as e:
+        return {
+            "is_git": True,
+            "branch": "error",
+            "error": str(e),
+            "modified": [],
+            "untracked": [],
+            "clean": True
+        }
+
+@app.post('/api/git/commit')
+async def git_commit(payload: GitCommitPayload):
+    import subprocess
+    base = settings.workspace_dir.resolve()
+    target_project = payload.project or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if target_project and target_project in projects_meta:
+        cand = Path(projects_meta[target_project].get('path', '')).resolve()
+        target_dir = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_dir = base
+
+    if payload.stage_all:
+        subprocess.run(["git", "add", "-A"], cwd=str(target_dir), check=True, timeout=10)
+
+    res = subprocess.run(
+        ["git", "commit", "-m", payload.message],
+        capture_output=True, text=True, cwd=str(target_dir), timeout=10
+    )
+    if res.returncode != 0:
+        raise HTTPException(status_code=400, detail=res.stderr or res.stdout or "Commit failed")
+    return {"status": "ok", "output": res.stdout.strip()}
+
+@app.post('/api/git/push')
+async def git_push(payload: Optional[GitPushPayload] = None):
+    import subprocess
+    base = settings.workspace_dir.resolve()
+    p = payload or GitPushPayload()
+    target_project = p.project or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if target_project and target_project in projects_meta:
+        cand = Path(projects_meta[target_project].get('path', '')).resolve()
+        target_dir = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_dir = base
+
+    cmd = ["git", "push"]
+    if p.remote and p.branch:
+        cmd.extend([p.remote, p.branch])
+    res = subprocess.run(
+        cmd,
+        capture_output=True, text=True, cwd=str(target_dir), timeout=30
+    )
+    if res.returncode != 0:
+        raise HTTPException(status_code=400, detail=res.stderr or res.stdout or "Push failed")
+    return {"status": "ok", "output": res.stdout.strip() or res.stderr.strip()}
+
+@app.post('/api/git/ai-commit-msg')
+async def git_ai_commit_msg(payload: Optional[Dict[str, str]] = None):
+    import subprocess
+    base = settings.workspace_dir.resolve()
+    project = (payload or {}).get("project") or db.get_setting('active_project')
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if project and project in projects_meta:
+        cand = Path(projects_meta[project].get('path', '')).resolve()
+        target_dir = cand if cand.exists() and cand.is_dir() else base
+    else:
+        target_dir = base
+
+    diff_res = subprocess.run(
+        ["git", "diff", "HEAD"],
+        capture_output=True, text=True, cwd=str(target_dir), timeout=5
+    )
+    diff = diff_res.stdout[:3000].strip()
+    if not diff:
+        diff_res2 = subprocess.run(
+            ["git", "status", "--porcelain=v1"],
+            capture_output=True, text=True, cwd=str(target_dir), timeout=5
+        )
+        diff = diff_res2.stdout[:2000].strip()
+
+    if not diff:
+        return {"commit_message": "chore: 更新工作區檔案"}
+
+    saved = db.get_setting("active_model_config")
+    active_config = ModelConfig(**saved) if saved else ModelConfig(provider="ollama", base_url="http://localhost:11434", model="llama3:latest")
+    client = UnifiedLLMClient(active_config.model_copy(update={"max_tokens": 100, "temperature": 0.3}))
+    prompt = f"請根據以下 Git Diff 或變更內容，產出一句簡短有力的 Conventional Commits 繁體中文 Commit 訊息（如 'feat: 新增資料夾選取器與終端串流' 或 'fix: 修復工作區路徑隔離'），只輸出該訊息本身，不要附帶其他說明：\n\n{diff}"
+    try:
+        msg = await client.generate(prompt)
+        msg_clean = msg.strip().replace('"', '').replace("`", "").splitlines()[0]
+        return {"commit_message": msg_clean}
+    except Exception:
+        return {"commit_message": "feat: 更新專案代碼與架構"}
 
 # Serve Frontend static assets if built
 FRONTEND_DIST = (BASE_DIR.parent / "frontend" / "dist").resolve()

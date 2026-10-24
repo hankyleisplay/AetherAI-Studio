@@ -9,6 +9,7 @@ import { WorkspaceDrawer } from './components/WorkspaceDrawer';
 import { SwarmModal } from './components/SwarmModal';
 import { InteractiveTerminal } from './components/InteractiveTerminal';
 import { ProjectModal } from './components/ProjectModal';
+import { PinLockModal } from './components/PinLockModal';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall, CodeExecutionMode } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -28,6 +29,26 @@ export const App: React.FC = () => {
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
   const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
+  const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+
+  const checkAuthStatus = async () => {
+    try {
+      const token = localStorage.getItem('aether_access_token');
+      const res = await fetch('/api/auth/status', {
+        headers: token ? { 'x-access-token': token } : {}
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.pin_protected && !data.authenticated) {
+          setIsPinModalOpen(true);
+        }
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    checkAuthStatus();
+  }, []);
 
   // Code Mode & Projects state
   const [mode, setMode] = useState<'chat' | 'code'>(() => {
@@ -1059,6 +1080,16 @@ export const App: React.FC = () => {
           setActiveProject(p);
           fetchProjects();
         }}
+        onAutoFix={(cmd, err) => {
+          const autoPrompt = `【🚨 終端指令執行失敗，請自主分析報錯並自動修復代碼】：\n\n執行指令: ${cmd}\n\n錯誤 Traceback:\n${err}\n\n請自主檢查專案代碼、定位問題、修改檔案並重新執行測試驗證！`;
+          handleSendMessage(autoPrompt);
+        }}
+      />
+
+      {/* Outer Web Access PIN Protection Modal */}
+      <PinLockModal
+        isOpen={isPinModalOpen}
+        onSuccess={() => setIsPinModalOpen(false)}
       />
 
       {/* New Project Modal */}

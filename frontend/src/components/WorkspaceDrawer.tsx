@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
-  Folder, FileText, Code2, Image as ImageIcon, FileSpreadsheet, 
+  Folder, FileText, Code2, GitBranch, GitCommit, UploadCloud, Edit3, Save, CheckCircle2, Image as ImageIcon, FileSpreadsheet, 
   File, Eye, Download, Trash2, Sparkles, X, RotateCw, Search,
   ExternalLink, Check, Copy
 } from 'lucide-react';
@@ -30,6 +30,121 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
   const [previewContent, setPreviewContent] = useState<string>('');
   const [isPreviewLoading, setIsPreviewLoading] = useState<boolean>(false);
   const [copied, setCopied] = useState<boolean>(false);
+
+  // In-Studio Code Editor State
+  const [isEditing, setIsEditing] = useState<boolean>(false);
+  const [editContent, setEditContent] = useState<string>('');
+  const [isSaving, setIsSaving] = useState<boolean>(false);
+  const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+
+  // Git Panel State
+  const [drawerTab, setDrawerTab] = useState<'files' | 'git'>('files');
+  const [gitStatus, setGitStatus] = useState<any>(null);
+  const [isGitLoading, setIsGitLoading] = useState<boolean>(false);
+  const [commitMsg, setCommitMsg] = useState<string>('');
+  const [isAiCommitLoading, setIsAiCommitLoading] = useState<boolean>(false);
+  const [isPushing, setIsPushing] = useState<boolean>(false);
+  const [gitNotice, setGitNotice] = useState<string>('');
+
+  const fetchGitStatus = async () => {
+    setIsGitLoading(true);
+    setGitNotice('');
+    try {
+      const res = await fetch(`/api/git/status?project=${encodeURIComponent(activeProject || '')}`);
+      if (res.ok) {
+        const data = await res.json();
+        setGitStatus(data);
+      }
+    } catch (err: any) {
+      console.error('Git status error:', err);
+    } finally {
+      setIsGitLoading(false);
+    }
+  };
+
+  const handleGenerateAiCommit = async () => {
+    setIsAiCommitLoading(true);
+    setGitNotice('');
+    try {
+      const res = await fetch('/api/git/ai-commit-msg', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: activeProject })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.commit_message) {
+          setCommitMsg(data.commit_message);
+        }
+      }
+    } catch (err: any) {
+      setGitNotice(`AI 生成失敗: ${err.message}`);
+    } finally {
+      setIsAiCommitLoading(false);
+    }
+  };
+
+  const handleCommitAndPush = async () => {
+    if (!commitMsg.trim()) {
+      setGitNotice('請先輸入或生成 Commit 訊息');
+      return;
+    }
+    setIsPushing(true);
+    setGitNotice('');
+    try {
+      const commitRes = await fetch('/api/git/commit', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: commitMsg.trim(), stage_all: true, project: activeProject })
+      });
+      if (!commitRes.ok) {
+        const err = await commitRes.json().catch(() => ({}));
+        throw new Error(err.detail || 'Commit 失敗');
+      }
+      const pushRes = await fetch('/api/git/push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ project: activeProject })
+      });
+      if (!pushRes.ok) {
+        const err = await pushRes.json().catch(() => ({}));
+        throw new Error(err.detail || 'Push 失敗');
+      }
+      setGitNotice('🎉 成功提交並推送至 GitHub 遠端版本庫！');
+      setCommitMsg('');
+      fetchGitStatus();
+    } catch (err: any) {
+      setGitNotice(`操作失敗: ${err.message}`);
+    } finally {
+      setIsPushing(false);
+    }
+  };
+
+  const handleSaveFile = async () => {
+    if (!previewFile) return;
+    setIsSaving(true);
+    setSaveSuccess(false);
+    try {
+      const res = await fetch('/api/workspace/file', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path: previewFile.path, content: editContent })
+      });
+      if (res.ok) {
+        setPreviewContent(editContent);
+        setSaveSuccess(true);
+        setTimeout(() => setSaveSuccess(false), 2000);
+        fetchFiles();
+      } else {
+        alert('儲存檔案失敗');
+      }
+    } catch (err: any) {
+      alert(`儲存失敗: ${err.message}`);
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
 
   const fetchFiles = async () => {
     setIsLoading(true);
@@ -189,113 +304,241 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
           </div>
         </div>
 
-        {/* Search Filter Bar */}
-        <div className="p-3 border-b border-white/5">
-          <div className="relative">
-            <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder={t('search_files', '搜尋工作區檔案...')}
-              className="w-full pl-9 pr-8 py-1.5 text-xs bg-black/40 border border-white/10 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
-            />
-            {searchQuery && (
-              <button 
-                onClick={() => setSearchQuery('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
-              >
-                <X className="w-3.5 h-3.5" />
-              </button>
-            )}
-          </div>
+        {/* Top Tab Bar: Files vs Git */}
+        <div className="grid grid-cols-2 p-1.5 mx-3 mt-2 rounded-xl bg-black/40 border border-white/10 text-xs">
+          <button
+            type="button"
+            onClick={() => setDrawerTab('files')}
+            className={`py-1.5 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              drawerTab === 'files'
+                ? 'bg-cyan-500/20 text-cyan-200 border border-cyan-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <Folder className="w-3.5 h-3.5 text-cyan-400" />
+            <span>檔案總管 ({files.length})</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => {
+              setDrawerTab('git');
+              fetchGitStatus();
+            }}
+            className={`py-1.5 px-3 rounded-lg font-semibold flex items-center justify-center gap-1.5 transition-all ${
+              drawerTab === 'git'
+                ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-400/40 shadow-sm'
+                : 'text-slate-400 hover:text-white'
+            }`}
+          >
+            <GitBranch className="w-3.5 h-3.5 text-emerald-400" />
+            <span>Git 版本庫</span>
+          </button>
         </div>
 
-        {/* File Tree List */}
-        <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
-          {isLoading ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-2">
-              <RotateCw className="w-6 h-6 animate-spin text-cyan-400" />
-              <span className="text-xs">{t('loading_files', '載入工作區檔案中...')}</span>
+        {drawerTab === 'git' ? (
+          /* Git Visual Panel */
+          <div className="flex-1 overflow-y-auto p-4 space-y-4">
+            <div className="p-3 rounded-2xl bg-black/40 border border-emerald-500/30 space-y-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">當前分支 (Branch):</span>
+                <span className="font-mono font-bold text-emerald-300 flex items-center gap-1 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/30">
+                  <GitBranch className="w-3 h-3 text-emerald-400" />
+                  {gitStatus?.branch || 'main'}
+                </span>
+              </div>
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400">變更檔案數:</span>
+                <span className="font-mono font-bold text-white">
+                  {gitStatus?.total_changes ?? 0} 個變更
+                </span>
+              </div>
             </div>
-          ) : filteredFiles.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-48 text-slate-500 gap-2">
-              <Folder className="w-8 h-8 opacity-40" />
-              <span className="text-xs">{t('workspace_empty', '工作區目前無檔案')}</span>
+
+            {/* Changed files list */}
+            <div>
+              <div className="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">
+                變更清單 (Modified & Untracked)
+              </div>
+              {isGitLoading ? (
+                <div className="py-6 text-center text-xs text-slate-400">讀取 Git 狀態中...</div>
+              ) : !gitStatus?.is_git ? (
+                <div className="p-4 rounded-xl bg-black/30 text-center text-xs text-slate-400 border border-white/5">
+                  目前專案非 Git 版本庫
+                </div>
+              ) : (gitStatus?.total_changes ?? 0) === 0 ? (
+                <div className="p-4 rounded-xl bg-emerald-950/20 text-center text-xs text-emerald-300 border border-emerald-500/30">
+                  ✨ 工作區乾淨，無任何未提交變更！
+                </div>
+              ) : (
+                <div className="max-h-48 overflow-y-auto space-y-1 bg-black/30 rounded-xl p-2 border border-white/10 font-mono text-xs">
+                  {gitStatus?.modified?.map((m: string) => (
+                    <div key={m} className="flex items-center justify-between p-1 rounded hover:bg-white/5 text-amber-300">
+                      <span className="truncate">{m}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-500/20 border border-amber-500/40">M</span>
+                    </div>
+                  ))}
+                  {gitStatus?.untracked?.map((u: string) => (
+                    <div key={u} className="flex items-center justify-between p-1 rounded hover:bg-white/5 text-cyan-300">
+                      <span className="truncate">{u}</span>
+                      <span className="text-[10px] px-1.5 py-0.2 rounded bg-cyan-500/20 border border-cyan-500/40">?</span>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          ) : (
-            filteredFiles.map((file) => (
-              <div
-                key={file.path}
-                onClick={() => !file.is_dir && handleOpenPreview(file)}
-                className={`group flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.06] hover:border-cyan-500/20 transition-all cursor-pointer ${
-                  file.is_dir ? 'bg-amber-500/[0.02]' : ''
-                }`}
+
+            {/* Commit Message & AI Assistant */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-semibold text-slate-300">Commit 訊息</label>
+                <button
+                  type="button"
+                  onClick={handleGenerateAiCommit}
+                  disabled={isAiCommitLoading || (gitStatus?.total_changes ?? 0) === 0}
+                  className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 font-bold disabled:opacity-40"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
+                  <span>{isAiCommitLoading ? 'AI 分析中...' : '✨ AI 生成 Commit 訊息'}</span>
+                </button>
+              </div>
+
+              <input
+                type="text"
+                value={commitMsg}
+                onChange={(e) => setCommitMsg(e.target.value)}
+                placeholder="例如: feat: 新增網頁目錄選取器"
+                className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
+              />
+
+              {gitNotice && (
+                <p className="text-xs font-medium text-emerald-300 bg-emerald-950/30 p-2 rounded-lg border border-emerald-500/30">
+                  {gitNotice}
+                </p>
+              )}
+
+              <button
+                type="button"
+                onClick={handleCommitAndPush}
+                disabled={isPushing || (gitStatus?.total_changes ?? 0) === 0 || !commitMsg.trim()}
+                className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-40 transition-all"
               >
-                <div className="flex items-center gap-2.5 min-w-0 pr-2">
-                  {getFileIcon(file.extension, file.is_dir)}
-                  <div className="min-w-0">
-                    <p className="text-xs font-medium text-slate-200 truncate group-hover:text-cyan-300 transition-colors">
-                      {file.name}
-                    </p>
-                    <div className="flex items-center gap-2 text-[10px] text-slate-500">
-                      <span>{file.path}</span>
+                <UploadCloud className="w-4 h-4" />
+                <span>{isPushing ? '正在提交並推送到 GitHub...' : '🚀 一鍵 Commit & Push 到 GitHub'}</span>
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* Files View */
+          <>
+            {/* Search Filter Bar */}
+            <div className="p-3 border-b border-white/5">
+              <div className="relative">
+                <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder={t('search_files', '搜尋工作區檔案...')}
+                  className="w-full pl-9 pr-8 py-1.5 text-xs bg-black/40 border border-white/10 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                />
+                {searchQuery && (
+                  <button 
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* File Tree List */}
+            <div className="flex-1 overflow-y-auto p-3 space-y-1.5">
+              {isLoading ? (
+                <div className="flex flex-col items-center justify-center h-48 text-slate-400 gap-2">
+                  <RotateCw className="w-6 h-6 animate-spin text-cyan-400" />
+                  <span className="text-xs">{t('loading_files', '載入工作區檔案中...')}</span>
+                </div>
+              ) : filteredFiles.length === 0 ? (
+                <div className="flex flex-col items-center justify-center h-48 text-slate-500 gap-2">
+                  <Folder className="w-8 h-8 opacity-40" />
+                  <span className="text-xs">{t('workspace_empty', '工作區目前無檔案')}</span>
+                </div>
+              ) : (
+                filteredFiles.map((file) => (
+                  <div
+                    key={file.path}
+                    onClick={() => !file.is_dir && handleOpenPreview(file)}
+                    className={`group flex items-center justify-between p-2.5 rounded-xl border border-white/5 bg-white/[0.02] hover:bg-white/[0.06] hover:border-cyan-500/20 transition-all cursor-pointer ${
+                      file.is_dir ? 'bg-amber-500/[0.02]' : ''
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      {getFileIcon(file.extension, file.is_dir)}
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium text-slate-200 truncate group-hover:text-cyan-300 transition-colors">
+                          {file.name}
+                        </p>
+                        <div className="flex items-center gap-2 text-[10px] text-slate-500">
+                          <span>{file.path}</span>
+                          {!file.is_dir && (
+                            <>
+                              <span>•</span>
+                              <span>{formatSize(file.size)}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
                       {!file.is_dir && (
                         <>
-                          <span>•</span>
-                          <span>{formatSize(file.size)}</span>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAskAgent(file.path);
+                              onClose();
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
+                            title={t('ask_about_file', '向 Agent 詢問此檔案')}
+                          >
+                            <Sparkles className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleOpenPreview(file);
+                            }}
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            title={t('file_preview', '檔案內容檢視')}
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                          </button>
+                          <button
+                            onClick={(e) => handleDownload(file, e)}
+                            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                            title={t('download_file', '下載檔案')}
+                          >
+                            <Download className="w-3.5 h-3.5" />
+                          </button>
                         </>
                       )}
+                      <button
+                        onClick={(e) => handleDelete(file, e)}
+                        className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                        title={t('delete_file', '刪除檔案')}
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
                     </div>
                   </div>
-                </div>
-
-                {/* Actions */}
-                <div className="flex items-center gap-1 opacity-80 group-hover:opacity-100 transition-opacity">
-                  {!file.is_dir && (
-                    <>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onAskAgent(file.path);
-                          onClose();
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-cyan-500/10 transition-colors"
-                        title={t('ask_about_file', '向 Agent 詢問此檔案')}
-                      >
-                        <Sparkles className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          handleOpenPreview(file);
-                        }}
-                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                        title={t('file_preview', '檔案內容檢視')}
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                      </button>
-                      <button
-                        onClick={(e) => handleDownload(file, e)}
-                        className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                        title={t('download_file', '下載檔案')}
-                      >
-                        <Download className="w-3.5 h-3.5" />
-                      </button>
-                    </>
-                  )}
-                  <button
-                    onClick={(e) => handleDelete(file, e)}
-                    className="p-1 rounded-lg text-slate-400 hover:text-red-400 hover:bg-red-500/10 transition-colors"
-                    title={t('delete_file', '刪除檔案')}
-                  >
-                    <Trash2 className="w-3.5 h-3.5" />
-                  </button>
-                </div>
-              </div>
-            ))
-          )}
-        </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
 
         {/* Footer Quick Action */}
         <div className="p-3 border-t border-white/10 bg-white/[0.02] flex items-center justify-between text-[11px] text-slate-400">
@@ -321,6 +564,42 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
               </div>
 
               <div className="flex items-center gap-2">
+                {!['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(previewFile.extension) && (
+                  <button
+                    type="button"
+                    onClick={() => setIsEditing(!isEditing)}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border text-xs font-medium transition-all ${
+                      isEditing
+                        ? 'bg-amber-500/20 text-amber-300 border-amber-500/40'
+                        : 'bg-white/5 text-slate-300 border-white/10 hover:text-white'
+                    }`}
+                  >
+                    <Edit3 className="w-3.5 h-3.5 text-amber-400" />
+                    <span>{isEditing ? '檢視模式' : '編輯模式'}</span>
+                  </button>
+                )}
+
+                {isEditing && (
+                  <button
+                    type="button"
+                    onClick={handleSaveFile}
+                    disabled={isSaving}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 text-white text-xs font-bold shadow-md hover:brightness-110 transition-all disabled:opacity-50"
+                  >
+                    {saveSuccess ? (
+                      <>
+                        <CheckCircle2 className="w-3.5 h-3.5 text-white" />
+                        <span>已儲存！</span>
+                      </>
+                    ) : (
+                      <>
+                        <Save className="w-3.5 h-3.5" />
+                        <span>{isSaving ? '儲存中...' : '儲存檔案'}</span>
+                      </>
+                    )}
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     onAskAgent(previewFile.path);

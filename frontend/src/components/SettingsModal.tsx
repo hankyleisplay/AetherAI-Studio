@@ -43,7 +43,7 @@ interface SettingsModalProps {
   tools?: ToolDefinition[];
   onToggleTool?: (name: string, enabled: boolean) => Promise<void>;
   onRefreshTools?: () => Promise<void>;
-  initialTab?: 'model' | 'telegram' | 'tools';
+  initialTab?: 'model' | 'telegram' | 'tools' | 'security';
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -58,7 +58,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab = 'model'
 }) => {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'model' | 'telegram' | 'tools'>(initialTab);
+  const [activeTab, setActiveTab] = useState<'model' | 'telegram' | 'tools' | 'security'>(initialTab);
   const [toolSearch, setToolSearch] = useState('');
   const [isBatchToggling, setIsBatchToggling] = useState(false);
   const [formData, setFormData] = useState<ModelConfig>({ ...config });
@@ -101,6 +101,56 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     error?: string;
   } | null>(null);
   const [isSavingTelegram, setIsSavingTelegram] = useState(false);
+
+  // Security PIN State
+  const [pinStatus, setPinStatus] = useState<{ pin_protected: boolean }>({ pin_protected: false });
+  const [pinInput, setPinInput] = useState('');
+  const [oldPinInput, setOldPinInput] = useState('');
+  const [isSavingPin, setIsSavingPin] = useState(false);
+  const [pinMsg, setPinMsg] = useState('');
+
+  const fetchPinStatus = async () => {
+    try {
+      const res = await fetch('/api/auth/status');
+      if (res.ok) {
+        const data = await res.json();
+        setPinStatus(data);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    if (activeTab === 'security') fetchPinStatus();
+  }, [activeTab]);
+
+  const handleSavePin = async (enable: boolean) => {
+    setIsSavingPin(true);
+    setPinMsg('');
+    try {
+      const res = await fetch('/api/auth/set-pin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          old_pin: oldPinInput || undefined,
+          new_pin: enable ? pinInput : undefined,
+          enabled: enable
+        })
+      });
+      if (res.ok) {
+        setPinMsg(enable ? '✅ 外網 PIN 碼已成功啟用並更新！' : 'ℹ️ 已停用外網 PIN 碼保護');
+        setPinInput('');
+        setOldPinInput('');
+        fetchPinStatus();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        setPinMsg(`❌ 設定失敗: ${err.detail || '請檢查輸入'}`);
+      }
+    } catch (e: any) {
+      setPinMsg(`❌ 連線失敗: ${e.message}`);
+    } finally {
+      setIsSavingPin(false);
+    }
+  };
 
   const probeModelsForConfig = async (targetConfig: ModelConfig) => {
     setIsTesting(true);
@@ -422,6 +472,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           >
             <Server className="w-3.5 h-3.5" />
             <span>{t('tab_llm', '模型端點與引擎 (LLM)')}</span>
+          </button>
+
+          <button
+            onClick={() => setActiveTab('security')}
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+              activeTab === 'security'
+                ? 'border-emerald-400 text-emerald-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <ShieldCheck className="w-4 h-4" />
+            <span>外網安全 (Security PIN)</span>
           </button>
 
           <button
@@ -1041,6 +1103,100 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div className="text-[11px] leading-relaxed text-slate-300">
                 <span className="font-semibold text-cyan-300">{t('safety_compliance_intercept', '安全合規與精準攔截：')}</span>
                 {t('tools_tip', '停用的工具將從模型 Schema 中移除，且 Agent 內部決策與 ReAct 引擎將全面攔截調用，並主動告知使用者該工具目前已被停用。')}
+              </div>
+            </div>
+
+            {/* Close footer button */}
+            <div className="pt-1 flex items-center justify-end shrink-0">
+              <button
+                type="button"
+                onClick={onClose}
+                className="px-4 py-2 rounded-xl glass-button text-xs font-semibold text-slate-300 hover:text-white"
+              >
+                {t('close', '關閉')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Security PIN Tab Panel */}
+        {activeTab === 'security' && (
+          <div className="p-6 space-y-5 animate-in fade-in duration-150">
+            <div className="p-4 rounded-2xl bg-black/40 border border-emerald-500/30 flex items-center justify-between">
+              <div>
+                <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                  <ShieldCheck className="w-4 h-4 text-emerald-400" />
+                  <span>外網遠端訪問安全鎖定 (Web Access PIN)</span>
+                </h4>
+                <p className="text-xs text-slate-400 mt-1">
+                  當透過 Cloudflare Tunnel 或外網 IP 訪問時，要求輸入自訂 PIN 碼，防止外部未授權調用終端機與檔案系統。
+                </p>
+              </div>
+              <span className={`px-2.5 py-1 rounded-full text-xs font-bold border font-mono ${
+                pinStatus.pin_protected 
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
+                  : 'bg-white/5 text-slate-400 border-white/10'
+              }`}>
+                {pinStatus.pin_protected ? '🛡️ 保護中' : '未啟用保護'}
+              </span>
+            </div>
+
+            <div className="space-y-4 bg-white/[0.02] p-4 rounded-2xl border border-white/10">
+              {pinStatus.pin_protected && (
+                <div>
+                  <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                    目前 PIN 碼 (Current PIN)
+                  </label>
+                  <input
+                    type="password"
+                    value={oldPinInput}
+                    onChange={(e) => setOldPinInput(e.target.value)}
+                    placeholder="若欲更改或停用，請輸入當前 PIN 碼"
+                    className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500"
+                  />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-xs font-semibold text-slate-300 mb-1.5">
+                  設定新 PIN 碼 (New PIN - 至少 4 位數)
+                </label>
+                <input
+                  type="password"
+                  value={pinInput}
+                  onChange={(e) => setPinInput(e.target.value)}
+                  placeholder="例如: 8888 或自訂安全密碼"
+                  className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500"
+                />
+              </div>
+
+              {pinMsg && (
+                <p className="text-xs font-medium p-2.5 rounded-xl bg-black/40 border border-white/10 text-emerald-300">
+                  {pinMsg}
+                </p>
+              )}
+
+              <div className="flex items-center gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => handleSavePin(true)}
+                  disabled={isSavingPin || !pinInput.trim()}
+                  className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-40"
+                >
+                  <ShieldCheck className="w-4 h-4" />
+                  <span>{isSavingPin ? '儲存中...' : pinStatus.pin_protected ? '更新 PIN 碼' : '啟用外網 PIN 碼保護'}</span>
+                </button>
+
+                {pinStatus.pin_protected && (
+                  <button
+                    type="button"
+                    onClick={() => handleSavePin(false)}
+                    disabled={isSavingPin}
+                    className="py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
+                  >
+                    <span>停用保護</span>
+                  </button>
+                )}
               </div>
             </div>
 

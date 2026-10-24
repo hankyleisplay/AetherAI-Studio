@@ -32,6 +32,7 @@ interface InteractiveTerminalProps {
   activeProject: string | null;
   projects?: Array<{ name: string; path: string }>;
   onSelectProject?: (name: string | null) => void;
+  onAutoFix?: (command: string, stderr: string) => void;
 }
 
 export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
@@ -39,7 +40,8 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
   onClose,
   activeProject,
   projects = [],
-  onSelectProject
+  onSelectProject,
+  onAutoFix
 }) => {
   const { t } = useI18n();
   const [command, setCommand] = useState('');
@@ -135,6 +137,13 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
       setIsRunning(false);
       setTimeout(() => inputRef.current?.focus(), 50);
     }
+  };
+
+
+  const handleKillCommand = async () => {
+    try {
+      await fetch('/api/terminal/kill', { method: 'POST' });
+    } catch {}
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -245,7 +254,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
         <div className="p-2.5 rounded-xl bg-cyan-950/20 border border-cyan-500/20 text-slate-300 text-[11px] leading-relaxed">
           <div className="flex items-center gap-2 text-cyan-300 font-semibold mb-1">
             <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-            <span>Aether Code Terminal v3.6.3 • Autonomous Engine</span>
+            <span>Aether Code Terminal v3.7.0 • Autonomous Engine</span>
           </div>
           <div className="text-slate-400">
             {t('code_mode_desc', '直接在專案目錄下寫程式、讀取與修改檔案、執行終端指令、自主測試與除錯。')}
@@ -289,10 +298,71 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
                 {item.stderr}
               </pre>
             )}
+
+            {item.exitCode !== 0 && item.stderr && onAutoFix && (
+              <div className="pt-1">
+                <button
+                  type="button"
+                  onClick={() => onAutoFix(item.command, item.stderr)}
+                  className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/25 to-rose-500/25 hover:from-amber-500/35 hover:to-rose-500/35 border border-amber-500/50 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
+                >
+                  <Sparkles className="w-3.5 h-3.5 text-amber-400" />
+                  <span>🤖 一鍵交給 Agent 自動分析並修復 (Auto-Fix)</span>
+                </button>
+              </div>
+            )}
           </div>
         ))}
 
         <div ref={terminalEndRef} />
+      </div>
+
+      {/* Mobile Quick Action Bar */}
+      <div className="px-2.5 pt-2 pb-1 bg-black/40 border-t border-white/5 flex items-center gap-1.5 overflow-x-auto text-[11px]">
+        <button
+          type="button"
+          onClick={() => handleRunCommand('dir')}
+          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-300 font-mono shrink-0"
+        >
+          dir
+        </button>
+        <button
+          type="button"
+          onClick={() => handleRunCommand('git status')}
+          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-cyan-300 font-mono shrink-0"
+        >
+          git status
+        </button>
+        <button
+          type="button"
+          onClick={() => handleRunCommand('git diff')}
+          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-cyan-300 font-mono shrink-0"
+        >
+          git diff
+        </button>
+        <button
+          type="button"
+          onClick={() => handleRunCommand('python main.py')}
+          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-emerald-300 font-mono shrink-0"
+        >
+          python main.py
+        </button>
+        <button
+          type="button"
+          onClick={() => handleRunCommand('clear')}
+          className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 font-mono shrink-0"
+        >
+          清屏 (cls)
+        </button>
+        {isRunning && (
+          <button
+            type="button"
+            onClick={handleKillCommand}
+            className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold shrink-0 flex items-center gap-1"
+          >
+            <span>中斷 (Ctrl+C)</span>
+          </button>
+        )}
       </div>
 
       {/* Terminal Input Bar */}
