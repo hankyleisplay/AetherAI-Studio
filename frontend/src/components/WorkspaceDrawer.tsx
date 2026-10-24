@@ -78,7 +78,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
         }
       }
     } catch (err: any) {
-      setGitNotice(`AI 生成失敗: ${err.message}`);
+      setGitNotice(t('ai_generate_failed', 'AI 生成失敗: {error}', { error: err.message }));
     } finally {
       setIsAiCommitLoading(false);
     }
@@ -86,7 +86,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
 
   const handleCommitAndPush = async () => {
     if (!commitMsg.trim()) {
-      setGitNotice('請先輸入或生成 Commit 訊息');
+      setGitNotice(t('commit_msg_required', '請先輸入或生成 Commit 訊息'));
       return;
     }
     setIsPushing(true);
@@ -99,7 +99,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
       });
       if (!commitRes.ok) {
         const err = await commitRes.json().catch(() => ({}));
-        throw new Error(err.detail || 'Commit 失敗');
+        throw new Error(err.detail || t('commit_failed', 'Commit 失敗'));
       }
       const pushRes = await fetch('/api/git/push', {
         method: 'POST',
@@ -108,13 +108,13 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
       });
       if (!pushRes.ok) {
         const err = await pushRes.json().catch(() => ({}));
-        throw new Error(err.detail || 'Push 失敗');
+        throw new Error(err.detail || t('push_failed', 'Push 失敗'));
       }
-      setGitNotice('🎉 成功提交並推送至 GitHub 遠端版本庫！');
+      setGitNotice(t('push_success', '🎉 成功提交並推送至 GitHub 遠端版本庫！'));
       setCommitMsg('');
       fetchGitStatus();
     } catch (err: any) {
-      setGitNotice(`操作失敗: ${err.message}`);
+      setGitNotice(t('operation_failed', '操作失敗: {error}', { error: err.message }));
     } finally {
       setIsPushing(false);
     }
@@ -136,10 +136,10 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
         setTimeout(() => setSaveSuccess(false), 2000);
         fetchFiles();
       } else {
-        alert('儲存檔案失敗');
+        alert(t('save_file_failed', '儲存檔案失敗'));
       }
     } catch (err: any) {
-      alert(`儲存失敗: ${err.message}`);
+      alert(`${t('save_failed', '儲存失敗')}: ${err.message}`);
     } finally {
       setIsSaving(false);
     }
@@ -185,11 +185,11 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
           const data = await res.json();
           setPreviewContent(data.content || '');
         } else {
-          setPreviewContent('無法讀取檔案內容或為二進位檔案。');
+          setPreviewContent(t('file_unreadable', '無法讀取檔案內容或為二進位檔案。'));
         }
       }
     } catch (err) {
-      setPreviewContent(`讀取失敗: ${String(err)}`);
+      setPreviewContent(t('read_failed', '讀取失敗: {error}', { error: String(err) }));
     } finally {
       setIsPreviewLoading(false);
     }
@@ -211,7 +211,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
         }
       }
     } catch (err) {
-      alert(`刪除失敗: ${String(err)}`);
+      alert(t('delete_failed', '刪除失敗: {error}', { error: String(err) }));
     }
   };
 
@@ -280,7 +280,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                 </span>
               </h3>
               <p className="text-[11px] text-slate-400 font-mono truncate max-w-[220px]">
-                {activeProject ? `📂 專案: ${activeProject}` : 'backend/workspace/'}
+                {activeProject ? `📂 ${t('project_label', '專案')}: ${activeProject}` : 'backend/workspace/'}
               </p>
             </div>
           </div>
@@ -316,7 +316,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
             }`}
           >
             <Folder className="w-3.5 h-3.5 text-cyan-400" />
-            <span>檔案總管 ({files.length})</span>
+            <span>{t('file_explorer', '檔案總管')} ({files.length})</span>
           </button>
           <button
             type="button"
@@ -331,7 +331,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
             }`}
           >
             <GitBranch className="w-3.5 h-3.5 text-emerald-400" />
-            <span>Git 版本庫</span>
+            <span>{t('git_repo', 'Git 版本庫')}</span>
           </button>
         </div>
 
@@ -340,16 +340,16 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
           <div className="flex-1 overflow-y-auto p-4 space-y-4">
             <div className="p-3 rounded-2xl bg-black/40 border border-emerald-500/30 space-y-2">
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">當前分支 (Branch):</span>
+                <span className="text-slate-400">{t('git_branch', '當前分支 (Branch):')}</span>
                 <span className="font-mono font-bold text-emerald-300 flex items-center gap-1 bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-500/30">
                   <GitBranch className="w-3 h-3 text-emerald-400" />
                   {gitStatus?.branch || 'main'}
                 </span>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-slate-400">變更檔案數:</span>
+                <span className="text-slate-400">{t('git_changed_files', '變更檔案數:')}</span>
                 <span className="font-mono font-bold text-white">
-                  {gitStatus?.total_changes ?? 0} 個變更
+                  {t('git_change_count', '{count} 個變更', { count: gitStatus?.total_changes ?? 0 })}
                 </span>
               </div>
             </div>
@@ -357,17 +357,17 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
             {/* Changed files list */}
             <div>
               <div className="text-[11px] font-bold text-slate-400 mb-2 uppercase tracking-wider">
-                變更清單 (Modified & Untracked)
+                {t('git_change_list', '變更清單 (Modified & Untracked)')}
               </div>
               {isGitLoading ? (
-                <div className="py-6 text-center text-xs text-slate-400">讀取 Git 狀態中...</div>
+                <div className="py-6 text-center text-xs text-slate-400">{t('git_loading', '讀取 Git 狀態中...')}</div>
               ) : !gitStatus?.is_git ? (
                 <div className="p-4 rounded-xl bg-black/30 text-center text-xs text-slate-400 border border-white/5">
-                  目前專案非 Git 版本庫
+                  {t('git_not_repo', '目前專案非 Git 版本庫')}
                 </div>
               ) : (gitStatus?.total_changes ?? 0) === 0 ? (
                 <div className="p-4 rounded-xl bg-emerald-950/20 text-center text-xs text-emerald-300 border border-emerald-500/30">
-                  ✨ 工作區乾淨，無任何未提交變更！
+                  {t('git_clean', '✨ 工作區乾淨，無任何未提交變更！')}
                 </div>
               ) : (
                 <div className="max-h-48 overflow-y-auto space-y-1 bg-black/30 rounded-xl p-2 border border-white/10 font-mono text-xs">
@@ -390,7 +390,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
             {/* Commit Message & AI Assistant */}
             <div className="space-y-2 pt-2 border-t border-white/10">
               <div className="flex items-center justify-between">
-                <label className="text-xs font-semibold text-slate-300">Commit 訊息</label>
+                <label className="text-xs font-semibold text-slate-300">{t('commit_message', 'Commit 訊息')}</label>
                 <button
                   type="button"
                   onClick={handleGenerateAiCommit}
@@ -398,7 +398,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                   className="text-xs text-cyan-300 hover:text-cyan-200 flex items-center gap-1 font-bold disabled:opacity-40"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>{isAiCommitLoading ? 'AI 分析中...' : '✨ AI 生成 Commit 訊息'}</span>
+                  <span>{isAiCommitLoading ? t('ai_analyzing', 'AI 分析中...') : t('ai_commit_msg', '✨ AI 生成 Commit 訊息')}</span>
                 </button>
               </div>
 
@@ -406,7 +406,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                 type="text"
                 value={commitMsg}
                 onChange={(e) => setCommitMsg(e.target.value)}
-                placeholder="例如: feat: 新增網頁目錄選取器"
+                placeholder={t('commit_placeholder', '例如: feat: 新增網頁目錄選取器')}
                 className="w-full px-3 py-2 rounded-xl bg-black/50 border border-white/15 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 font-mono"
               />
 
@@ -423,7 +423,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                 className="w-full py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_15px_rgba(16,185,129,0.3)] disabled:opacity-40 transition-all"
               >
                 <UploadCloud className="w-4 h-4" />
-                <span>{isPushing ? '正在提交並推送到 GitHub...' : '🚀 一鍵 Commit & Push 到 GitHub'}</span>
+                <span>{isPushing ? t('pushing', '正在提交並推送到 GitHub...') : t('commit_push_btn', '🚀 一鍵 Commit & Push 到 GitHub')}</span>
               </button>
             </div>
           </div>
@@ -575,7 +575,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                     }`}
                   >
                     <Edit3 className="w-3.5 h-3.5 text-amber-400" />
-                    <span>{isEditing ? '檢視模式' : '編輯模式'}</span>
+                    <span>{isEditing ? t('view_mode', '檢視模式') : t('edit_mode', '編輯模式')}</span>
                   </button>
                 )}
 
@@ -589,12 +589,12 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                     {saveSuccess ? (
                       <>
                         <CheckCircle2 className="w-3.5 h-3.5 text-white" />
-                        <span>已儲存！</span>
+                        <span>{t('saved_ok', '已儲存！')}</span>
                       </>
                     ) : (
                       <>
                         <Save className="w-3.5 h-3.5" />
-                        <span>{isSaving ? '儲存中...' : '儲存檔案'}</span>
+                        <span>{isSaving ? t('saving', '儲存中...') : t('save_file', '儲存檔案')}</span>
                       </>
                     )}
                   </button>
@@ -615,7 +615,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                 <button
                   onClick={handleCopyPreview}
                   className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
-                  title="複製內容"
+                  title={t('copy_content', '複製內容')}
                 >
                   {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
                 </button>
@@ -642,7 +642,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
               {isPreviewLoading ? (
                 <div className="flex items-center justify-center h-64 gap-2 text-slate-400">
                   <RotateCw className="w-5 h-5 animate-spin text-cyan-400" />
-                  <span>載入檔案內容中...</span>
+                  <span>{t('file_loading', '載入檔案內容中...')}</span>
                 </div>
               ) : ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp'].includes(previewFile.extension) ? (
                 <div className="flex flex-col items-center justify-center p-6 gap-4">
@@ -655,7 +655,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                 </div>
               ) : (
                 <pre className="whitespace-pre-wrap select-text selection:bg-cyan-500/30 selection:text-white">
-                  {previewContent || '(檔案內容為空)'}
+                  {previewContent || t('file_empty', '(檔案內容為空)')}
                 </pre>
               )}
             </div>

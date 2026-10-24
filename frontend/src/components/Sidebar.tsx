@@ -251,7 +251,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 title={t('mode_code', 'Code 模式 (Aether Code)')}
               >
                 <Terminal className="w-3.5 h-3.5 text-emerald-200" />
-                <span>Code 模式</span>
+                <span>{t('code_mode', 'Code 模式')}</span>
               </button>
             </div>
           </div>
@@ -268,7 +268,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       type="button"
                       onClick={onOpenNewProject}
                       className="text-cyan-400 hover:text-cyan-300 flex items-center gap-1 text-[11px] normal-case"
-                      title="選擇資料夾 / 新建專案"
+                      title={t('select_or_create_project', '選擇資料夾 / 新建專案')}
                     >
                       <Plus className="w-3 h-3" />
                       <span>{t('new_project', '新建/切換')}</span>
@@ -279,7 +279,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   type="button"
                   onClick={onOpenNewProject}
                   className="w-full flex items-center justify-between p-2 rounded-xl bg-black/40 border border-emerald-500/30 hover:border-emerald-400 text-xs font-mono text-cyan-200 transition-all text-left group"
-                  title="點擊切換專案或自訂資料夾路徑"
+                  title={t('switch_project_path_tooltip', '點擊切換專案或自訂資料夾路徑')}
                 >
                   <div className="flex items-center gap-2 min-w-0">
                     <FolderGit2 className="w-4 h-4 text-emerald-400 shrink-0" />
@@ -305,7 +305,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         ? 'bg-emerald-500/30 text-emerald-300 font-bold border border-emerald-400/60 shadow-sm'
                         : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
-                    title="Auto 模式: 全自主讀寫程式碼與自我除錯"
+                    title={t('exec_mode_auto_tooltip', 'Auto 模式: 全自主讀寫程式碼與自我除錯')}
                   >
                     <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
                       <Bot className="w-3 h-3 text-emerald-400" />
@@ -321,7 +321,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-400/60 shadow-sm'
                         : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
-                    title="Accept Edit 模式: 檔案修改前呈現 Diff 需經確認"
+                    title={t('exec_mode_accept_tooltip', 'Accept Edit 模式: 檔案修改前呈現 Diff 需經確認')}
                   >
                     <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
                       <ShieldCheck className="w-3 h-3 text-amber-400" />
@@ -337,7 +337,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         ? 'bg-fuchsia-500/30 text-fuchsia-300 font-bold border border-fuchsia-400/60 shadow-sm'
                         : 'bg-black/30 text-slate-400 hover:text-slate-200 border border-transparent'
                     }`}
-                    title="Turbo 模式: 極速生成代碼，精簡思維鋪陳"
+                    title={t('exec_mode_turbo_tooltip', 'Turbo 模式: 極速生成代碼，精簡思維鋪陳')}
                   >
                     <div className="text-[11px] font-semibold flex items-center justify-center gap-1">
                       <Zap className="w-3 h-3 text-fuchsia-400" />
@@ -359,7 +359,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   }`}
                 >
                   <Terminal className="w-3.5 h-3.5 text-emerald-400" />
-                  <span>{isTerminalOpen ? '收合右側終端機' : '展開右側終端機 (>_)'}</span>
+                  <span>{isTerminalOpen ? t('terminal_collapse', '收合終端機') : t('terminal_expand', '展開終端機 (>_)')}</span>
                 </button>
               )}
             </div>
@@ -572,7 +572,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     >
                       <div className="flex items-center justify-between text-[10px] text-amber-300/80">
                         <span className="font-semibold truncate max-w-[130px]">
-                          {bm.session_title || '會話紀錄'}
+                          {bm.session_title || t('session_record', '會話紀錄')}
                         </span>
                         <div className="flex items-center gap-1.5">
                           <span className="text-[10px] text-slate-400 font-mono">
@@ -597,7 +597,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                         </div>
                       </div>
                       <p className="text-xs text-slate-300 line-clamp-2 leading-snug">
-                        {bm.content || (bm.thought ? `[思考] ${bm.thought}` : '(無內容)')}
+                        {bm.content || (bm.thought ? `[${t('thought_tag', '思考')}] ${bm.thought}` : t('no_content', '(無內容)'))}
                       </p>
                     </div>
                   ))

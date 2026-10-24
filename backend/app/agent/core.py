@@ -1,4 +1,6 @@
+import os
 import re
+import asyncio
 import json
 import time
 from typing import Dict, Any, List, AsyncGenerator, Optional
@@ -23,6 +25,81 @@ def is_vision_model(model_name: str, provider: str = "") -> bool:
     base_name = name.split(":")[0]
     return any(k in name or k in base_name for k in VISION_MODEL_KEYWORDS)
 
+SKIP_DIRS = {
+    ".git", "node_modules", "__pycache__", ".venv", "venv", "env", "dist", "build",
+    ".next", ".nuxt", "target", ".idea", ".vscode", ".cache", "coverage", ".mypy_cache", ".pytest_cache"
+}
+MAX_SCANNED_FILES = 4000
+
+def _list_recent_files(root: Path, limit: int) -> List[str]:
+    """Most recently modified files under root, skipping dependency/build folders.
+
+    Bounded so a large project (e.g. one with node_modules) can't stall every chat request.
+    """
+    if not root.exists():
+        return []
+    entries: List[tuple] = []
+    scanned = 0
+    try:
+        for dirpath, dirnames, filenames in os.walk(root):
+            dirnames[:] = [d for d in dirnames if d not in SKIP_DIRS and not d.startswith(".")]
+            for name in filenames:
+                if name.startswith(".") or name.endswith((".sqlite", ".sqlite-shm", ".sqlite-wal", ".db", ".db-journal", ".pyc")):
+                    continue
+                full = os.path.join(dirpath, name)
+                try:
+                    entries.append((os.path.getmtime(full), full))
+                except OSError:
+                    continue
+                scanned += 1
+                if scanned >= MAX_SCANNED_FILES:
+                    break
+            if scanned >= MAX_SCANNED_FILES:
+                break
+    except Exception:
+        return []
+    entries.sort(reverse=True)
+    return [os.path.relpath(f, root).replace("\\", "/") for _, f in entries[:limit]]
+
+# Backend-generated text that ends up in the chat transcript, per UI language
+BACKEND_MESSAGES: Dict[str, Dict[str, str]] = {
+    "zh-TW": {
+        "token_limit_notice": "\n\n> ⚠️ **提示**：模型生成已達本次最大長度上限（Token Limit）。如需接續未完成內容，請輸入「請繼續」。",
+        "exec_error": "❌ 執行錯誤",
+        "tool_result_heading": "工具 `{name}` 執行成果：",
+        "tools_done_intro": "已成功完成工具執行，以下為運行成果：",
+        "empty_response": "（模型推論結束，未產生回應內容。請嘗試重新提問或調整提示詞。）",
+    },
+    "zh-CN": {
+        "token_limit_notice": "\n\n> ⚠️ **提示**：模型生成已达本次最大长度上限（Token Limit）。如需接续未完成内容，请输入「请继续」。",
+        "exec_error": "❌ 执行错误",
+        "tool_result_heading": "工具 `{name}` 执行结果：",
+        "tools_done_intro": "已成功完成工具执行，以下为运行结果：",
+        "empty_response": "（模型推理结束，未产生回应内容。请尝试重新提问或调整提示词。）",
+    },
+    "en": {
+        "token_limit_notice": "\n\n> ⚠️ **Note**: the response reached the maximum output length (token limit). Type “continue” to resume.",
+        "exec_error": "❌ Execution error",
+        "tool_result_heading": "Result of tool `{name}`:",
+        "tools_done_intro": "The tools finished running. Results:",
+        "empty_response": "(The model finished without producing a response. Try asking again or rephrasing the prompt.)",
+    },
+    "ja": {
+        "token_limit_notice": "\n\n> ⚠️ **注意**: 出力が最大長 (トークン上限) に達しました。続きが必要な場合は「続けて」と入力してください。",
+        "exec_error": "❌ 実行エラー",
+        "tool_result_heading": "ツール `{name}` の実行結果:",
+        "tools_done_intro": "ツールの実行が完了しました。結果は以下のとおりです:",
+        "empty_response": "(モデルは応答を生成せずに終了しました。質問し直すか、プロンプトを調整してください。)",
+    },
+}
+
+LANGUAGE_DIRECTIVES = {
+    "zh-TW": "Reply in the language the user writes in; default to Traditional Chinese (繁體中文).",
+    "zh-CN": "Reply in the language the user writes in; default to Simplified Chinese (简体中文).",
+    "en": "Reply in the language the user writes in; default to English.",
+    "ja": "Reply in the language the user writes in; default to Japanese (日本語).",
+}
+
 class AgentOrchestrator:
     def __init__(
         self,
@@ -30,7 +107,8 @@ class AgentOrchestrator:
         persona_id: str = "assistant",
         mode: str = "chat",
         project: Optional[str] = None,
-        code_execution_mode: str = "auto"
+        code_execution_mode: str = "auto",
+        language: str = "zh-TW"
     ):
         self.config = config
         self.client = UnifiedLLMClient(config)
@@ -38,7 +116,11 @@ class AgentOrchestrator:
         self.mode = mode
         self.project = project
         self.code_execution_mode = code_execution_mode
+        self.language = language if language in BACKEND_MESSAGES else "zh-TW"
         self.max_iterations = 8 if mode == "code" else 6
+
+    def _msg(self, key: str) -> str:
+        return BACKEND_MESSAGES.get(self.language, BACKEND_MESSAGES["zh-TW"])[key]
 
     def _get_persona_enabled_tools(self) -> Optional[set]:
         persona = db.get_persona(self.persona_id)
@@ -87,23 +169,20 @@ class AgentOrchestrator:
         active_defs, active_names, disabled_names = self._get_tools_partition()
 
         # Add ReAct guidance for models that might use text-based reasoning/actions
+        # The full JSON schema is already sent through the native `tools` field; repeating it here
+        # added ~12K characters of prompt that every request had to prefill. Keep a compact signature
+        # (enough for the text-based ReAct fallback) instead.
         tool_desc_list = []
         for t in active_defs:
-            tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
+            params = list((t.get("parameters") or {}).get("properties", {}).keys())
+            desc = (t.get("description") or "").strip().splitlines()[0] if t.get("description") else ""
+            if len(desc) > 160:
+                desc = desc[:160] + "…"
+            tool_desc_list.append(f"- {t['name']}({', '.join(params)}): {desc}")
         
         from backend.app.config import settings, get_effective_workspace_dir
         project_dir = get_effective_workspace_dir(self.project)
-        recent_files = []
-        if project_dir.exists():
-            try:
-                for f in sorted(project_dir.rglob("*"), key=lambda x: x.stat().st_mtime if x.is_file() else 0, reverse=True):
-                    if f.is_file() and not f.name.startswith(".") and not f.name.endswith(".sqlite") and not f.name.endswith(".db"):
-                        rel = str(f.relative_to(project_dir)).replace("\\", "/")
-                        recent_files.append(rel)
-                        if len(recent_files) >= (30 if self.mode == "code" else 15):
-                            break
-            except Exception:
-                pass
+        recent_files = _list_recent_files(project_dir, 30 if self.mode == "code" else 15)
 
         workspace_context = ""
         if recent_files:
@@ -138,7 +217,8 @@ class AgentOrchestrator:
         else:
             guidelines.append("1. Python sandbox (`python_eval`) is currently DISABLED. If asked to run Python code or sandbox calculations, clearly explain that python_eval is currently disabled by user configuration and cannot be executed.")
 
-        guidelines.append("2. When tools return results, provide a comprehensive, fully written final answer in Traditional Chinese with code, output metrics, and deep technical synthesis.")
+        guidelines.append("2. When tools return results, provide a comprehensive, fully written final answer with code, output metrics, and deep technical synthesis. "
+            + LANGUAGE_DIRECTIVES.get(self.language, LANGUAGE_DIRECTIVES["zh-TW"]))
         guidelines.append("3. If tool calls fail, analyze the error and try an alternative approach or report to the user.")
 
         if "ocr_extractor" in active_names or "image_to_text" in active_names:
@@ -365,7 +445,7 @@ class AgentOrchestrator:
             
             ocr_tool = registry._tools.get("ocr_extractor")
             if ocr_tool:
-                ocr_result = ocr_tool(path=temp_img_name, max_chars=5000, extract_structure=True)
+                ocr_result = await asyncio.to_thread(ocr_tool, path=temp_img_name, max_chars=5000, extract_structure=True)
                 return f"【原生視覺文字識別 (Windows OCR) 提取內容】:\n{ocr_result}\n- 圖像檔案已安全儲存於工作區: `{temp_img_name}`"
         except Exception as e:
             return f"【視覺提取提示】: 收到圖片 (長度 {len(clean_b64)} 字元)，但解析時發生異常: {str(e)}"
@@ -419,7 +499,9 @@ class AgentOrchestrator:
                 yield {
                     "type": "status",
                     "stage": "thinking",
-                    "text": f"偵測到多模態視覺模型 ({self.config.model})，正在發送圖像進行端對端視覺認知..."
+                    "text": f"偵測到多模態視覺模型 ({self.config.model})，正在發送圖像進行端對端視覺認知...",
+                    "key": "status_vision_multimodal",
+                    "params": {"model": self.config.model}
                 }
             else:
                 # Track B: Active model is pure-text (llama3, deepseek, etc.)
@@ -427,7 +509,8 @@ class AgentOrchestrator:
                 yield {
                     "type": "status",
                     "stage": "thinking",
-                    "text": "檢測到純文字模型，正在後台調用視覺認知引擎提取圖片細節與結構化資訊..."
+                    "text": "檢測到純文字模型，正在後台調用視覺認知引擎提取圖片細節與結構化資訊...",
+                    "key": "status_vision_extracting"
                 }
                 vision_reports = []
                 for idx, c_img in enumerate(clean_images):
@@ -446,13 +529,15 @@ class AgentOrchestrator:
                 yield {
                     "type": "status",
                     "stage": "thinking",
-                    "text": "視覺特徵已結構化提取完成，正在結合問題進行深度推論..."
+                    "text": "視覺特徵已結構化提取完成，正在結合問題進行深度推論...",
+                    "key": "status_vision_reasoning"
                 }
         else:
             yield {
                 "type": "status",
                 "stage": "thinking",
-                "text": "正在深度推理與檢索知識庫..."
+                "text": "正在深度推理與檢索知識庫...",
+                "key": "status_deep_reasoning_retrieval"
             }
 
         # Retrieve session context and build safe conversation history
@@ -493,7 +578,7 @@ class AgentOrchestrator:
                 elif chunk.type == "token" and chunk.content:
                     if not has_emitted_generating:
                         has_emitted_generating = True
-                        yield {"type": "status", "stage": "generating", "text": "正在組織並生成最佳解答..."}
+                        yield {"type": "status", "stage": "generating", "text": "正在組織並生成最佳解答...", "key": "status_composing_answer"}
                     current_turn_content += chunk.content
                     full_content += chunk.content
                     yield {"type": "token", "content": chunk.content}
@@ -515,7 +600,7 @@ class AgentOrchestrator:
                     db.add_message(
                         session_id=session_id,
                         role="assistant",
-                        content=full_content or f"❌ 執行錯誤: {chunk.content}",
+                        content=full_content or f"{self._msg('exec_error')}: {chunk.content}",
                         thought=full_thought,
                         tool_calls=executed_tool_calls,
                         msg_id=assistant_message_id
@@ -641,7 +726,7 @@ class AgentOrchestrator:
 
         # If terminal response was truncated due to token limit, cleanly append notice at the end
         if final_finish_reason in ("length", "max_tokens", "MAX_TOKENS"):
-            notice = "\n\n> ⚠️ **提示**：模型生成已達本次最大長度上限（Token Limit）。如需接續未完成內容，請輸入「請繼續」。"
+            notice = self._msg("token_limit_notice")
             full_content += notice
             yield {"type": "token", "content": notice}
 
@@ -657,10 +742,10 @@ class AgentOrchestrator:
                 for tc in executed_tool_calls:
                     name = tc.get("name")
                     out = tc.get("output", "")
-                    tool_summaries.append(f"### 工具 `{name}` 執行成果：\n```\n{out}\n```")
-                full_content = "已成功完成工具執行，以下為運行成果：\n\n" + "\n\n".join(tool_summaries)
+                    tool_summaries.append(f"### {self._msg('tool_result_heading').format(name=name)}\n```\n{out}\n```")
+                full_content = self._msg("tools_done_intro") + "\n\n" + "\n\n".join(tool_summaries)
             else:
-                full_content = "（模型推論結束，未產生回應內容。請嘗試重新提問或調整提示詞。）"
+                full_content = self._msg("empty_response")
 
         # Save assistant response to DB
         saved_msg = db.add_message(

@@ -195,7 +195,7 @@ export const Header: React.FC<HeaderProps> = ({
             type="button"
             onClick={onOpenNewProject}
             className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-all shrink-0 ml-1 shadow-sm"
-            title="點擊設定 Code 專案與執行模式"
+            title={t('code_project_settings_tooltip', '點擊設定 Code 專案與執行模式')}
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="font-bold truncate max-w-[110px]">{activeProject || 'Root'}</span>
@@ -242,12 +242,12 @@ export const Header: React.FC<HeaderProps> = ({
 
           <button
             onClick={() => onOpenSettings('tools')}
-            title="開啟完整工具箱設定 (管理 22 大工具)"
+            title={t('open_toolbox_full_tooltip', '開啟完整工具箱設定 (管理 22 大工具)')}
             className="px-2 py-1 rounded-lg text-xs font-mono flex items-center gap-1.5 transition-all whitespace-nowrap shrink-0 bg-white/[0.04] hover:bg-cyan-500/15 text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-500/40 shadow-sm"
           >
             <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
             <span className="text-[11px] font-semibold">
-              全部 ({tools.filter(t => t.enabled).length}/{tools.length})
+              {t('tools_all', '全部')} ({tools.filter(tool => tool.enabled).length}/{tools.length})
             </span>
           </button>
         </div>
@@ -255,7 +255,7 @@ export const Header: React.FC<HeaderProps> = ({
         {/* Compact Tool Manager Button */}
         <button
           onClick={() => onOpenSettings('tools')}
-          title="開啟工具箱設定 (22 大工具管理)"
+          title={t('open_toolbox_tooltip', '開啟工具箱設定 (22 大工具管理)')}
           className={`${!isSidebarOpen ? '2xl:hidden' : 'flex'} flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
         >
           <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />

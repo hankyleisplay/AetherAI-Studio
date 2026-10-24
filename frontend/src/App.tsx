@@ -14,7 +14,7 @@ import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, Too
 import { useI18n } from './i18n/I18nContext';
 
 export const App: React.FC = () => {
-  const { t } = useI18n();
+  const { t, currentLang } = useI18n();
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
@@ -149,23 +149,56 @@ export const App: React.FC = () => {
   const streamingSessionIdRef = useRef<string | null>(null);
   const tokenBufferRef = useRef<{ [msgId: string]: string }>({});
   const tokenRafRef = useRef<number | null>(null);
+  const thoughtBufferRef = useRef<{ [msgId: string]: string }>({});
+  const lastFlushRef = useRef<number>(0);
+  // Re-parsing the whole markdown message on every animation frame starves the main thread on long
+  // answers; ~12 UI updates per second still looks live while keeping the stream reader responsive.
+  const FLUSH_INTERVAL_MS = 80;
+  const scheduleFlush = () => {
+    if (tokenRafRef.current) return;
+    const wait = Math.max(0, FLUSH_INTERVAL_MS - (performance.now() - lastFlushRef.current));
+    tokenRafRef.current = window.setTimeout(() => {
+      tokenRafRef.current = null;
+      flushTokenBuffer();
+    }, wait);
+  };
+  const cancelScheduledFlush = () => {
+    if (tokenRafRef.current) {
+      clearTimeout(tokenRafRef.current);
+      tokenRafRef.current = null;
+    }
+  };
   const streamStartTimeRef = useRef<number>(0);
   const firstTokenTimeRef = useRef<number | null>(null);
   const streamTokenCountRef = useRef<number>(0);
 
   const flushTokenBuffer = () => {
     const buffers = tokenBufferRef.current;
-    const msgIds = Object.keys(buffers);
-    if (msgIds.length === 0) return;
+    const thoughtBuffers = thoughtBufferRef.current;
+    if (Object.keys(buffers).length === 0 && Object.keys(thoughtBuffers).length === 0) return;
 
     const copy = { ...buffers };
+    const thoughtCopy = { ...thoughtBuffers };
     tokenBufferRef.current = {};
+    thoughtBufferRef.current = {};
+    lastFlushRef.current = performance.now();
 
     setMessages(prev => {
       let changed = false;
       const next = prev.map(m => {
+        if (thoughtCopy[m.id] && !copy[m.id]) {
+          changed = true;
+          return {
+            ...m,
+            thought: (m.thought || '') + thoughtCopy[m.id],
+            status_text: m.status_text || t('slogan_thinking', '正在深度推理與分析問題架構...')
+          };
+        }
         if (copy[m.id]) {
           changed = true;
+          if (thoughtCopy[m.id]) {
+            m = { ...m, thought: (m.thought || '') + thoughtCopy[m.id] };
+          }
           const elapsed = Math.max(0.01, (performance.now() - streamStartTimeRef.current) / 1000);
           const tps = streamTokenCountRef.current / elapsed;
           const ttft = firstTokenTimeRef.current ? Math.round(firstTokenTimeRef.current - streamStartTimeRef.current) : undefined;
@@ -467,7 +500,7 @@ export const App: React.FC = () => {
   };
 
   const handleAskAgent = (filePath: string) => {
-    handleSendMessage(`請深入分析並解讀工作區檔案 ${filePath} 的架構、核心邏輯與技術細節。`);
+    handleSendMessage(t('prompt_deep_analyze_file', '請深入分析並解讀工作區檔案 {path} 的架構、核心邏輯與技術細節。', { path: filePath }));
   };
 
   const handleApplySwarm = (summaryText: string) => {
@@ -604,7 +637,7 @@ export const App: React.FC = () => {
         const noModelMsg: Message = {
           id: assistantMsgId,
           role: 'assistant',
-          content: '❌ **未偵測到可用的 AI 模型**\n\n目前本機尚未安裝或載入任何 AI 模型：\n- 若使用 **Ollama**：請在終端機執行 `ollama pull llama3` 或 `ollama pull qwen2.5:7b` 下載模型。\n- 若使用 **LM Studio** 或 **OpenAI 相容端點**：請確認本地伺服器已啟動並載入模型。\n- 若使用 **雲端 API**（Gemini / OpenAI / Anthropic / DeepSeek）：請點擊右上角設定圖示填入 API Key。',
+          content: t('no_model_message', '❌ **未偵測到可用的 AI 模型**\n\n目前本機尚未安裝或載入任何 AI 模型：\n- 若使用 **Ollama**：請在終端機執行 `ollama pull llama3` 或 `ollama pull qwen2.5:7b` 下載模型。\n- 若使用 **LM Studio** 或 **OpenAI 相容端點**：請確認本地伺服器已啟動並載入模型。\n- 若使用 **雲端 API**（Gemini / OpenAI / Anthropic / DeepSeek）：請點擊右上角設定圖示填入 API Key。'),
           created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, userMsg, noModelMsg]);
@@ -649,7 +682,8 @@ export const App: React.FC = () => {
           images: images,
           mode: mode,
           project: activeProject,
-          code_execution_mode: codeExecutionMode
+          code_execution_mode: codeExecutionMode,
+          language: currentLang
         }),
         signal: controller.signal
       });
@@ -661,6 +695,8 @@ export const App: React.FC = () => {
       const reader = response.body.getReader();
       const decoder = new TextDecoder('utf-8');
       let buffer = '';
+      // Persist across reads: an `event:` line and its `data:` line can arrive in different chunks
+      let currentEvent = 'message';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -670,10 +706,12 @@ export const App: React.FC = () => {
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let currentEvent = 'message';
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed) continue;
+          if (!trimmed) {
+            currentEvent = 'message';
+            continue;
+          }
 
           if (trimmed.startsWith('event: ')) {
             currentEvent = trimmed.substring(7).trim();
@@ -698,38 +736,14 @@ export const App: React.FC = () => {
               } else if (currentEvent === 'status' || data.type === 'status') {
                 if (data.stage) setAgentState(data.stage);
                 if (data.text) {
-                  setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, status_text: data.text } : m));
+                  const statusText = data.key ? t(data.key, data.text, data.params) : data.text;
+                  setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, status_text: statusText } : m));
                 }
               } else if (currentEvent === 'thought' || data.type === 'thought') {
                 setAgentState('thinking');
-                setMessages(prev => {
-                  const exists = prev.some(m => m.id === assistantMsgId);
-                  if (!exists) {
-                    return [
-                      ...prev,
-                      {
-                        id: assistantMsgId,
-                        role: 'assistant',
-                        content: '',
-                        thought: data.content || '',
-                        tool_calls: [],
-                        persona_id: selectedPersonaId,
-                        status_text: t('slogan_thinking', '正在深度推理與分析問題架構...'),
-                        created_at: new Date().toISOString()
-                      }
-                    ];
-                  }
-                  return prev.map(m => {
-                    if (m.id === assistantMsgId) {
-                      return { 
-                        ...m, 
-                        thought: (m.thought || '') + (data.content || ''),
-                        status_text: m.status_text || t('slogan_thinking', '正在深度推理與分析問題架構...')
-                      };
-                    }
-                    return m;
-                  });
-                });
+                // Thought tokens arrive as fast as content tokens; batch them the same way
+                thoughtBufferRef.current[assistantMsgId] = (thoughtBufferRef.current[assistantMsgId] || '') + (data.content || '');
+                scheduleFlush();
               } else if (currentEvent === 'tool_start' || data.type === 'tool_start') {
                 setAgentState('calling_tool');
                 const newTool: ToolCall = {
@@ -781,17 +795,9 @@ export const App: React.FC = () => {
                 const chunk = data.content || '';
                 streamTokenCountRef.current += Math.max(1, Math.ceil(chunk.length / 2.8));
                 tokenBufferRef.current[assistantMsgId] = (tokenBufferRef.current[assistantMsgId] || '') + chunk;
-                if (!tokenRafRef.current) {
-                  tokenRafRef.current = requestAnimationFrame(() => {
-                    tokenRafRef.current = null;
-                    flushTokenBuffer();
-                  });
-                }
+                scheduleFlush();
               } else if (currentEvent === 'done' || data.type === 'done') {
-                if (tokenRafRef.current) {
-                  cancelAnimationFrame(tokenRafRef.current);
-                  tokenRafRef.current = null;
-                }
+                cancelScheduledFlush();
                 flushTokenBuffer();
                 isStreamingRef.current = false;
                 setAgentState('idle');
@@ -842,17 +848,14 @@ export const App: React.FC = () => {
                 });
                 fetchSessions();
               } else if (currentEvent === 'error' || data.type === 'error') {
-                if (tokenRafRef.current) {
-                  cancelAnimationFrame(tokenRafRef.current);
-                  tokenRafRef.current = null;
-                }
+                cancelScheduledFlush();
                 flushTokenBuffer();
                 isStreamingRef.current = false;
                 setAgentState('error');
                 setMessages(prev => {
                   return prev.map(m => {
                     if (m.id === assistantMsgId) {
-                      return { ...m, content: m.content + `\n\n❌ **執行錯誤**: ${data.error || '未知異常'}`, status_text: undefined };
+                      return { ...m, content: m.content + `\n\n❌ **${t('exec_error', '執行錯誤')}**: ${data.error || t('unknown_error', '未知異常')}`, status_text: undefined };
                     }
                     return m;
                   });
@@ -872,17 +875,14 @@ export const App: React.FC = () => {
         setMessages(prev => {
           return prev.map(m => {
             if (m.id === assistantMsgId) {
-              return { ...m, content: m.content + `\n\n❌ **連線異常**: ${err.message}` };
+              return { ...m, content: m.content + `\n\n❌ **${t('connection_error', '連線異常')}**: ${err.message}` };
             }
             return m;
           });
         });
       }
     } finally {
-      if (tokenRafRef.current) {
-        cancelAnimationFrame(tokenRafRef.current);
-        tokenRafRef.current = null;
-      }
+      cancelScheduledFlush();
       flushTokenBuffer();
       isStreamingRef.current = false;
       setIsStreaming(false);
@@ -1081,7 +1081,7 @@ export const App: React.FC = () => {
           fetchProjects();
         }}
         onAutoFix={(cmd, err) => {
-          const autoPrompt = `【🚨 終端指令執行失敗，請自主分析報錯並自動修復代碼】：\n\n執行指令: ${cmd}\n\n錯誤 Traceback:\n${err}\n\n請自主檢查專案代碼、定位問題、修改檔案並重新執行測試驗證！`;
+          const autoPrompt = t('prompt_autofix', '【🚨 終端指令執行失敗，請自主分析報錯並自動修復代碼】：\n\n執行指令: {cmd}\n\n錯誤 Traceback:\n{err}\n\n請自主檢查專案代碼、定位問題、修改檔案並重新執行測試驗證！', { cmd, err });
           handleSendMessage(autoPrompt);
         }}
       />
@@ -1089,7 +1089,11 @@ export const App: React.FC = () => {
       {/* Outer Web Access PIN Protection Modal */}
       <PinLockModal
         isOpen={isPinModalOpen}
-        onSuccess={() => setIsPinModalOpen(false)}
+        onSuccess={() => {
+          // Initial data requests were rejected before unlocking; reload them with the token
+          setIsPinModalOpen(false);
+          window.location.reload();
+        }}
       />
 
       {/* New Project Modal */}

@@ -1,5 +1,7 @@
+import re
 import json
 import time
+import uuid
 import asyncio
 import httpx
 from typing import Dict, Any, List, Optional, AsyncGenerator
@@ -13,6 +15,8 @@ class ModelConfig(BaseModel):
     temperature: float = 0.7
     max_tokens: int = 8192
     context_window: int = 16384
+
+OLLAMA_KEEP_ALIVE = "30m"
 
 class LLMResponseChunk(BaseModel):
     type: str  # "token", "thought", "tool_call", "done", "error"
@@ -442,7 +446,10 @@ class UnifiedLLMClient:
             "model": self.config.model,
             "messages": sanitized_messages,
             "stream": True,
-            "options": options
+            "options": options,
+            # Keep the model resident between turns; Ollama's 5-minute default unloads it and
+            # the next message pays a full multi-second reload from disk.
+            "keep_alive": OLLAMA_KEEP_ALIVE
         }
         if tools:
             # Ollama accepts tools schema directly in recent versions
@@ -480,7 +487,7 @@ class UnifiedLLMClient:
                                     type="tool_call",
                                     tool_name=fn.get("name"),
                                     tool_args=fn.get("arguments", {}),
-                                    tool_call_id=f"ollama_{int(time.time()*1000)}"
+                                    tool_call_id=f"ollama_{uuid.uuid4().hex[:12]}"
                                 )
 
                         # 3. Capture regular content (and parse embedded <think>...</think> if present)
@@ -611,14 +618,55 @@ class UnifiedLLMClient:
         # Format messages for Anthropic (extract system message)
         system_prompt = ""
         anthropic_msgs = []
-        for m in messages:
-            if m.get("role") == "system":
-                system_prompt += m.get("content", "") + "\n"
+        def _append(role: str, blocks: List[Dict[str, Any]]):
+            # Anthropic only accepts alternating user/assistant turns; merge consecutive same-role turns
+            if anthropic_msgs and anthropic_msgs[-1]["role"] == role:
+                anthropic_msgs[-1]["content"].extend(blocks)
             else:
-                anthropic_msgs.append({
-                    "role": m.get("role"),
-                    "content": m.get("content", "")
-                })
+                anthropic_msgs.append({"role": role, "content": blocks})
+
+        for m in messages:
+            role = m.get("role")
+            text = m.get("content") or ""
+            if role == "system":
+                system_prompt += text + "\n"
+            elif role == "tool":
+                # Tool results must go back as tool_result blocks inside a user turn
+                _append("user", [{
+                    "type": "tool_result",
+                    "tool_use_id": m.get("tool_call_id") or "",
+                    "content": text or "(empty)"
+                }])
+            elif role == "assistant":
+                blocks: List[Dict[str, Any]] = []
+                if text:
+                    blocks.append({"type": "text", "text": text})
+                for tc in m.get("tool_calls") or []:
+                    fn = tc.get("function", {})
+                    args = fn.get("arguments", {})
+                    if isinstance(args, str):
+                        try:
+                            args = json.loads(args)
+                        except Exception:
+                            args = {"raw": args}
+                    blocks.append({
+                        "type": "tool_use",
+                        "id": tc.get("id") or f"toolu_{uuid.uuid4().hex[:12]}",
+                        "name": fn.get("name"),
+                        "input": args if isinstance(args, dict) else {"value": args}
+                    })
+                if blocks:
+                    _append("assistant", blocks)
+            else:
+                blocks = []
+                for img in m.get("images") or []:
+                    clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                    blocks.append({
+                        "type": "image",
+                        "source": {"type": "base64", "media_type": "image/jpeg", "data": clean_b64}
+                    })
+                blocks.append({"type": "text", "text": text or " "})
+                _append("user", blocks)
 
         temp = max(0.0, min(1.0, float(self.config.temperature if self.config.temperature is not None else 0.7)))
         payload: Dict[str, Any] = {
@@ -855,7 +903,7 @@ class UnifiedLLMClient:
                                         type="tool_call",
                                         tool_name=fc.get("name"),
                                         tool_args=fc.get("args", {}),
-                                        tool_call_id=f"gemini_{int(time.time()*1000)}"
+                                        tool_call_id=f"gemini_{uuid.uuid4().hex[:12]}"
                                     )
 
                     yield LLMResponseChunk(

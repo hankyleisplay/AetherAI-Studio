@@ -696,7 +696,7 @@ function renderUpdateResult(res) {
   } else {
     updateBanner.className = "update-banner state-latest";
     updateIcon.textContent = "✅";
-    const curVer = res?.current_version || "3.7.4";
+    const curVer = res?.current_version || "3.7.5";
     updateTitle.textContent = t("update_latest_title", { version: curVer });
     updateDesc.textContent = t("update_latest_desc");
 

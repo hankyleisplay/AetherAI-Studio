@@ -2,6 +2,7 @@ import os
 import sys
 import json
 import time
+import asyncio
 import inspect
 import re
 import locale
@@ -116,7 +117,9 @@ class ToolRegistry:
             if inspect.iscoroutinefunction(func):
                 res = await func(**args)
             else:
-                res = func(**args)
+                # Blocking tools (shell, Python sandbox, OCR, web requests) would otherwise freeze the
+                # event loop, stalling every other chat stream and API call until they finish.
+                res = await asyncio.to_thread(func, **args)
             duration = round(time.time() - start_time, 3)
             return {
                 "success": True,

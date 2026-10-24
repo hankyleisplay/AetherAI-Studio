@@ -80,7 +80,7 @@ export const PersonaModal: React.FC<PersonaModalProps> = ({
     const newPersona: Persona = {
       id: `custom_${Date.now()}`,
       name: name.trim(),
-      description: description.trim() || '專案工程代理角色',
+      description: description.trim() || t('persona_default_desc', '專案工程代理角色'),
       icon: selectedIcon,
       system_prompt: systemPrompt.trim(),
       enabled_tools: enabledTools
@@ -94,7 +94,7 @@ export const PersonaModal: React.FC<PersonaModalProps> = ({
       setSystemPrompt('');
       setErrorMsg(null);
     } catch (err: any) {
-      setErrorMsg(err.message || '儲存失敗');
+      setErrorMsg(err.message || t('save_failed', '儲存失敗'));
     } finally {
       setIsSaving(false);
     }

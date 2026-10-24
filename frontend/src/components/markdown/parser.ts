@@ -281,7 +281,7 @@ export function parseMarkdown(text: string): MarkdownBlockToken[] {
 
       const fullDetailsText = detailsLines.join('\n');
       const summaryMatch = fullDetailsText.match(/<summary\b[^>]*>([\s\S]*?)<\/summary>/i);
-      const summary = summaryMatch ? summaryMatch[1].trim() : '點擊展開防雷 / 隱藏內容';
+      const summary = summaryMatch ? summaryMatch[1].trim() : '';
 
       let body = fullDetailsText
         .replace(/<details\b[^>]*>/i, '')

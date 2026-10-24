@@ -124,7 +124,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
     }
 
     const cleanText = message.content
-      .replace(/```[\s\S]*?```/g, '如程式碼所示')
+      .replace(/```[\s\S]*?```/g, t('tts_code_placeholder', '如程式碼所示'))
       .replace(/[#*`_~[\]]/g, '')
       .trim();
 
@@ -559,7 +559,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   <button
                     onClick={handleCopyMarkdown}
                     className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
-                    title="複製 Markdown 原始碼"
+                    title={t('copy_markdown', '複製 Markdown 原始碼')}
                   >
                     {copiedMarkdown ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <FileText className="w-3.5 h-3.5" />}
                     <span className="hidden sm:inline">{copiedMarkdown ? t('copied_md', '已複製 MD') : 'Markdown'}</span>
@@ -571,7 +571,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   <button
                     onClick={handleDownloadMarkdown}
                     className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-[11px] whitespace-nowrap"
-                    title="匯出此回答為 .md 檔案"
+                    title={t('export_md', '匯出此回答為 .md 檔案')}
                   >
                     <Download className="w-4 h-4" />
                     <span className="hidden sm:inline">.md</span>

@@ -152,6 +152,8 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
 
       let activeSpeaker: { id: string; name: string; icon: string; round: number } | null = null;
       let isSummaryPhase = false;
+      // Persist across reads: an `event:` line and its `data:` line can arrive in different chunks
+      let currentEvent = 'message';
 
       while (true) {
         const { done, value } = await reader.read();
@@ -161,10 +163,12 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
         const lines = buffer.split('\n');
         buffer = lines.pop() || '';
 
-        let currentEvent = 'message';
         for (const line of lines) {
           const trimmed = line.trim();
-          if (!trimmed) continue;
+          if (!trimmed) {
+            currentEvent = 'message';
+            continue;
+          }
 
           if (trimmed.startsWith('event: ')) {
             currentEvent = trimmed.substring(7).trim();

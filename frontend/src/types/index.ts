@@ -86,6 +86,44 @@ export interface ModelConfig {
   context_window?: number;
 }
 
+export interface HardwareIssue {
+  code: string;
+  level: 'info' | 'warn' | 'danger';
+  params: Record<string, any>;
+}
+
+export interface HardwareCheckResult {
+  provider: string;
+  model: string;
+  local: boolean;
+  verdict: 'ok' | 'warn' | 'danger' | 'cloud' | 'unknown';
+  hardware: {
+    gpu_detected: boolean;
+    gpu_name: string | null;
+    vram_total_gb: number;
+    vram_used_gb: number;
+    unified_memory: boolean;
+    ram_total_gb: number;
+    ram_available_gb: number;
+  } | null;
+  model_info: {
+    params_b: number | null;
+    weights_gb: number | null;
+    native_context: number | null;
+    source: 'ollama' | 'estimated' | 'unknown';
+  } | null;
+  estimate: {
+    weights_gb: number;
+    kv_cache_gb: number;
+    overhead_gb: number;
+    total_gb: number;
+    gpu_fit_pct?: number;
+    vram_free_gb?: number;
+  } | null;
+  issues: HardwareIssue[];
+  recommended: { context_window: number; max_tokens: number } | null;
+}
+
 export interface ToolDefinition {
   name: string;
   description: string;

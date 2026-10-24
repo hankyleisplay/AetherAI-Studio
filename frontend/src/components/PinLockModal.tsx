@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Lock, ShieldCheck, KeyRound, Loader2, ArrowRight } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 interface PinLockModalProps {
   isOpen: boolean;
@@ -7,6 +8,7 @@ interface PinLockModalProps {
 }
 
 export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess }) => {
+  const { t } = useI18n();
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -16,7 +18,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!pin.trim()) {
-      setErrorMsg('請輸入訪問 PIN 碼');
+      setErrorMsg(t('pin_enter', '請輸入訪問 PIN 碼'));
       return;
     }
     setIsLoading(true);
@@ -33,10 +35,10 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
         onSuccess();
       } else {
         const data = await res.json().catch(() => ({}));
-        setErrorMsg(data.detail || 'PIN 碼錯誤，請重新輸入');
+        setErrorMsg(data.detail || t('pin_wrong', 'PIN 碼錯誤，請重新輸入'));
       }
     } catch (err: any) {
-      setErrorMsg(`驗證連線失敗: ${err.message}`);
+      setErrorMsg(t('pin_verify_failed', '驗證連線失敗: {error}', { error: err.message }));
     } finally {
       setIsLoading(false);
     }
@@ -50,10 +52,10 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
         </div>
 
         <h2 className="text-lg font-bold text-white mb-1">
-          外網安全訪問鎖定
+          {t('pin_lock_title', '外網安全訪問鎖定')}
         </h2>
         <p className="text-xs text-slate-400 mb-6">
-          此 Aether AI Studio 伺服器已啟用外網存取 PIN 碼保護。請輸入 PIN 碼以解鎖終端機與檔案存取權限。
+          {t('pin_lock_desc', '此 Aether AI Studio 伺服器已啟用外網存取 PIN 碼保護。請輸入 PIN 碼以解鎖終端機與檔案存取權限。')}
         </p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -66,7 +68,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
                 setPin(e.target.value);
                 setErrorMsg('');
               }}
-              placeholder="請輸入訪問 PIN 碼"
+              placeholder={t('pin_enter', '請輸入訪問 PIN 碼')}
               className="w-full pl-10 pr-4 py-3 rounded-2xl bg-black/50 border border-white/20 text-center text-sm font-mono tracking-widest text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
               autoFocus
             />
@@ -86,12 +88,12 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
             {isLoading ? (
               <>
                 <Loader2 className="w-4 h-4 animate-spin" />
-                <span>驗證中...</span>
+                <span>{t('verifying', '驗證中...')}</span>
               </>
             ) : (
               <>
                 <ShieldCheck className="w-4 h-4" />
-                <span>解鎖並進入工作區</span>
+                <span>{t('pin_unlock', '解鎖並進入工作區')}</span>
                 <ArrowRight className="w-4 h-4" />
               </>
             )}

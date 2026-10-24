@@ -1,4 +1,5 @@
 import React from 'react';
+import { useI18n } from '../i18n/I18nContext';
 import { BarChart3, LineChart as LineChartIcon, PieChart as PieChartIcon } from 'lucide-react';
 
 export interface ChartData {
@@ -11,7 +12,9 @@ export interface ChartData {
 }
 
 export const ChartWidget: React.FC<{ data: ChartData }> = ({ data }) => {
-  const { type, title, labels, values, dataset_name = '數值' } = data;
+  const { t } = useI18n();
+  const { type, title, labels, values } = data;
+  const dataset_name = data.dataset_name || t('chart_value', '數值');
 
   if (!labels || !values || labels.length === 0 || values.length === 0) {
     return null;
@@ -157,7 +160,7 @@ export const ChartWidget: React.FC<{ data: ChartData }> = ({ data }) => {
               <span className="text-xs font-mono font-bold text-white text-center leading-tight">
                 {values.reduce((a, b) => a + b, 0).toLocaleString()}
                 <br />
-                <span className="text-[9px] text-slate-400 font-normal">總計</span>
+                <span className="text-[9px] text-slate-400 font-normal">{t('chart_total', '總計')}</span>
               </span>
             </div>
           </div>

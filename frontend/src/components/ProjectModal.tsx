@@ -75,10 +75,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         setWebPickerItems(data.items || []);
         setIsWebPickerOpen(true);
       } else {
-        setErrorMsg('無法讀取目錄清單');
+        setErrorMsg(t('dir_list_failed', '無法讀取目錄清單'));
       }
     } catch (e: any) {
-      setErrorMsg(`目錄讀取失敗: ${e.message}`);
+      setErrorMsg(t('dir_read_failed', '目錄讀取失敗: {error}', { error: e.message }));
     } finally {
       setIsWebPickerLoading(false);
     }
@@ -116,10 +116,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
           }
         }
       } else {
-        setErrorMsg('無法開啟系統資料夾選取視窗');
+        setErrorMsg(t('folder_picker_unavailable', '無法開啟系統資料夾選取視窗'));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || '開啟資料夾選取視窗失敗');
+      setErrorMsg(err.message || t('folder_picker_failed', '開啟資料夾選取視窗失敗'));
     } finally {
       setIsBrowsing(false);
     }
@@ -127,7 +127,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
 
   const handleDeleteProject = async (e: React.MouseEvent, name: string) => {
     e.stopPropagation();
-    if (!window.confirm(`確定要從專案列表中移除「${name}」嗎？（本機實體檔案仍會保留）`)) {
+    if (!window.confirm(t('confirm_remove_project', '確定要從專案列表中移除「{name}」嗎？（本機實體檔案仍會保留）', { name }))) {
       return;
     }
     try {
@@ -152,12 +152,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
       : '';
     const cleanName = (projectName.trim() || derivedDefaultName).replace(/[^a-zA-Z0-9_\-]/g, '');
     if (!cleanName) {
-      setErrorMsg('請輸入有效的專案名稱 (僅支援英數字母、底線與連字號)');
+      setErrorMsg(t('invalid_project_name', '請輸入有效的專案名稱 (僅支援英數字母、底線與連字號)'));
       return;
     }
 
     if (folderType === 'custom' && !customPath.trim()) {
-      setErrorMsg('請輸入或以圖形介面瀏覽選取自訂本機資料夾路徑');
+      setErrorMsg(t('custom_path_required', '請輸入或以圖形介面瀏覽選取自訂本機資料夾路徑'));
       return;
     }
 
@@ -186,10 +186,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
         onClose();
       } else {
         const err = await res.json();
-        setErrorMsg(err.detail || '建立專案失敗');
+        setErrorMsg(err.detail || t('create_project_failed', '建立專案失敗'));
       }
     } catch (err: any) {
-      setErrorMsg(err.message || '連線錯誤');
+      setErrorMsg(err.message || t('network_error', '連線錯誤'));
     } finally {
       setIsCreating(false);
     }
@@ -198,28 +198,28 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const templates = [
     {
       id: 'python',
-      title: 'Python 應用',
+      title: t('tpl_python', 'Python 應用'),
       desc: t('tpl_python', 'Python 應用 (main.py, requirements.txt)'),
       icon: <Code2 className="w-4 h-4 text-emerald-400" />,
       color: 'border-emerald-500/40 bg-emerald-500/10'
     },
     {
       id: 'web',
-      title: '前端網頁',
+      title: t('tpl_web', '前端網頁'),
       desc: t('tpl_web', '前端網頁應用 (HTML, CSS, JS)'),
       icon: <Globe className="w-4 h-4 text-cyan-400" />,
       color: 'border-cyan-500/40 bg-cyan-500/10'
     },
     {
       id: 'node',
-      title: 'Node.js 模組',
+      title: t('tpl_node', 'Node.js 模組'),
       desc: t('tpl_node', 'Node.js 模組 (package.json, index.js)'),
       icon: <FileCode2 className="w-4 h-4 text-amber-400" />,
       color: 'border-amber-500/40 bg-amber-500/10'
     },
     {
       id: 'empty',
-      title: '現有/空白專案',
+      title: t('tpl_empty', '現有/空白專案'),
       desc: t('tpl_empty', '現有或空白專案 (保留現有檔案)'),
       icon: <FileText className="w-4 h-4 text-indigo-400" />,
       color: 'border-indigo-500/40 bg-indigo-500/10'
@@ -317,7 +317,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <FolderOpen className="w-4 h-4 text-amber-400 shrink-0" />
                   <div className="min-w-0">
                     <div className="text-xs font-bold">{t('folder_custom_path', '自訂本機目錄路徑')}</div>
-                    <div className="text-[10px] text-slate-400 truncate">支援本機圖形介面選取</div>
+                    <div className="text-[10px] text-slate-400 truncate">{t('gui_picker_supported', '支援本機圖形介面選取')}</div>
                   </div>
                 </button>
               </div>
@@ -330,17 +330,17 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       onClick={handleBrowseFolder}
                       disabled={isBrowsing}
                       className="py-2.5 px-3 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 text-amber-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all disabled:opacity-50"
-                      title="呼叫 Windows 原生資料夾選擇視窗 (本機桌面可用)"
+                      title={t('gui_picker_tooltip', '呼叫 Windows 原生資料夾選擇視窗 (本機桌面可用)')}
                     >
                       {isBrowsing ? (
                         <>
                           <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
-                          <span>開啟本機視窗中...</span>
+                          <span>{t('gui_picker_opening', '開啟本機視窗中...')}</span>
                         </>
                       ) : (
                         <>
                           <FolderOpen className="w-4 h-4 text-amber-400" />
-                          <span>📂 本機視窗選擇 (GUI Picker)</span>
+                          <span>{t('gui_picker_btn', '📂 本機視窗選擇 (GUI Picker)')}</span>
                         </>
                       )}
                     </button>
@@ -355,10 +355,10 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         }
                       }}
                       className="py-2.5 px-3 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-500/15 to-indigo-500/15 hover:from-cyan-500/25 hover:to-indigo-500/25 text-cyan-300 text-xs font-bold flex items-center justify-center gap-1.5 shadow-sm transition-all"
-                      title="直接在網頁彈窗內瀏覽選取磁碟與資料夾 (手機與遠端連線專用)"
+                      title={t('web_picker_tooltip', '直接在網頁彈窗內瀏覽選取磁碟與資料夾 (手機與遠端連線專用)')}
                     >
                       <Globe className="w-4 h-4 text-cyan-400" />
-                      <span>{isWebPickerOpen ? '🔼 收合網頁目錄' : '🌐 網頁樹狀目錄 (手機/遠端專用)'}</span>
+                      <span>{isWebPickerOpen ? t('web_picker_collapse', '🔼 收合網頁目錄') : t('web_picker_open', '🌐 網頁樹狀目錄 (手機/遠端專用)')}</span>
                     </button>
                   </div>
 
@@ -368,8 +368,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-bold text-cyan-300 flex items-center gap-1.5">
                           <FolderOpen className="w-4 h-4 text-cyan-400" />
-                          <span>當前瀏覽：</span>
-                          <span className="font-mono text-white truncate max-w-[200px] md:max-w-xs">{webPickerCurrent || '根目錄 (磁碟機)'}</span>
+                          <span>{t('web_picker_current', '當前瀏覽：')}</span>
+                          <span className="font-mono text-white truncate max-w-[200px] md:max-w-xs">{webPickerCurrent || t('web_picker_root', '根目錄 (磁碟機)')}</span>
                         </span>
                         <div className="flex items-center gap-1.5">
                           {webPickerParent && (
@@ -378,7 +378,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                               onClick={() => loadWebPicker(webPickerParent)}
                               className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-bold"
                             >
-                              ⬆️ 上一層
+                              {t('web_picker_up', '⬆️ 上一層')}
                             </button>
                           )}
                           <button
@@ -386,7 +386,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                             onClick={() => loadWebPicker('')}
                             className="px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 text-slate-200 text-[11px] font-bold"
                           >
-                            🔄 磁碟機
+                            {t('web_picker_drives', '🔄 磁碟機')}
                           </button>
                         </div>
                       </div>
@@ -396,11 +396,11 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         {isWebPickerLoading ? (
                           <div className="py-6 flex items-center justify-center gap-2 text-xs text-slate-400">
                             <Loader2 className="w-4 h-4 animate-spin text-cyan-400" />
-                            <span>讀取目錄中...</span>
+                            <span>{t('dir_loading', '讀取目錄中...')}</span>
                           </div>
                         ) : webPickerItems.length === 0 ? (
                           <div className="py-6 text-center text-xs text-slate-400">
-                            此目錄下無子資料夾
+                            {t('dir_no_subfolders', '此目錄下無子資料夾')}
                           </div>
                         ) : (
                           webPickerItems.map((item) => (
@@ -421,7 +421,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                                 }}
                                 className="px-2 py-0.5 rounded bg-emerald-500/20 hover:bg-emerald-500/40 text-emerald-300 text-[10px] font-bold opacity-80 group-hover:opacity-100 shrink-0"
                               >
-                                選定此夾
+                                {t('dir_select_this', '選定此夾')}
                               </button>
                             </div>
                           ))
@@ -435,7 +435,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                           className="w-full py-2 px-3 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 border border-emerald-400/50 text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-all"
                         >
                           <Check className="w-3.5 h-3.5" />
-                          <span>✅ 將當前目錄「{webPickerCurrent.split(/[\\/]/).filter(Boolean).pop()}」設為專案工作區</span>
+                          <span>{t('dir_use_current', '✅ 將當前目錄「{name}」設為專案工作區', { name: webPickerCurrent.split(/[\\/]/).filter(Boolean).pop() || '' })}</span>
                         </button>
                       )}
                     </div>
@@ -445,12 +445,12 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       type="text"
                       value={customPath}
                       onChange={(e) => setCustomPath(e.target.value)}
-                      placeholder="已選擇之本機目錄絕對路徑 (亦可直接在此貼上或修改路徑)"
+                      placeholder={t('custom_path_placeholder', '已選擇之本機目錄絕對路徑 (亦可直接在此貼上或修改路徑)')}
                       className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-amber-500/30 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
                     />
                   </div>
                   <p className="text-[11px] text-slate-400">
-                    💡 系統將直接以此目錄作為專案核心，所有代碼讀寫與終端機指令均直接在此目錄執行。
+                    {t('custom_path_hint', '💡 系統將直接以此目錄作為專案核心，所有代碼讀寫與終端機指令均直接在此目錄執行。')}
                   </p>
                 </div>
               )}
@@ -465,7 +465,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 type="text"
                 value={projectName}
                 onChange={(e) => setProjectName(e.target.value)}
-                placeholder="例如: ai-data-crawler, my-web-app, backend-api"
+                placeholder={t('project_name_placeholder', '例如: ai-data-crawler, my-web-app, backend-api')}
                 className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-white/15 focus:border-cyan-400 focus:outline-none focus:ring-1 focus:ring-cyan-400/30"
                 autoFocus
               />
@@ -554,7 +554,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 {isCreating ? (
                   <>
                     <Loader2 className="w-4 h-4 animate-spin text-white" />
-                    <span>正在建立並初始化專案...</span>
+                    <span>{t('creating_project', '正在建立並初始化專案...')}</span>
                   </>
                 ) : (
                   <>
@@ -585,7 +585,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                       : 'text-slate-400 hover:text-white border-transparent'
                   }`}
                 >
-                  切換回工作區根目錄
+                  {t('switch_to_workspace_root', '切換回工作區根目錄')}
                 </button>
               </div>
 
@@ -612,7 +612,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                             {proj.name}
                           </div>
                           <div className="text-[10px] text-slate-500 truncate" title={proj.path}>
-                            {proj.file_count} 檔案 • {proj.path}
+                            {t('project_file_count', '{count} 檔案', { count: proj.file_count })} • {proj.path}
                           </div>
                         </div>
                       </div>
@@ -625,7 +625,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                         <button
                           type="button"
                           onClick={(e) => handleDeleteProject(e, proj.name)}
-                          title="從專案列表移除"
+                          title={t('remove_project', '從專案列表移除')}
                           className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
                         >
                           <Trash2 className="w-3.5 h-3.5" />

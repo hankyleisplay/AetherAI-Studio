@@ -207,8 +207,20 @@ export const LiquidBackground: React.FC<LiquidBackgroundProps> = ({ state, isEco
     let time = 0;
 
     // Render Loop
-    const render = () => {
-      time += 0.015;
+    // While the model is busy, cap the canvas to ~24fps so local inference (Ollama / LM Studio)
+    // does not have to share the GPU with a 60fps animation; skip frames entirely when hidden.
+    const isBusy = state === 'generating' || state === 'thinking' || state === 'calling_tool';
+    const frameBudget = isBusy ? 1000 / 24 : 1000 / 60;
+    let lastFrame = 0;
+
+    const render = (now: number = performance.now()) => {
+      if (document.hidden || now - lastFrame < frameBudget) {
+        animId = requestAnimationFrame(render);
+        return;
+      }
+      const frameScale = lastFrame ? Math.min(3, (now - lastFrame) / (1000 / 60)) : 1;
+      lastFrame = now;
+      time += 0.015 * frameScale;
 
       // Mouse Lerp
       mouseRef.current.x += (mouseRef.current.targetX - mouseRef.current.x) * 0.05;

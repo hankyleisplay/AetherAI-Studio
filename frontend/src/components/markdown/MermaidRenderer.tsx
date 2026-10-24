@@ -290,7 +290,7 @@ export const MermaidRenderer: React.FC<MermaidRendererProps> = ({ code }) => {
             <button
               onClick={handleDownloadSvg}
               className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300"
-              title="下載 SVG 圖形"
+              title={t('download_svg', '下載 SVG 圖形')}
             >
               <Download className="w-3.5 h-3.5" />
             </button>

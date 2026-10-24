@@ -29,9 +29,11 @@ import {
   Network,
   FileText,
   Terminal,
-  Code2
+  Code2,
+  Cpu,
+  AlertTriangle
 } from 'lucide-react';
-import { ModelConfig, ToolDefinition } from '../types';
+import { ModelConfig, ToolDefinition, HardwareCheckResult, HardwareIssue } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 
 interface SettingsModalProps {
@@ -71,6 +73,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     error?: string;
   } | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [hwCheck, setHwCheck] = useState<HardwareCheckResult | null>(null);
+  const [isCheckingHw, setIsCheckingHw] = useState(false);
 
   // Telegram Bridge State
   const [telegramConfig, setTelegramConfig] = useState<{
@@ -137,16 +141,16 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         })
       });
       if (res.ok) {
-        setPinMsg(enable ? '✅ 外網 PIN 碼已成功啟用並更新！' : 'ℹ️ 已停用外網 PIN 碼保護');
+        setPinMsg(enable ? t('pin_enabled_msg', '✅ 外網 PIN 碼已成功啟用並更新！') : t('pin_disabled_msg', 'ℹ️ 已停用外網 PIN 碼保護'));
         setPinInput('');
         setOldPinInput('');
         fetchPinStatus();
       } else {
         const err = await res.json().catch(() => ({}));
-        setPinMsg(`❌ 設定失敗: ${err.detail || '請檢查輸入'}`);
+        setPinMsg(t('pin_set_failed', '❌ 設定失敗: {error}', { error: err.detail || t('check_input', '請檢查輸入') }));
       }
     } catch (e: any) {
-      setPinMsg(`❌ 連線失敗: ${e.message}`);
+      setPinMsg(t('pin_conn_failed', '❌ 連線失敗: {error}', { error: e.message }));
     } finally {
       setIsSavingPin(false);
     }
@@ -179,7 +183,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         }
       }
     } catch (err: any) {
-      setTestResult({ success: false, error: err.message || '無法連線至後端伺服器' });
+      setTestResult({ success: false, error: err.message || t('backend_unreachable', '無法連線至後端伺服器') });
     } finally {
       setIsTesting(false);
     }
@@ -217,7 +221,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [isOpen, config, initialTab]);
 
+  // Hardware capability check: re-evaluate (debounced) whenever the generation budget or model changes
+  useEffect(() => {
+    if (!isOpen || activeTab !== 'model') return;
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setIsCheckingHw(true);
+      try {
+        const res = await fetch('/api/models/hardware-check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(formData),
+          signal: controller.signal
+        });
+        if (res.ok) setHwCheck(await res.json());
+      } catch (err: any) {
+        if (err?.name !== 'AbortError') setHwCheck(null);
+      } finally {
+        if (!controller.signal.aborted) setIsCheckingHw(false);
+      }
+    }, 450);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [isOpen, activeTab, formData.provider, formData.model, formData.base_url, formData.context_window, formData.max_tokens]);
+
   if (!isOpen) return null;
+
+  const hwIssueText = (issue: HardwareIssue) => t(`hw_issue_${issue.code}`, issue.code, issue.params);
+
+  const applyHwRecommendation = () => {
+    if (!hwCheck?.recommended) return;
+    setFormData({
+      ...formData,
+      context_window: hwCheck.recommended.context_window,
+      max_tokens: hwCheck.recommended.max_tokens
+    });
+  };
 
   const presets = [
     {
@@ -325,7 +366,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       const data = await res.json();
       setTelegramTestResult(data);
     } catch (err: any) {
-      setTelegramTestResult({ success: false, error: err.message || '測試請求失敗' });
+      setTelegramTestResult({ success: false, error: err.message || t('test_request_failed', '測試請求失敗') });
     } finally {
       setIsTestingTelegram(false);
     }
@@ -341,9 +382,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       });
       const data = await res.json();
       setTelegramStatus(data.bridge);
-      alert('Telegram 橋接設定已儲存！' + (telegramConfig.enabled ? ' 橋接服務已啟動。' : ''));
+      alert(t('tg_saved', 'Telegram 橋接設定已儲存！') + (telegramConfig.enabled ? ' ' + t('tg_started', '橋接服務已啟動。') : ''));
     } catch (err: any) {
-      alert('儲存失敗: ' + err.message);
+      alert(t('save_failed', '儲存失敗') + ': ' + err.message);
     } finally {
       setIsSavingTelegram(false);
     }
@@ -352,50 +393,50 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const getToolMeta = (name: string) => {
     switch (name) {
       case 'bash_executor':
-        return { icon: <Terminal className="w-4 h-4 text-emerald-400" />, category: '系統終端', bg: 'bg-emerald-500/15 border-emerald-500/30' };
+        return { icon: <Terminal className="w-4 h-4 text-emerald-400" />, category: t('tool_cat_terminal', '系統終端'), bg: 'bg-emerald-500/15 border-emerald-500/30' };
       case 'system_status':
-        return { icon: <Server className="w-4 h-4 text-emerald-400" />, category: '系統指標', bg: 'bg-emerald-500/15 border-emerald-500/30' };
+        return { icon: <Server className="w-4 h-4 text-emerald-400" />, category: t('tool_cat_system', '系統指標'), bg: 'bg-emerald-500/15 border-emerald-500/30' };
       case 'python_eval':
-        return { icon: <Code2 className="w-4 h-4 text-cyan-400" />, category: '代碼執行', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+        return { icon: <Code2 className="w-4 h-4 text-cyan-400" />, category: t('tool_cat_code_exec', '代碼執行'), bg: 'bg-cyan-500/15 border-cyan-500/30' };
       case 'code_linter_analyzer':
-        return { icon: <FileCode2 className="w-4 h-4 text-cyan-400" />, category: '代碼分析', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+        return { icon: <FileCode2 className="w-4 h-4 text-cyan-400" />, category: t('tool_cat_code_analysis', '代碼分析'), bg: 'bg-cyan-500/15 border-cyan-500/30' };
       case 'git_version_control':
-        return { icon: <GitBranch className="w-4 h-4 text-orange-400" />, category: '版本控制', bg: 'bg-orange-500/15 border-orange-500/30' };
+        return { icon: <GitBranch className="w-4 h-4 text-orange-400" />, category: t('tool_cat_vcs', '版本控制'), bg: 'bg-orange-500/15 border-orange-500/30' };
       case 'database_sqlite_inspector':
-        return { icon: <Database className="w-4 h-4 text-blue-400" />, category: '資料庫', bg: 'bg-blue-500/15 border-blue-500/30' };
+        return { icon: <Database className="w-4 h-4 text-blue-400" />, category: t('tool_cat_database', '資料庫'), bg: 'bg-blue-500/15 border-blue-500/30' };
       case 'file_system':
-        return { icon: <HardDrive className="w-4 h-4 text-amber-400" />, category: '檔案操作', bg: 'bg-amber-500/15 border-amber-500/30' };
+        return { icon: <HardDrive className="w-4 h-4 text-amber-400" />, category: t('tool_cat_files', '檔案操作'), bg: 'bg-amber-500/15 border-amber-500/30' };
       case 'archive_compressor':
-        return { icon: <Archive className="w-4 h-4 text-amber-400" />, category: '壓縮歸檔', bg: 'bg-amber-500/15 border-amber-500/30' };
+        return { icon: <Archive className="w-4 h-4 text-amber-400" />, category: t('tool_cat_archive', '壓縮歸檔'), bg: 'bg-amber-500/15 border-amber-500/30' };
       case 'document_text_extractor':
-        return { icon: <FileText className="w-4 h-4 text-indigo-400" />, category: '文檔提取', bg: 'bg-indigo-500/15 border-indigo-500/30' };
+        return { icon: <FileText className="w-4 h-4 text-indigo-400" />, category: t('tool_cat_documents', '文檔提取'), bg: 'bg-indigo-500/15 border-indigo-500/30' };
       case 'web_search':
-        return { icon: <Search className="w-4 h-4 text-cyan-400" />, category: '網路檢索', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+        return { icon: <Search className="w-4 h-4 text-cyan-400" />, category: t('tool_cat_search', '網路檢索'), bg: 'bg-cyan-500/15 border-cyan-500/30' };
       case 'read_url':
-        return { icon: <ExternalLink className="w-4 h-4 text-cyan-400" />, category: '網頁閱讀', bg: 'bg-cyan-500/15 border-cyan-500/30' };
+        return { icon: <ExternalLink className="w-4 h-4 text-cyan-400" />, category: t('tool_cat_reader', '網頁閱讀'), bg: 'bg-cyan-500/15 border-cyan-500/30' };
       case 'http_request_api':
-        return { icon: <Globe className="w-4 h-4 text-teal-400" />, category: 'API 呼叫', bg: 'bg-teal-500/15 border-teal-500/30' };
+        return { icon: <Globe className="w-4 h-4 text-teal-400" />, category: t('tool_cat_api', 'API 呼叫'), bg: 'bg-teal-500/15 border-teal-500/30' };
       case 'network_dns_whois_lookup':
-        return { icon: <Network className="w-4 h-4 text-teal-400" />, category: '網路診斷', bg: 'bg-teal-500/15 border-teal-500/30' };
+        return { icon: <Network className="w-4 h-4 text-teal-400" />, category: t('tool_cat_network', '網路診斷'), bg: 'bg-teal-500/15 border-teal-500/30' };
       case 'ocr_extractor':
       case 'image_to_text':
-        return { icon: <Eye className="w-4 h-4 text-pink-400" />, category: '多模態視覺', bg: 'bg-pink-500/15 border-pink-500/30' };
+        return { icon: <Eye className="w-4 h-4 text-pink-400" />, category: t('tool_cat_vision', '多模態視覺'), bg: 'bg-pink-500/15 border-pink-500/30' };
       case 'generate_chart':
-        return { icon: <BarChart3 className="w-4 h-4 text-purple-400" />, category: '圖表繪製', bg: 'bg-purple-500/15 border-purple-500/30' };
+        return { icon: <BarChart3 className="w-4 h-4 text-purple-400" />, category: t('tool_cat_chart', '圖表繪製'), bg: 'bg-purple-500/15 border-purple-500/30' };
       case 'mermaid_generator':
-        return { icon: <Sliders className="w-4 h-4 text-purple-400" />, category: '架構圖繪製', bg: 'bg-purple-500/15 border-purple-500/30' };
+        return { icon: <Sliders className="w-4 h-4 text-purple-400" />, category: t('tool_cat_diagram', '架構圖繪製'), bg: 'bg-purple-500/15 border-purple-500/30' };
       case 'regex_pattern_matcher':
-        return { icon: <FileSearch className="w-4 h-4 text-yellow-400" />, category: '正則表達式', bg: 'bg-yellow-500/15 border-yellow-500/30' };
+        return { icon: <FileSearch className="w-4 h-4 text-yellow-400" />, category: t('tool_cat_regex', '正則表達式'), bg: 'bg-yellow-500/15 border-yellow-500/30' };
       case 'hash_crypto_inspector':
-        return { icon: <Binary className="w-4 h-4 text-red-400" />, category: '加密哈希', bg: 'bg-red-500/15 border-red-500/30' };
+        return { icon: <Binary className="w-4 h-4 text-red-400" />, category: t('tool_cat_crypto', '加密哈希'), bg: 'bg-red-500/15 border-red-500/30' };
       case 'data_transformer_converter':
-        return { icon: <RefreshCw className="w-4 h-4 text-violet-400" />, category: '資料轉換', bg: 'bg-violet-500/15 border-violet-500/30' };
+        return { icon: <RefreshCw className="w-4 h-4 text-violet-400" />, category: t('tool_cat_transform', '資料轉換'), bg: 'bg-violet-500/15 border-violet-500/30' };
       case 'datetime_calc':
-        return { icon: <Activity className="w-4 h-4 text-sky-400" />, category: '時間計算', bg: 'bg-sky-500/15 border-sky-500/30' };
+        return { icon: <Activity className="w-4 h-4 text-sky-400" />, category: t('tool_cat_datetime', '時間計算'), bg: 'bg-sky-500/15 border-sky-500/30' };
       case 'knowledge_memory':
-        return { icon: <Sparkles className="w-4 h-4 text-amber-400" />, category: '知識記憶', bg: 'bg-amber-500/15 border-amber-500/30' };
+        return { icon: <Sparkles className="w-4 h-4 text-amber-400" />, category: t('tool_cat_memory', '知識記憶'), bg: 'bg-amber-500/15 border-amber-500/30' };
       default:
-        return { icon: <Wrench className="w-4 h-4 text-slate-400" />, category: '通用工具', bg: 'bg-slate-500/15 border-slate-500/30' };
+        return { icon: <Wrench className="w-4 h-4 text-slate-400" />, category: t('tool_cat_general', '通用工具'), bg: 'bg-slate-500/15 border-slate-500/30' };
     }
   };
 
@@ -483,7 +524,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>外網安全 (Security PIN)</span>
+            <span>{t('tab_security', '外網安全 (Security PIN)')}</span>
           </button>
 
           <button
@@ -646,7 +687,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type="text"
                   value={formData.model}
                   onChange={(e) => setFormData({ ...formData, model: e.target.value })}
-                  placeholder="例如: llama3:latest 或 gpt-4o"
+                  placeholder={t('model_name_placeholder', '例如: llama3:latest 或 gpt-4o')}
                   className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100"
                 />
               </div>
@@ -739,6 +780,88 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="w-full accent-cyan-400 cursor-pointer"
                 />
               </div>
+
+              {/* Hardware capability evaluation */}
+              {(hwCheck || isCheckingHw) && (() => {
+                const verdict = hwCheck?.verdict;
+                const tone =
+                  verdict === 'danger' ? 'border-rose-500/30 bg-rose-500/5 text-rose-300'
+                  : verdict === 'warn' ? 'border-amber-500/30 bg-amber-500/5 text-amber-300'
+                  : verdict === 'ok' ? 'border-emerald-500/30 bg-emerald-500/5 text-emerald-300'
+                  : 'border-white/10 bg-white/5 text-slate-300';
+                const verdictLabel: Record<string, string> = {
+                  ok: t('hw_verdict_ok', '硬體效能足夠：模型可完整放入 GPU 執行'),
+                  warn: t('hw_verdict_warn', '硬體效能不足：可能變慢，建議調整'),
+                  danger: t('hw_verdict_danger', '超出硬體負荷：可能無法載入或崩潰'),
+                  cloud: t('hw_verdict_cloud', '雲端模型：在服務商的伺服器上執行，不受本機硬體限制'),
+                  unknown: t('hw_verdict_unknown', '無法完整評估此模型的硬體需求')
+                };
+                const hw = hwCheck?.hardware;
+                const est = hwCheck?.estimate;
+                const usedPct = est && est.vram_free_gb ? Math.min(100, (est.total_gb / est.vram_free_gb) * 100) : null;
+                const rec = hwCheck?.recommended;
+                const recDiffers = rec && (rec.context_window !== (formData.context_window || 16384) || rec.max_tokens !== formData.max_tokens);
+                return (
+                  <div className={`p-3 rounded-xl border text-xs space-y-2 ${tone}`}>
+                    <div className="flex items-center gap-2 font-semibold">
+                      {isCheckingHw ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        : verdict === 'ok' ? <ShieldCheck className="w-3.5 h-3.5" />
+                        : verdict === 'cloud' ? <Cloud className="w-3.5 h-3.5" />
+                        : verdict === 'unknown' ? <Cpu className="w-3.5 h-3.5" />
+                        : <AlertTriangle className="w-3.5 h-3.5" />}
+                      <span>{isCheckingHw && !hwCheck ? t('hw_checking', '正在評估硬體效能...') : verdictLabel[verdict || 'unknown']}</span>
+                    </div>
+
+                    {hw && (
+                      <div className="text-[11px] text-slate-400 flex flex-wrap gap-x-3 gap-y-0.5">
+                        <span>
+                          {t('hw_gpu', 'GPU')}: {hw.gpu_detected ? `${hw.gpu_name} (${hw.vram_total_gb} GB)` : t('hw_no_gpu', '未偵測到')}
+                        </span>
+                        <span>{t('hw_ram', '系統記憶體')}: {hw.ram_available_gb} / {hw.ram_total_gb} GB</span>
+                      </div>
+                    )}
+
+                    {est && (
+                      <div className="space-y-1">
+                        <div className="text-[11px] text-slate-400">
+                          {t('hw_estimate_breakdown', '預估需求 {total} GB（權重 {weights} + 上下文快取 {kv} + 運算緩衝 {overhead}）', {
+                            total: est.total_gb, weights: est.weights_gb, kv: est.kv_cache_gb, overhead: est.overhead_gb
+                          })}
+                          {hwCheck?.model_info?.source === 'estimated' && ` · ${t('hw_estimated_from_name', '依模型名稱粗估')}`}
+                        </div>
+                        {usedPct !== null && (
+                          <div className="h-1.5 rounded-full bg-white/10 overflow-hidden" title={`${est.total_gb} / ${est.vram_free_gb} GB`}>
+                            <div
+                              className={`h-full rounded-full ${usedPct >= 100 ? 'bg-rose-400' : usedPct > 85 ? 'bg-amber-400' : 'bg-emerald-400'}`}
+                              style={{ width: `${Math.max(3, usedPct)}%` }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {hwCheck?.issues?.length ? (
+                      <ul className="space-y-1 text-[11px] leading-relaxed">
+                        {hwCheck.issues.map((issue, idx) => (
+                          <li key={idx} className={issue.level === 'danger' ? 'text-rose-300' : issue.level === 'warn' ? 'text-amber-300' : 'text-slate-400'}>
+                            • {hwIssueText(issue)}
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+
+                    {rec && recDiffers && (verdict === 'warn' || verdict === 'danger') && (
+                      <button
+                        type="button"
+                        onClick={applyHwRecommendation}
+                        className="px-3 py-1.5 rounded-lg glass-button text-[11px] font-semibold text-white"
+                      >
+                        {t('hw_apply_recommended', '套用建議值：上下文 {ctx} / 最大輸出 {mt}', { ctx: rec.context_window, mt: rec.max_tokens })}
+                      </button>
+                    )}
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Footer Actions for Model */}
@@ -820,7 +943,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   type={showTgToken ? 'text' : 'password'}
                   value={telegramConfig.token}
                   onChange={(e) => setTelegramConfig({ ...telegramConfig, token: e.target.value })}
-                  placeholder={telegramStatus?.has_token ? '•••••••••••••••••••••••••••••••• (已保存)' : '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ'}
+                  placeholder={telegramStatus?.has_token ? `•••••••••••••••••••••••••••••••• (${t('saved_tag', '已保存')})` : '123456789:ABCdefGHIjklMNOpqrSTUvwxYZ'}
                   className="w-full px-3.5 py-2.5 rounded-xl glass-input text-xs font-mono text-slate-100 pr-10"
                 />
                 <button
@@ -1126,10 +1249,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               <div>
                 <h4 className="text-sm font-bold text-white flex items-center gap-2">
                   <ShieldCheck className="w-4 h-4 text-emerald-400" />
-                  <span>外網遠端訪問安全鎖定 (Web Access PIN)</span>
+                  <span>{t('pin_section_title', '外網遠端訪問安全鎖定 (Web Access PIN)')}</span>
                 </h4>
                 <p className="text-xs text-slate-400 mt-1">
-                  當透過 Cloudflare Tunnel 或外網 IP 訪問時，要求輸入自訂 PIN 碼，防止外部未授權調用終端機與檔案系統。
+                  {t('pin_section_desc', '當透過 Cloudflare Tunnel 或外網 IP 訪問時，要求輸入自訂 PIN 碼，防止外部未授權調用終端機與檔案系統。')}
                 </p>
               </div>
               <span className={`px-2.5 py-1 rounded-full text-xs font-bold border font-mono ${
@@ -1137,7 +1260,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40' 
                   : 'bg-white/5 text-slate-400 border-white/10'
               }`}>
-                {pinStatus.pin_protected ? '🛡️ 保護中' : '未啟用保護'}
+                {pinStatus.pin_protected ? t('pin_protected', '🛡️ 保護中') : t('pin_unprotected', '未啟用保護')}
               </span>
             </div>
 
@@ -1145,13 +1268,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               {pinStatus.pin_protected && (
                 <div>
                   <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                    目前 PIN 碼 (Current PIN)
+                    {t('pin_current', '目前 PIN 碼 (Current PIN)')}
                   </label>
                   <input
                     type="password"
                     value={oldPinInput}
                     onChange={(e) => setOldPinInput(e.target.value)}
-                    placeholder="若欲更改或停用，請輸入當前 PIN 碼"
+                    placeholder={t('pin_current_placeholder', '若欲更改或停用，請輸入當前 PIN 碼')}
                     className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500"
                   />
                 </div>
@@ -1159,13 +1282,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
               <div>
                 <label className="block text-xs font-semibold text-slate-300 mb-1.5">
-                  設定新 PIN 碼 (New PIN - 至少 4 位數)
+                  {t('pin_new', '設定新 PIN 碼 (New PIN - 至少 4 位數)')}
                 </label>
                 <input
                   type="password"
                   value={pinInput}
                   onChange={(e) => setPinInput(e.target.value)}
-                  placeholder="例如: 8888 或自訂安全密碼"
+                  placeholder={t('pin_new_placeholder', '例如: 8888 或自訂安全密碼')}
                   className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500"
                 />
               </div>
@@ -1184,7 +1307,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="flex-1 py-2.5 px-4 rounded-xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-md transition-all disabled:opacity-40"
                 >
                   <ShieldCheck className="w-4 h-4" />
-                  <span>{isSavingPin ? '儲存中...' : pinStatus.pin_protected ? '更新 PIN 碼' : '啟用外網 PIN 碼保護'}</span>
+                  <span>{isSavingPin ? t('saving', '儲存中...') : pinStatus.pin_protected ? t('pin_update', '更新 PIN 碼') : t('pin_enable', '啟用外網 PIN 碼保護')}</span>
                 </button>
 
                 {pinStatus.pin_protected && (
@@ -1194,7 +1317,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     disabled={isSavingPin}
                     className="py-2.5 px-4 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold text-xs flex items-center justify-center gap-1.5 transition-all"
                   >
-                    <span>停用保護</span>
+                    <span>{t('pin_disable', '停用保護')}</span>
                   </button>
                 )}
               </div>

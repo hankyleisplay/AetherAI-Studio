@@ -9,7 +9,8 @@ from typing import Dict, Any, List, Optional
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
+import hmac
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
@@ -50,6 +51,34 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# ================= Web Access PIN enforcement =================
+# The PIN used to be checked only by the frontend, so any remote client could call the terminal,
+# file and git APIs directly. Enforce it server-side for every non-local /api request.
+PIN_EXEMPT_PATHS = {"/api/health", "/api/auth/status", "/api/auth/verify-pin"}
+LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
+PROXY_HEADERS = ("cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded")
+
+def _is_local_request(request: Request) -> bool:
+    # Cloudflare Tunnel / reverse proxies connect from localhost, so a proxy header means remote
+    if any(h in request.headers for h in PROXY_HEADERS):
+        return False
+    host = request.client.host if request.client else ""
+    return host in LOCAL_HOSTS
+
+def _request_pin_ok(request: Request, pin: str) -> bool:
+    token = (request.headers.get("x-access-token") or request.headers.get("x-access-pin")
+             or request.cookies.get("aether_access_token") or "")
+    return hmac.compare_digest(token.encode("utf-8"), pin.encode("utf-8"))
+
+@app.middleware("http")
+async def enforce_web_access_pin(request: Request, call_next):
+    path = request.url.path
+    if path.startswith("/api/") and path not in PIN_EXEMPT_PATHS and request.method != "OPTIONS":
+        pin = db.get_setting("web_access_pin")
+        if pin and not _is_local_request(request) and not _request_pin_ok(request, pin):
+            return JSONResponse(status_code=401, content={"detail": "PIN required"})
+    return await call_next(request)
+
 # Request Models
 class ChatRequest(BaseModel):
     session_id: Optional[str] = None
@@ -62,6 +91,7 @@ class ChatRequest(BaseModel):
     mode: Optional[str] = "chat"
     project: Optional[str] = None
     code_execution_mode: Optional[str] = "auto"
+    language: Optional[str] = "zh-TW"
 
 class ProjectCreatePayload(BaseModel):
     name: str
@@ -231,6 +261,18 @@ async def test_model_connection(config: ModelConfig):
     result = await client.test_connection()
     return result
 
+# Hardware capability check for max_tokens / context_window settings
+@app.post("/api/models/hardware-check")
+async def hardware_check(config: ModelConfig):
+    from backend.app.services.hardware import evaluate_generation_settings
+    return await evaluate_generation_settings(
+        provider=config.provider,
+        model=config.model,
+        base_url=config.base_url,
+        context_window=config.context_window,
+        max_tokens=config.max_tokens,
+    )
+
 async def generate_ai_session_title(session_id: str, prompt_snippet: str, config: ModelConfig) -> str:
     """Generate a concise, insightful conversation title (4-8 Chinese characters) using AI."""
     import re
@@ -341,9 +383,10 @@ async def chat_stream(request: ChatRequest):
         cw = active_config.context_window or (8192 if active_config.provider == "ollama" else 16384)
         mt = active_config.max_tokens or 4096
         if active_config.provider == "ollama":
-            # For local Ollama, prevent GPU VRAM exhaustion / llama-server buffer overrun
-            active_config.context_window = min(max(cw, 4096), 8192)
-            active_config.max_tokens = min(max(mt, 4096), 8192)
+            # Keep the user's num_ctx (validated by the hardware check in Settings): changing num_ctx
+            # between chat and code mode forces Ollama to reload the whole model on every switch.
+            active_config.context_window = max(cw, 4096)
+            active_config.max_tokens = min(max(mt, 4096), active_config.context_window)
         else:
             active_config.context_window = max(cw, 32768)
             active_config.max_tokens = max(mt, 16384)
@@ -353,7 +396,8 @@ async def chat_stream(request: ChatRequest):
         persona_id=request.persona_id or "assistant",
         mode=request.mode or "chat",
         project=request.project,
-        code_execution_mode=request.code_execution_mode or "auto"
+        code_execution_mode=request.code_execution_mode or "auto",
+        language=request.language or "zh-TW"
     )
 
     async def event_generator():
@@ -1146,18 +1190,17 @@ async def auth_status(request: Request):
     pin = db.get_setting("web_access_pin")
     if not pin:
         return {"pin_protected": False, "authenticated": True}
-    token = request.headers.get("x-access-token") or request.headers.get("x-access-pin")
-    if not token:
-        token = request.cookies.get("aether_access_token")
-    is_authed = (token == pin)
+    is_authed = _is_local_request(request) or _request_pin_ok(request, pin)
     return {"pin_protected": True, "authenticated": is_authed}
 
 @app.post('/api/auth/verify-pin')
-async def verify_pin(payload: PinVerifyPayload):
+async def verify_pin(payload: PinVerifyPayload, response: Response):
     configured_pin = db.get_setting("web_access_pin")
     if not configured_pin:
         return {"status": "ok", "authenticated": True, "token": "open"}
-    if payload.pin == configured_pin:
+    if hmac.compare_digest((payload.pin or "").strip().encode("utf-8"), configured_pin.encode("utf-8")):
+        # Cookie covers requests the frontend can't add headers to (<img src>, downloads)
+        response.set_cookie("aether_access_token", configured_pin, httponly=True, samesite="lax", max_age=30 * 86400)
         return {"status": "ok", "authenticated": True, "token": configured_pin}
     raise HTTPException(status_code=401, detail="PIN 碼錯誤，請重新輸入")
 

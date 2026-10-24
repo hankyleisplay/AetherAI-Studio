@@ -17,7 +17,7 @@ export const AVAILABLE_LANGUAGES: LanguageOption[] = [
 interface I18nContextType {
   currentLang: Language;
   setLanguage: (lang: Language) => void;
-  t: (key: string, fallback?: string) => string;
+  t: (key: string, fallback?: string, params?: Record<string, string | number>) => string;
   availableLanguages: LanguageOption[];
 }
 
@@ -52,17 +52,23 @@ export const I18nProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     document.documentElement.lang = currentLang;
   }, [currentLang]);
 
-  const t = (key: string, fallback?: string): string => {
-    const langDict = translations[currentLang];
-    if (langDict && key in langDict) {
-      return langDict[key];
+  const t = (key: string, fallback?: string, params?: Record<string, string | number>): string => {
+    // Non-Chinese UIs fall back to English before the zh-TW source strings
+    const chain: Language[] = currentLang === 'zh-TW' || currentLang === 'zh-CN'
+      ? [currentLang, 'zh-TW']
+      : [currentLang, 'en', 'zh-TW'];
+    let text: string | undefined;
+    for (const lang of chain) {
+      const dict = translations[lang];
+      if (dict && key in dict) {
+        text = dict[key];
+        break;
+      }
     }
-    // Fallback to zh-TW
-    const fallbackDict = translations['zh-TW'];
-    if (fallbackDict && key in fallbackDict) {
-      return fallbackDict[key];
-    }
-    return fallback ?? key;
+    if (text === undefined) text = fallback ?? key;
+    if (!params) return text;
+    // Callback form so values containing `$&`, `$1`… are inserted literally
+    return text.replace(/\{(\w+)\}/g, (match, name) => (name in params ? String(params[name]) : match));
   };
 
   return (

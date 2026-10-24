@@ -206,14 +206,14 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
             <button
               onClick={() => handleRunCommand('dir')}
               className="px-2 py-0.5 rounded glass-button text-slate-300 hover:text-cyan-300 transition-colors"
-              title="列出目錄內容 (dir / ls)"
+              title={t('term_list_dir', '列出目錄內容 (dir / ls)')}
             >
               dir
             </button>
             <button
               onClick={() => handleRunCommand('python main.py')}
               className="px-2 py-0.5 rounded glass-button text-slate-300 hover:text-cyan-300 transition-colors"
-              title="執行主程式 (python main.py)"
+              title={t('term_run_main', '執行主程式 (python main.py)')}
             >
               python
             </button>
@@ -230,7 +230,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
           <button
             onClick={() => setIsExpanded(!isExpanded)}
             className="p-1.5 rounded-lg text-slate-400 hover:text-cyan-300 hover:bg-white/5 transition-colors"
-            title={isExpanded ? '寬度收窄 (預設)' : '寬度展開 (寬螢幕)'}
+            title={isExpanded ? t('term_narrow', '寬度收窄 (預設)') : t('term_widen', '寬度展開 (寬螢幕)')}
           >
             {isExpanded ? <Minimize2 className="w-3.5 h-3.5" /> : <Maximize2 className="w-3.5 h-3.5" />}
           </button>
@@ -307,7 +307,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
                   className="py-1.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/25 to-rose-500/25 hover:from-amber-500/35 hover:to-rose-500/35 border border-amber-500/50 text-amber-200 text-xs font-bold flex items-center gap-1.5 transition-all shadow-[0_0_15px_rgba(245,158,11,0.2)]"
                 >
                   <Sparkles className="w-3.5 h-3.5 text-amber-400" />
-                  <span>🤖 一鍵交給 Agent 自動分析並修復 (Auto-Fix)</span>
+                  <span>{t('term_autofix', '🤖 一鍵交給 Agent 自動分析並修復 (Auto-Fix)')}</span>
                 </button>
               </div>
             )}
@@ -352,7 +352,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
           onClick={() => handleRunCommand('clear')}
           className="px-2.5 py-1 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-slate-400 font-mono shrink-0"
         >
-          清屏 (cls)
+          {t('term_clear', '清屏 (cls)')}
         </button>
         {isRunning && (
           <button
@@ -360,7 +360,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
             onClick={handleKillCommand}
             className="px-2.5 py-1 rounded-lg bg-rose-500/20 hover:bg-rose-500/30 border border-rose-500/40 text-rose-300 font-bold shrink-0 flex items-center gap-1"
           >
-            <span>中斷 (Ctrl+C)</span>
+            <span>{t('term_interrupt', '中斷 (Ctrl+C)')}</span>
           </button>
         )}
       </div>

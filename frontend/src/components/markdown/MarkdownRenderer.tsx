@@ -119,6 +119,7 @@ const DetailsCard: React.FC<{
 };
 
 export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isStreaming }) => {
+  const { t } = useI18n();
   const tokens = useMemo(() => parseMarkdown(content), [content]);
 
   // Comprehensive inline spans parser
@@ -482,7 +483,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
             return (
               <DetailsCard
                 key={tIdx}
-                summary={token.summary}
+                summary={token.summary || t('details_default_summary', '點擊展開防雷 / 隱藏內容')}
                 body={token.body}
                 defaultOpen={token.isOpenDefault}
                 renderInline={renderInline}
