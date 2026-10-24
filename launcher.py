@@ -47,7 +47,7 @@ if not (PROJECT_ROOT / "start.py").exists():
             PROJECT_ROOT = c
             break
 
-VERSION = "3.6.2"
+VERSION = "3.6.3"
 
 
 def print_banner():

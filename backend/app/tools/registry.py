@@ -491,7 +491,11 @@ def file_system(
     try:
         if act == "read":
             if not target.exists():
-                return f"File '{display_rel}' does not exist in workspace."
+                fallback = (settings.base_workspace_dir / clean_p).resolve()
+                if fallback.exists() and fallback.is_file():
+                    target = fallback
+                else:
+                    return f"File '{display_rel}' does not exist in workspace."
             if not target.is_file():
                 return f"Path '{display_rel}' is a directory, not a file. Use action='list' to inspect directory contents."
             return target.read_text(encoding="utf-8", errors="replace")
@@ -1070,8 +1074,11 @@ def tool_ocr_extractor(
     # Resolve target image file location
     candidate = (workspace_dir / clean_path).resolve()
     if not candidate.exists():
-        # Check inside uploads subfolder
+        # Check inside uploads subfolder of current workspace
         candidate = (workspace_dir / "uploads" / Path(clean_path).name).resolve()
+    if not candidate.exists():
+        # Check inside root base workspace uploads
+        candidate = (settings.base_workspace_dir / "uploads" / Path(clean_path).name).resolve()
     if not candidate.exists():
         # Search workspace recursively by filename
         target_name = Path(clean_path).name
@@ -1080,7 +1087,7 @@ def tool_ocr_extractor(
             break
 
     # Security boundary check
-    if not str(candidate).startswith(str(workspace_dir)):
+    if not str(candidate).startswith(str(workspace_dir)) and not str(candidate).startswith(str(settings.base_workspace_dir)):
         return "❌ 安全拒絕: 禁止存取超出工作區 (workspace) 範圍的外部路徑。"
 
     if not candidate.exists() or not candidate.is_file():

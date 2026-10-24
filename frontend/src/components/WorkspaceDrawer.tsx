@@ -11,12 +11,14 @@ interface WorkspaceDrawerProps {
   isOpen: boolean;
   onClose: () => void;
   onAskAgent: (filePath: string) => void;
+  activeProject?: string | null;
 }
 
 export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
   isOpen,
   onClose,
-  onAskAgent
+  onAskAgent,
+  activeProject
 }) => {
   const { t } = useI18n();
   const [files, setFiles] = useState<WorkspaceFile[]>([]);
@@ -162,7 +164,9 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
                   {files.length}
                 </span>
               </h3>
-              <p className="text-[11px] text-slate-400 font-mono">backend/workspace/</p>
+              <p className="text-[11px] text-slate-400 font-mono truncate max-w-[220px]">
+                {activeProject ? `📂 專案: ${activeProject}` : 'backend/workspace/'}
+              </p>
             </div>
           </div>
 

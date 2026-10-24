@@ -832,43 +832,106 @@ async def swarm_stream(request: SwarmRequest):
 
 
 # Projects & Code Mode Endpoints
+@app.get('/api/projects/browse-folder')
+@app.post('/api/projects/browse-folder')
+async def browse_folder():
+    """Opens a native graphical folder picker dialog on the host system."""
+    import asyncio
+    def _pick():
+        # First try Tkinter
+        try:
+            import tkinter as tk
+            from tkinter import filedialog
+            root = tk.Tk()
+            root.withdraw()
+            root.attributes('-topmost', True)
+            root.focus_force()
+            selected = filedialog.askdirectory(title="選擇專案資料夾 (Select Project Directory)")
+            root.destroy()
+            if selected:
+                p = Path(selected).resolve()
+                return {"status": "ok", "path": str(p), "name": p.name}
+            return {"status": "canceled", "path": None, "name": None}
+        except Exception as e:
+            print(f"[BrowseFolder] Tkinter failed: {e}")
+
+        # Fallback to PowerShell FolderBrowserDialog on Windows
+        if os.name == "nt":
+            import subprocess
+            ps_script = """
+            Add-Type -AssemblyName System.Windows.Forms
+            $dialog = New-Object System.Windows.Forms.FolderBrowserDialog
+            $dialog.Description = '請選擇專案資料夾 (Aether Code Project)'
+            $dialog.ShowNewFolderButton = $true
+            $form = New-Object System.Windows.Forms.Form
+            $form.TopMost = $true
+            $res = $dialog.ShowDialog($form)
+            if ($res -eq [System.Windows.Forms.DialogResult]::OK) {
+                Write-Output $dialog.SelectedPath
+            }
+            """
+            try:
+                out = subprocess.check_output(
+                    ["powershell", "-NoProfile", "-NonInteractive", "-Command", ps_script],
+                    text=True,
+                    timeout=60
+                ).strip()
+                if out:
+                    p = Path(out).resolve()
+                    return {"status": "ok", "path": str(p), "name": p.name}
+                return {"status": "canceled", "path": None, "name": None}
+            except Exception as e:
+                print(f"[BrowseFolder] PowerShell failed: {e}")
+        return {"status": "error", "error": "無法開啟系統檔案選取視窗", "path": None, "name": None}
+
+    return await asyncio.to_thread(_pick)
+
 @app.get('/api/projects')
 async def list_projects():
-    base = settings.workspace_dir.resolve()
+    base = settings.base_workspace_dir.resolve()
     projects_dir = base / 'projects'
     projects_dir.mkdir(parents=True, exist_ok=True)
     project_list = []
     seen_names = set()
+    
+    # 1. Prioritize custom projects registered in projects_metadata
+    projects_meta = db.get_setting('projects_metadata') or {}
+    for name, meta in projects_meta.items():
+        p_path = Path(meta.get('path', '')).resolve()
+        if p_path.exists() and p_path.is_dir():
+            seen_names.add(name)
+            try:
+                f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.') and 'node_modules' not in _.parts and '.git' not in _.parts)
+                stat = p_path.stat()
+                mtime = int(stat.st_mtime)
+            except Exception:
+                f_count = 0
+                mtime = 0
+            project_list.append({
+                'name': name,
+                'path': str(p_path),
+                'full_path': str(p_path),
+                'custom': meta.get('custom', True),
+                'file_count': f_count,
+                'updated_at': mtime
+            })
+
+    # 2. Add projects under default workspace/projects
     try:
         for entry in os.scandir(str(projects_dir)):
-            if entry.is_dir() and not entry.name.startswith('.'):
+            if entry.is_dir() and not entry.name.startswith('.') and entry.name not in seen_names:
                 seen_names.add(entry.name)
-                p_path = Path(entry.path)
-                f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.'))
+                p_path = Path(entry.path).resolve()
+                f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.') and 'node_modules' not in _.parts and '.git' not in _.parts)
                 stat = p_path.stat()
                 project_list.append({
                     'name': entry.name,
                     'path': f'projects/{entry.name}',
-                    'full_path': str(p_path.resolve()),
+                    'full_path': str(p_path),
+                    'custom': False,
                     'file_count': f_count,
                     'updated_at': int(stat.st_mtime)
                 })
-        # Merge custom path projects
-        projects_meta = db.get_setting('projects_metadata') or {}
-        for name, meta in projects_meta.items():
-            if name not in seen_names:
-                p_path = Path(meta.get('path', ''))
-                if p_path.exists() and p_path.is_dir():
-                    seen_names.add(name)
-                    f_count = sum(1 for _ in p_path.rglob('*') if _.is_file() and not _.name.startswith('.'))
-                    stat = p_path.stat()
-                    project_list.append({
-                        'name': name,
-                        'path': str(p_path),
-                        'full_path': str(p_path.resolve()),
-                        'file_count': f_count,
-                        'updated_at': int(stat.st_mtime)
-                    })
     except Exception as e:
         print(f'[Projects] Scan warning: {e}')
     project_list.sort(key=lambda x: x['updated_at'], reverse=True)
@@ -878,41 +941,50 @@ async def list_projects():
     return {
         'projects': project_list,
         'active_project': active_proj,
-        'workspace_path': str(base)
+        'workspace_path': str(settings.workspace_dir.resolve())
     }
 
 @app.post('/api/projects')
 async def create_project(payload: ProjectCreatePayload):
     import re
-    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '', payload.name.strip())
-    if not clean_name:
-        raise HTTPException(status_code=400, detail='無效的專案名稱。請使用英文字母、數字或底線/連字號。')
-    base = settings.workspace_dir.resolve()
-    if payload.custom_path and payload.custom_path.strip():
+    clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '', (payload.name or '').strip())
+    base = settings.base_workspace_dir.resolve()
+    
+    is_custom = bool(payload.custom_path and payload.custom_path.strip())
+    if is_custom:
         target = Path(payload.custom_path.strip()).resolve()
+        if not clean_name:
+            clean_name = re.sub(r'[^a-zA-Z0-9_\-]', '', target.name) or f"project_{int(time.time())}"
     else:
+        if not clean_name:
+            raise HTTPException(status_code=400, detail='無效的專案名稱。請使用英文字母、數字或底線/連字號。')
         target = (base / 'projects' / clean_name).resolve()
+        
     target.mkdir(parents=True, exist_ok=True)
     tpl = (payload.template or 'python').lower()
-    if not (target / 'README.md').exists():
-        if tpl == 'python':
-            (target / 'main.py').write_text('# -*- coding: utf-8 -*-\n"""\nPython Project Initialized by Aether Code Agent\n"""\n\ndef main():\n    print("Hello from Aether Code Agent 🚀")\n\nif __name__ == "__main__":\n    main()\n', encoding='utf-8')
-            (target / 'requirements.txt').write_text('# Project Dependencies\n', encoding='utf-8')
-            (target / 'README.md').write_text(f'# {clean_name}\n\n自主工程專案已就緒。由 Aether Code Agent 支援。\n', encoding='utf-8')
-        elif tpl in ('web', 'frontend', 'html'):
-            (target / 'index.html').write_text(f'<!DOCTYPE html>\n<html lang="zh-TW">\n<head>\n  <meta charset="UTF-8">\n  <title>{clean_name}</title>\n  <link rel="stylesheet" href="style.css">\n</head>\n<body>\n  <div id="app">\n    <h1>🚀 {clean_name} Web Project</h1>\n  </div>\n  <script src="app.js"></script>\n</body>\n</html>\n', encoding='utf-8')
-            (target / 'style.css').write_text('body { font-family: system-ui, sans-serif; background: #0b101e; color: #e2e8f0; margin: 2rem; }\n', encoding='utf-8')
-            (target / 'app.js').write_text('console.log("🚀 Project initialized by Aether Code Agent");\n', encoding='utf-8')
-            (target / 'README.md').write_text(f'# {clean_name}\n\n前端網頁工程專案。\n', encoding='utf-8')
-        elif tpl in ('node', 'javascript', 'js'):
-            (target / 'package.json').write_text('{\n  "name": "' + clean_name.lower() + '",\n  "version": "1.0.0",\n  "main": "index.js",\n  "scripts": {\n    "start": "node index.js"\n  }\n}\n', encoding='utf-8')
-            (target / 'index.js').write_text('console.log("Hello from Aether Code Agent in Node.js 🚀");\n', encoding='utf-8')
-            (target / 'README.md').write_text(f'# {clean_name}\n\nNode.js 工程專案。\n', encoding='utf-8')
+    
+    # Check if target already has user files (don't overwrite existing code)
+    has_existing_files = any(f for f in target.iterdir() if not f.name.startswith('.'))
+    if not has_existing_files and not (target / "README.md").exists():
+        if tpl == "python":
+            (target / "main.py").write_text("# -*- coding: utf-8 -*-\n\"\"\"\nPython Project Initialized by Aether Code Agent\n\"\"\"\n\ndef main():\n    print(\"Hello from Aether Code Agent 🚀\")\n\nif __name__ == \"__main__\":\n    main()\n", encoding="utf-8")
+            (target / "requirements.txt").write_text("# Project Dependencies\n", encoding="utf-8")
+            (target / "README.md").write_text(f"# {clean_name}\n\n自主工程專案已就緒。由 Aether Code Agent 支援。\n", encoding="utf-8")
+        elif tpl in ("web", "frontend", "html"):
+            (target / "index.html").write_text(f"<!DOCTYPE html>\n<html lang=\"zh-TW\">\n<head>\n  <meta charset=\"UTF-8\">\n  <title>{clean_name}</title>\n  <link rel=\"stylesheet\" href=\"style.css\">\n</head>\n<body>\n  <div id=\"app\">\n    <h1>🚀 {clean_name} Web Project</h1>\n  </div>\n  <script src=\"app.js\"></script>\n</body>\n</html>\n", encoding="utf-8")
+            (target / "style.css").write_text("body { font-family: system-ui, sans-serif; background: #0b101e; color: #e2e8f0; margin: 2rem; }\n", encoding="utf-8")
+            (target / "app.js").write_text("console.log(\"🚀 Project initialized by Aether Code Agent\");\n", encoding="utf-8")
+            (target / "README.md").write_text(f"# {clean_name}\n\n前端網頁工程專案。\n", encoding="utf-8")
+        elif tpl in ("node", "javascript", "js"):
+            (target / "package.json").write_text("{\n  \"name\": \"" + clean_name.lower() + "\",\n  \"version\": \"1.0.0\",\n  \"main\": \"index.js\",\n  \"scripts\": {\n    \"start\": \"node index.js\"\n  }\n}\n", encoding="utf-8")
+            (target / "index.js").write_text("console.log(\"Hello from Aether Code Agent in Node.js 🚀\");\n", encoding="utf-8")
+            (target / "README.md").write_text(f"# {clean_name}\n\nNode.js 工程專案。\n", encoding="utf-8")
         else:
-            (target / 'README.md').write_text(f'# {clean_name}\n\n專案工作區已建立。\n', encoding='utf-8')
+            (target / "README.md").write_text(f"# {clean_name}\n\n專案工作區已建立。\n", encoding="utf-8")
+
     db.set_setting('active_project', clean_name)
     projects_meta = db.get_setting('projects_metadata') or {}
-    projects_meta[clean_name] = {'path': str(target), 'custom': bool(payload.custom_path)}
+    projects_meta[clean_name] = {'path': str(target), 'custom': is_custom}
     db.set_setting('projects_metadata', projects_meta)
     return {
         'status': 'created',
@@ -925,23 +997,35 @@ async def create_project(payload: ProjectCreatePayload):
 async def select_project(payload: ProjectSelectPayload):
     name = (payload.name or '').strip()
     if name:
-        base = settings.workspace_dir.resolve()
+        base = settings.base_workspace_dir.resolve()
         projects_meta = db.get_setting('projects_metadata') or {}
         if name in projects_meta:
             target = Path(projects_meta[name].get('path', '')).resolve()
         else:
             target = (base / 'projects' / name).resolve()
         if not target.exists() or not target.is_dir():
-            raise HTTPException(status_code=404, detail=f'專案 \'{name}\' 不存在')
+            raise HTTPException(status_code=404, detail=f"專案 '{name}' 不存在")
         db.set_setting('active_project', name)
     else:
         db.set_setting('active_project', None)
     return {'status': 'selected', 'active_project': name or None}
 
+@app.delete('/api/projects/{name}')
+async def delete_project(name: str):
+    clean_name = name.strip()
+    projects_meta = db.get_setting('projects_metadata') or {}
+    if clean_name in projects_meta:
+        del projects_meta[clean_name]
+        db.set_setting('projects_metadata', projects_meta)
+    active = db.get_setting('active_project')
+    if active == clean_name:
+        db.set_setting('active_project', None)
+    return {'status': 'deleted', 'name': clean_name}
+
 @app.get('/api/projects/active')
 async def get_active_project():
     active = db.get_setting('active_project')
-    base = settings.workspace_dir.resolve()
+    base = settings.base_workspace_dir.resolve()
     projects_meta = db.get_setting('projects_metadata') or {}
     if active and active in projects_meta:
         target_path = projects_meta[active].get('path', str(base))

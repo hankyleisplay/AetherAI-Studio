@@ -13,7 +13,8 @@ import {
   Terminal,
   ShieldCheck,
   Zap,
-  Bot
+  Bot,
+  Trash2
 } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 import { CodeExecutionMode } from '../types';
@@ -53,20 +54,71 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   const [execMode, setExecMode] = useState<CodeExecutionMode>(codeExecutionMode);
   const [template, setTemplate] = useState<'python' | 'web' | 'node' | 'empty'>('python');
   const [isCreating, setIsCreating] = useState(false);
+  const [isBrowsing, setIsBrowsing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   if (!isOpen) return null;
 
+  const handleBrowseFolder = async () => {
+    setIsBrowsing(true);
+    setErrorMsg('');
+    try {
+      const res = await fetch('/api/projects/browse-folder', { method: 'POST' });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.status === 'ok' && data.path) {
+          setCustomPath(data.path);
+          setFolderType('custom');
+          if (!projectName.trim() || projectName === customPath.split(/[/\\]/).pop()) {
+            const derivedName = data.name ? data.name.replace(/[^a-zA-Z0-9_\-]/g, '') : '';
+            if (derivedName) {
+              setProjectName(derivedName);
+            }
+          }
+        }
+      } else {
+        setErrorMsg('無法開啟系統資料夾選取視窗');
+      }
+    } catch (err: any) {
+      setErrorMsg(err.message || '開啟資料夾選取視窗失敗');
+    } finally {
+      setIsBrowsing(false);
+    }
+  };
+
+  const handleDeleteProject = async (e: React.MouseEvent, name: string) => {
+    e.stopPropagation();
+    if (!window.confirm(`確定要從專案列表中移除「${name}」嗎？（本機實體檔案仍會保留）`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/projects/${encodeURIComponent(name)}`, { method: 'DELETE' });
+      if (res.ok) {
+        if (activeProject === name) {
+          onSelectProject(null);
+        }
+        if (onProjectCreated) {
+          onProjectCreated(name, execMode);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to remove project:', err);
+    }
+  };
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    const cleanName = projectName.trim().replace(/[^a-zA-Z0-9_\-]/g, '');
+    const derivedDefaultName = folderType === 'custom' && customPath 
+      ? customPath.trim().split(/[/\\]/).filter(Boolean).pop()?.replace(/[^a-zA-Z0-9_\-]/g, '') || ''
+      : '';
+    const cleanName = (projectName.trim() || derivedDefaultName).replace(/[^a-zA-Z0-9_\-]/g, '');
     if (!cleanName) {
       setErrorMsg('請輸入有效的專案名稱 (僅支援英數字母、底線與連字號)');
       return;
     }
 
     if (folderType === 'custom' && !customPath.trim()) {
-      setErrorMsg('請輸入自訂本機資料夾路徑');
+      setErrorMsg('請輸入或以圖形介面瀏覽選取自訂本機資料夾路徑');
       return;
     }
 
@@ -128,8 +180,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
     },
     {
       id: 'empty',
-      title: '空白專案',
-      desc: t('tpl_empty', '空白專案 (README.md)'),
+      title: '現有/空白專案',
+      desc: t('tpl_empty', '現有或空白專案 (保留現有檔案)'),
       icon: <FileText className="w-4 h-4 text-indigo-400" />,
       color: 'border-indigo-500/40 bg-indigo-500/10'
     }
@@ -174,9 +226,6 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <div>
               <h2 className="text-base font-bold text-white flex items-center gap-2">
                 <span>{t('code_onboarding_title', '配置 Code 工程專案 (Code Mode)')}</span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-400/40 font-mono font-semibold">
-                  Claude Code Style
-                </span>
               </h2>
               <p className="text-xs text-slate-400">
                 {t('code_mode_desc', '直接在專案目錄下寫程式、讀取與修改檔案、執行終端指令、自主測試與除錯。')}
@@ -229,22 +278,42 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                   <FolderOpen className="w-4 h-4 text-amber-400 shrink-0" />
                   <div className="min-w-0">
                     <div className="text-xs font-bold">{t('folder_custom_path', '自訂本機目錄路徑')}</div>
-                    <div className="text-[10px] text-slate-400 truncate">任何本機硬碟目錄</div>
+                    <div className="text-[10px] text-slate-400 truncate">支援本機圖形介面選取</div>
                   </div>
                 </button>
               </div>
 
               {folderType === 'custom' && (
-                <div className="animate-in fade-in duration-150 mt-2">
-                  <input
-                    type="text"
-                    value={customPath}
-                    onChange={(e) => setCustomPath(e.target.value)}
-                    placeholder="輸入本機目錄絕對路徑 (如 C:\Users\李秉翰\Documents\Project\test)"
-                    className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-amber-500/30 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
-                  />
-                  <p className="text-[11px] text-slate-400 mt-1">
-                    💡 Agent 將直接以此目錄作為工作核心，讀寫專案檔案與在該目錄執行終端機命令。
+                <div className="animate-in fade-in duration-150 mt-2 space-y-2">
+                  <button
+                    type="button"
+                    onClick={handleBrowseFolder}
+                    disabled={isBrowsing}
+                    className="w-full py-2.5 px-4 rounded-xl border border-amber-500/40 bg-gradient-to-r from-amber-500/15 to-orange-500/15 hover:from-amber-500/25 hover:to-orange-500/25 text-amber-300 text-xs font-bold flex items-center justify-center gap-2 shadow-sm transition-all disabled:opacity-50"
+                  >
+                    {isBrowsing ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin text-amber-300" />
+                        <span>{t('folder_browsing', '正在開啟系統資料夾選取視窗...')}</span>
+                      </>
+                    ) : (
+                      <>
+                        <FolderOpen className="w-4 h-4 text-amber-400" />
+                        <span>{t('btn_browse_folder', '📂 點擊用圖形介面瀏覽選擇本機資料夾 (GUI Picker)')}</span>
+                      </>
+                    )}
+                  </button>
+                  <div className="relative">
+                    <input
+                      type="text"
+                      value={customPath}
+                      onChange={(e) => setCustomPath(e.target.value)}
+                      placeholder="已選擇之本機目錄絕對路徑 (亦可直接在此貼上或修改路徑)"
+                      className="w-full px-4 py-2.5 rounded-xl glass-input text-xs font-mono text-white placeholder-slate-500 border border-amber-500/30 focus:border-amber-400 focus:outline-none focus:ring-1 focus:ring-amber-400/30"
+                    />
+                  </div>
+                  <p className="text-[11px] text-slate-400">
+                    💡 系統將直接以此目錄作為專案核心，所有代碼讀寫與終端機指令均直接在此目錄執行。
                   </p>
                 </div>
               )}
@@ -342,7 +411,7 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
             <div className="pt-2">
               <button
                 type="submit"
-                disabled={isCreating || !projectName.trim()}
+                disabled={isCreating || (!projectName.trim() && !customPath.trim())}
                 className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-emerald-500 to-cyan-500 hover:from-emerald-400 hover:to-cyan-400 text-xs font-bold text-white flex items-center justify-center gap-2 shadow-[0_0_25px_rgba(16,185,129,0.3)] disabled:opacity-40 transition-all"
               >
                 {isCreating ? (
@@ -387,14 +456,13 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                 {projects.map((proj) => {
                   const isActive = activeProject === proj.name;
                   return (
-                    <button
+                    <div
                       key={proj.name}
-                      type="button"
                       onClick={() => {
                         onSelectProject(proj.name);
                         onClose();
                       }}
-                      className={`p-2.5 rounded-xl border text-left flex items-center justify-between transition-all ${
+                      className={`group p-2.5 rounded-xl border text-left flex items-center justify-between transition-all cursor-pointer ${
                         isActive
                           ? 'bg-cyan-500/20 border-cyan-400 text-cyan-200'
                           : 'bg-white/[0.03] border-white/10 hover:border-cyan-400/30 text-slate-300 hover:text-white'
@@ -406,17 +474,27 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
                           <div className="text-xs font-mono font-bold truncate">
                             {proj.name}
                           </div>
-                          <div className="text-[10px] text-slate-500">
-                            {proj.file_count} 檔案
+                          <div className="text-[10px] text-slate-500 truncate" title={proj.path}>
+                            {proj.file_count} 檔案 • {proj.path}
                           </div>
                         </div>
                       </div>
-                      {isActive && (
-                        <span className="text-[10px] font-mono font-bold text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30 shrink-0">
-                          ACTIVE
-                        </span>
-                      )}
-                    </button>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {isActive && (
+                          <span className="text-[10px] font-mono font-bold text-cyan-400 px-1.5 py-0.5 rounded bg-cyan-950/60 border border-cyan-500/30">
+                            ACTIVE
+                          </span>
+                        )}
+                        <button
+                          type="button"
+                          onClick={(e) => handleDeleteProject(e, proj.name)}
+                          title="從專案列表移除"
+                          className="p-1 rounded-lg hover:bg-rose-500/20 text-slate-500 hover:text-rose-400 opacity-0 group-hover:opacity-100 transition-all"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
                   );
                 })}
               </div>

@@ -1037,6 +1037,7 @@ export const App: React.FC = () => {
         isOpen={isWorkspaceDrawerOpen}
         onClose={() => setIsWorkspaceDrawerOpen(false)}
         onAskAgent={handleAskAgent}
+        activeProject={activeProject}
       />
 
       {/* Multi-Agent Swarm Roundtable Modal */}

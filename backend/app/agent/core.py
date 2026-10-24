@@ -89,25 +89,8 @@ class AgentOrchestrator:
         for t in active_defs:
             tool_desc_list.append(f"- {t['name']}: {t['description']} (Parameters: {json.dumps(t['parameters'])})")
         
-        from backend.app.config import settings
-        project_dir = settings.workspace_dir
-        if self.project:
-            projects_meta = db.get_setting("projects_metadata") or {}
-            if self.project in projects_meta:
-                p_cand = Path(projects_meta[self.project].get("path", ""))
-                if p_cand.exists() and p_cand.is_dir():
-                    project_dir = p_cand
-            elif Path(self.project).exists() and Path(self.project).is_dir():
-                project_dir = Path(self.project).resolve()
-            else:
-                cand = settings.workspace_dir / "projects" / self.project
-                if cand.exists() and cand.is_dir():
-                    project_dir = cand
-                else:
-                    cand2 = settings.workspace_dir / self.project
-                    if cand2.exists() and cand2.is_dir():
-                        project_dir = cand2
-
+        from backend.app.config import settings, get_effective_workspace_dir
+        project_dir = get_effective_workspace_dir(self.project)
         recent_files = []
         if project_dir.exists():
             try:
@@ -216,9 +199,9 @@ class AgentOrchestrator:
                 )
 
             code_mode_directive = (
-                "### 💻 AETHER CODE AGENT (Claude Code Architecture & Autonomous Software Engineering):\n"
-                "你現在處於【Code 模式 (Claude Code Style)】，這是一個專為全端軟體工程、本地模型深度編程、除錯與終端自動化打造的高階工作區模式：\n"
-                f"- 📂 專案工程基準：當前活躍專案為 '{proj_name}'，所有代碼編寫與指令執行均以此專案目錄為工作核心。\n"
+                "### 💻 AETHER CODE AGENT (Autonomous Software Engineering & Terminal Operations):\n"
+                "你現在處於【Code 模式 (Aether Code Mode)】，這是一個專為全端軟體工程、本地模型深度編程、除錯與終端自動化打造的高階工作區模式：\n"
+                f"- 📂 專案工程基準：當前活躍專案為 '{proj_name}'，實體工作目錄為 '{project_dir}'。所有代碼編寫、檔案讀寫與指令執行均以此目錄為核心。\n"
                 f"{mode_guidance}"
                 "- 🛠️ 自主工具調用準則：\n"
                 "  * 專案代碼讀寫：優先且積極調用 `file_system` 工具（read / write / list），自主建立、分析與修改專案模組程式碼。\n"

@@ -248,7 +248,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_14px_rgba(16,185,129,0.35)] font-bold'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
-                title={t('mode_code', 'Code 模式 (Claude Code)')}
+                title={t('mode_code', 'Code 模式 (Aether Code)')}
               >
                 <Terminal className="w-3.5 h-3.5 text-emerald-200" />
                 <span>Code 模式</span>

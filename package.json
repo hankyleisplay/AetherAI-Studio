@@ -1,6 +1,6 @@
 {
   "name": "@hankyleisplay/aetherai-studio",
-  "version": "3.6.2",
+  "version": "3.6.3",
   "description": "Aether AI Studio 3.5 (AetherAgent) - Next-Gen Desktop Autonomous AI Agent System with Real-Time Inference HUD, Live Code Canvas Sandbox, Cognitive Reasoning Modes, OCR Vision, Multi-Agent Swarm & 22 Enterprise Tools",
   "main": "cli.js",
   "bin": {
