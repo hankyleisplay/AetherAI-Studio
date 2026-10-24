@@ -38,8 +38,8 @@ def get_effective_workspace_dir(project_name: Optional[str] = None) -> Path:
 
 
 class Settings(BaseModel):
-    app_name: str = "Aether AI Studio 3.7.0 (AetherAgent)"
-    version: str = "3.7.0"
+    app_name: str = "Aether AI Studio 3.7.1 (AetherAgent)"
+    version: str = "3.7.1"
     host: str = "0.0.0.0"
     port: int = 8000
     base_workspace_dir: Path = WORKSPACE_DIR

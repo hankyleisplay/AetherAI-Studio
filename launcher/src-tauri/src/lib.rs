@@ -6,9 +6,68 @@ use serde::{Deserialize, Serialize};
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
 
-const CURRENT_VERSION: &str = "3.6.3";
+const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+
+#[derive(Serialize, Deserialize, Debug, Default, Clone)]
+pub struct LauncherConfig {
+    pub custom_project_path: Option<String>,
+}
+
+fn get_config_path() -> PathBuf {
+    let home = env::var("USERPROFILE").unwrap_or_else(|_| ".".to_string());
+    PathBuf::from(home).join(".aether").join("launcher_config.json")
+}
+
+fn load_launcher_config() -> LauncherConfig {
+    let path = get_config_path();
+    if path.exists() {
+        if let Ok(content) = std::fs::read_to_string(&path) {
+            if let Ok(cfg) = serde_json::from_str::<LauncherConfig>(&content) {
+                return cfg;
+            }
+        }
+    }
+    LauncherConfig::default()
+}
+
+fn save_launcher_config(cfg: &LauncherConfig) {
+    let path = get_config_path();
+    if let Some(parent) = path.parent() {
+        let _ = std::fs::create_dir_all(parent);
+    }
+    if let Ok(content) = serde_json::to_string_pretty(cfg) {
+        let _ = std::fs::write(&path, content);
+    }
+}
+
+pub fn parse_semver(v: &str) -> (u32, u32, u32) {
+    let clean = v.trim().trim_start_matches(|c| c == 'v' || c == 'V');
+    let parts: Vec<&str> = clean.split(|c: char| c == '.' || c == '-' || c == '+').collect();
+    let major = parts.first().and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+    let minor = parts.get(1).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+    let patch = parts.get(2).and_then(|s| s.parse::<u32>().ok()).unwrap_or(0);
+    (major, minor, patch)
+}
+
+pub fn is_newer_version(remote: &str, local: &str) -> bool {
+    parse_semver(remote) > parse_semver(local)
+}
+
+fn get_project_version(project_dir: &Path) -> Option<String> {
+    let pkg_file = project_dir.join("package.json");
+    if pkg_file.exists() {
+        if let Ok(content) = std::fs::read_to_string(&pkg_file) {
+            if let Ok(val) = serde_json::from_str::<serde_json::Value>(&content) {
+                if let Some(v) = val.get("version").and_then(|v| v.as_str()) {
+                    return Some(v.trim().to_string());
+                }
+            }
+        }
+    }
+    None
+}
 
 #[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct SystemInfo {
@@ -35,19 +94,32 @@ pub struct UpdateResult {
 
 fn cleanup_old_launcher() {
     if let Ok(exe_path) = env::current_exe() {
-        let backup_exe = exe_path.with_extension("exe.bak");
-        if backup_exe.exists() {
-            let _ = std::fs::remove_file(backup_exe);
-        }
-        let temp_exe = exe_path.with_extension("exe.new");
-        if temp_exe.exists() {
-            let _ = std::fs::remove_file(temp_exe);
+        if let Some(parent) = exe_path.parent() {
+            if let Ok(entries) = std::fs::read_dir(parent) {
+                for entry in entries.flatten() {
+                    let path = entry.path();
+                    if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if name.ends_with(".exe.bak") || name.contains(".exe.old.") || name.ends_with(".exe.new") {
+                            let _ = std::fs::remove_file(&path);
+                        }
+                    }
+                }
+            }
         }
     }
 }
 
 pub fn get_default_install_dir() -> PathBuf {
-    // If executable is located in a dedicated custom directory (not Downloads/Desktop/Temp), install in or alongside it
+    // 0. If custom project path exists in config
+    let cfg = load_launcher_config();
+    if let Some(ref custom_path) = cfg.custom_project_path {
+        let p = PathBuf::from(custom_path);
+        if p.exists() {
+            return p;
+        }
+    }
+
+    // 1. If executable is located in a dedicated custom directory (not Downloads/Desktop/Temp), install in or alongside it
     if let Ok(exe_path) = env::current_exe() {
         if let Some(parent) = exe_path.parent() {
             let parent_str = parent.to_string_lossy().to_lowercase();
@@ -65,6 +137,15 @@ pub fn get_default_install_dir() -> PathBuf {
 }
 
 fn find_project_root() -> Option<PathBuf> {
+    // 0. Saved custom project path
+    let cfg = load_launcher_config();
+    if let Some(ref custom_path) = cfg.custom_project_path {
+        let p = PathBuf::from(custom_path);
+        if p.join("start.py").exists() {
+            return Some(p);
+        }
+    }
+
     // 1. Current working directory
     if let Ok(cwd) = env::current_dir() {
         if cwd.join("start.py").exists() {
@@ -103,7 +184,7 @@ fn find_project_root() -> Option<PathBuf> {
         }
     }
 
-    // 3. Known and standard installation paths
+    // 3. Known user home candidate paths
     let home = env::var("USERPROFILE").unwrap_or_default();
     let candidates = [
         format!(r"{}\AetherAI-Studio", home),
@@ -111,15 +192,28 @@ fn find_project_root() -> Option<PathBuf> {
         format!(r"{}\Documents\AetherAI-Studio", home),
         format!(r"{}\Desktop\AetherAI-Studio", home),
         format!(r"{}\Downloads\AetherAI-Studio", home),
-        r"C:\AetherAI-Studio".to_string(),
-        r"D:\AetherAI-Studio".to_string(),
-        r"E:\AetherAI-Studio".to_string(),
     ];
 
     for candidate in &candidates {
         let p = Path::new(candidate);
         if p.join("start.py").exists() {
             return Some(p.to_path_buf());
+        }
+    }
+
+    // 4. Scan all drive roots (C: to Z:) to cover mapped network drives and external SSDs
+    for drive in b'C'..=b'Z' {
+        let drive_char = drive as char;
+        let drive_candidates = [
+            format!(r"{}:\AetherAI-Studio", drive_char),
+            format!(r"{}:\Project\AetherAI-Studio", drive_char),
+            format!(r"{}:\Projects\AetherAI-Studio", drive_char),
+        ];
+        for candidate in &drive_candidates {
+            let p = Path::new(candidate);
+            if p.join("start.py").exists() {
+                return Some(p.to_path_buf());
+            }
         }
     }
 
@@ -214,11 +308,17 @@ fn get_system_info() -> SystemInfo {
 
 #[tauri::command]
 fn check_update() -> UpdateResult {
+    let project_root = find_project_root();
+    let project_ver = project_root
+        .as_ref()
+        .and_then(|p| get_project_version(p))
+        .unwrap_or_else(|| CURRENT_VERSION.to_string());
+
     let mut result = UpdateResult {
         has_update: false,
         current_version: CURRENT_VERSION.to_string(),
         latest_version: CURRENT_VERSION.to_string(),
-        release_name: "Aether AI Studio 3.5 (Official Release)".to_string(),
+        release_name: format!("Aether AI Studio {} (Official Release)", CURRENT_VERSION),
         release_notes: "".to_string(),
         published_at: "".to_string(),
         html_url: "https://github.com/hankyleisplay/AetherAI-Studio/releases".to_string(),
@@ -226,10 +326,12 @@ fn check_update() -> UpdateResult {
         error: None,
     };
 
+    let mut remote_launcher_url = None;
+
     // 1. Query GitHub Releases API
     let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
     let resp = ureq::get(api_url)
-        .set("User-Agent", "AetherLauncher-v3.5")
+        .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
         .set("Accept", "application/vnd.github.v3+json")
         .timeout(std::time::Duration::from_secs(6))
         .call();
@@ -259,7 +361,7 @@ fn check_update() -> UpdateResult {
                             if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
                                 if name == "AetherLauncher.exe" {
                                     if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
-                                        result.launcher_download_url = Some(url.to_string());
+                                        remote_launcher_url = Some(url.to_string());
                                         break;
                                     }
                                 }
@@ -267,9 +369,15 @@ fn check_update() -> UpdateResult {
                         }
                     }
 
-                    if clean_tag != CURRENT_VERSION && clean_tag > CURRENT_VERSION {
+                    let launcher_has_update = is_newer_version(clean_tag, CURRENT_VERSION);
+                    let project_has_update = is_newer_version(clean_tag, &project_ver);
+
+                    if launcher_has_update {
                         result.has_update = true;
-                        return result;
+                        result.launcher_download_url = remote_launcher_url.clone();
+                    } else if project_has_update {
+                        result.has_update = true;
+                        // Launcher itself is already latest; do NOT force downloading launcher unless requested
                     }
                 }
             }
@@ -280,33 +388,31 @@ fn check_update() -> UpdateResult {
     }
 
     // 2. Local Git repository check (if git clone was used)
-    if let Some(project_path) = find_project_root() {
+    if let Some(ref project_path) = project_root {
         let git_dir = project_path.join(".git");
         if git_dir.exists() {
             let mut fetch_cmd = Command::new("git");
-            fetch_cmd.args(["fetch", "origin", "main"])
-                .current_dir(&project_path);
+            fetch_cmd.args(["fetch", "origin", "main"]).current_dir(project_path);
             #[cfg(windows)]
             fetch_cmd.creation_flags(CREATE_NO_WINDOW);
 
             if let Ok(fetch_out) = fetch_cmd.output() {
                 if fetch_out.status.success() {
-                    let mut local_cmd = Command::new("git");
-                    local_cmd.args(["rev-parse", "HEAD"]).current_dir(&project_path);
+                    let mut rev_cmd = Command::new("git");
+                    rev_cmd.args(["rev-list", "--count", "HEAD..origin/main"]).current_dir(project_path);
                     #[cfg(windows)]
-                    local_cmd.creation_flags(CREATE_NO_WINDOW);
+                    rev_cmd.creation_flags(CREATE_NO_WINDOW);
 
-                    let mut remote_cmd = Command::new("git");
-                    remote_cmd.args(["rev-parse", "origin/main"]).current_dir(&project_path);
-                    #[cfg(windows)]
-                    remote_cmd.creation_flags(CREATE_NO_WINDOW);
-
-                    let local_hash = local_cmd.output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-                    let remote_hash = remote_cmd.output().ok().map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string()).unwrap_or_default();
-
-                    if !local_hash.is_empty() && !remote_hash.is_empty() && local_hash != remote_hash {
-                        result.has_update = true;
-                        result.release_name = "檢測到主分支倉庫有最新程式碼更新".to_string();
+                    if let Ok(rev_out) = rev_cmd.output() {
+                        let count_str = String::from_utf8_lossy(&rev_out.stdout).trim().to_string();
+                        if let Ok(count) = count_str.parse::<u32>() {
+                            if count > 0 {
+                                result.has_update = true;
+                                if !is_newer_version(&result.latest_version, CURRENT_VERSION) {
+                                    result.release_name = format!("檢測到主分支倉庫有 {} 個最新提交尚未拉取", count);
+                                }
+                            }
+                        }
                     }
                 }
             }
@@ -470,6 +576,18 @@ fn install_python() -> Result<String, String> {
 }
 
 #[tauri::command]
+fn select_custom_project_dir(path: String) -> Result<String, String> {
+    let p = PathBuf::from(&path);
+    if !p.join("start.py").exists() {
+        return Err("所選目錄未包含 start.py，並非有效的 Aether AI Studio 專案目錄。".to_string());
+    }
+    let mut cfg = load_launcher_config();
+    cfg.custom_project_path = Some(path.clone());
+    save_launcher_config(&cfg);
+    Ok(format!("已成功設定並儲存專案目錄: {}", path))
+}
+
+#[tauri::command]
 fn apply_update() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -483,11 +601,25 @@ fn apply_update() -> Result<String, String> {
         fetch_cmd.args(["fetch", "origin", "main"]).current_dir(&project_dir);
         #[cfg(windows)]
         fetch_cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = fetch_cmd.output();
+
+        let fetch_res = fetch_cmd.output();
+        let fetch_ok = fetch_res.as_ref().map(|o| o.status.success()).unwrap_or(false);
+
+        if !fetch_ok {
+            // Try fetching origin generally
+            let mut fetch_all = Command::new("git");
+            fetch_all.args(["fetch", "origin"]).current_dir(&project_dir);
+            #[cfg(windows)]
+            fetch_all.creation_flags(CREATE_NO_WINDOW);
+            let fetch_all_ok = fetch_all.output().map(|o| o.status.success()).unwrap_or(false);
+            if !fetch_all_ok {
+                return Err("無法從 GitHub 遠端獲取更新，請檢查網路連線或 GitHub 存取權限。".to_string());
+            }
+        }
 
         // 2. Stash any local working directory modifications so merge never aborts
         let mut stash_cmd = Command::new("git");
-        stash_cmd.args(["stash"]).current_dir(&project_dir);
+        stash_cmd.args(["stash", "--include-untracked"]).current_dir(&project_dir);
         #[cfg(windows)]
         stash_cmd.creation_flags(CREATE_NO_WINDOW);
         let _ = stash_cmd.output();
@@ -509,7 +641,10 @@ fn apply_update() -> Result<String, String> {
             reset_cmd.args(["reset", "--hard", "origin/main"]).current_dir(&project_dir);
             #[cfg(windows)]
             reset_cmd.creation_flags(CREATE_NO_WINDOW);
-            let _ = reset_cmd.output();
+            let reset_ok = reset_cmd.output().map(|o| o.status.success()).unwrap_or(false);
+            if !reset_ok {
+                return Err("更新合併失敗，請手動執行 git pull 或備份修改後重試。".to_string());
+            }
         }
 
         // 4. Update python dependencies in case requirements changed
@@ -524,7 +659,7 @@ fn apply_update() -> Result<String, String> {
                 } else {
                     Command::new(&python_bin)
                 };
-                pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy()]);
+                pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy(), "--quiet"]);
                 pip_cmd.current_dir(&project_dir);
                 #[cfg(windows)]
                 pip_cmd.creation_flags(CREATE_NO_WINDOW);
@@ -539,7 +674,7 @@ fn apply_update() -> Result<String, String> {
         let _ = std::fs::remove_dir_all(&cache_dir);
         let _ = std::fs::remove_dir_all(&code_cache_dir);
 
-        Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件！".to_string())
+        Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！".to_string())
     } else {
         // Non-git installation: download and update files directly
         download_and_extract_repo(&project_dir)?;
@@ -555,7 +690,7 @@ fn apply_update() -> Result<String, String> {
 fn get_latest_launcher_url() -> Result<String, String> {
     let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
     let resp = ureq::get(api_url)
-        .set("User-Agent", "AetherLauncher-v3.5")
+        .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
         .set("Accept", "application/vnd.github.v3+json")
         .timeout(std::time::Duration::from_secs(8))
         .call()
@@ -619,11 +754,13 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
         return Err("下載之檔案大小異常，已取消更新。".to_string());
     }
 
-    // 2. Rename current running exe to .bak
-    let backup_exe = current_exe.with_extension("exe.bak");
-    if backup_exe.exists() {
-        let _ = std::fs::remove_file(&backup_exe);
-    }
+    // 2. Generate unique timestamped backup name to prevent collision
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let backup_exe = current_exe.with_extension(format!("exe.old.{}", timestamp));
+
     std::fs::rename(&current_exe, &backup_exe)
         .map_err(|e| format!("備份現有啟動器失敗 (可能被鎖定): {}", e))?;
 
@@ -633,19 +770,22 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
         return Err(format!("替換新版啟動器失敗: {}", e));
     }
 
-    // 4. Spawn the new exe
+    // 4. Spawn the new exe (NO CREATE_NO_WINDOW so the GUI window renders immediately)
     let mut cmd = Command::new(&current_exe);
     if let Some(parent) = current_exe.parent() {
         cmd.current_dir(parent);
     }
     #[cfg(windows)]
-    cmd.creation_flags(CREATE_NO_WINDOW);
+    {
+        const CREATE_NEW_PROCESS_GROUP: u32 = 0x00000200;
+        cmd.creation_flags(CREATE_NEW_PROCESS_GROUP);
+    }
 
     cmd.spawn().map_err(|e| format!("重新啟動新版啟動器失敗: {}", e))?;
 
     // 5. Exit the current process after short delay
     std::thread::spawn(|| {
-        std::thread::sleep(std::time::Duration::from_millis(500));
+        std::thread::sleep(std::time::Duration::from_millis(300));
         std::process::exit(0);
     });
 
@@ -753,7 +893,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "desktop" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.6.3 [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
+                "chcp 65001 >nul & title Aether AI Studio {} [原生桌面服務 - Port {}] & {} start.py --port {} --desktop{}",
+                CURRENT_VERSION,
                 port_str,
                 quoted_python,
                 port_str,
@@ -781,7 +922,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "cli" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.6.3 [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
+                "chcp 65001 >nul & title Aether AI Studio {} [CLI 伺服器 - Port {}] & {} start.py --port {} --no-browser{}",
+                CURRENT_VERSION,
                 port_str,
                 quoted_python,
                 port_str,
@@ -809,7 +951,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         "browser" => {
             let low_spec_arg = if low_spec { " --low-spec" } else { "" };
             let exec_cmd = format!(
-                "chcp 65001 >nul & title Aether AI Studio 3.6.3 [網頁伺服器 - Port {}] & {} start.py --port {}{}",
+                "chcp 65001 >nul & title Aether AI Studio {} [網頁伺服器 - Port {}] & {} start.py --port {}{}",
+                CURRENT_VERSION,
                 port_str,
                 quoted_python,
                 port_str,
@@ -884,7 +1027,7 @@ $s.Save();"#,
     match cmd.output() {
         Ok(output) => {
             if output.status.success() {
-                Ok("⭐ 成功在您的 Windows 桌面建立「Aether AI Studio 3.5」捷徑！".to_string())
+                Ok(format!("⭐ 成功在您的 Windows 桌面建立「Aether AI Studio {}」捷徑！", CURRENT_VERSION))
             } else {
                 Err(format!("建立捷徑失敗: {}", String::from_utf8_lossy(&output.stderr)))
             }
@@ -930,7 +1073,8 @@ fn run_health_check() -> Result<String, String> {
     };
 
     let exec_cmd = format!(
-        "chcp 65001 >nul & title Aether AI Studio 3.6.3 [系統檢測] & {} test_backend.py & pause",
+        "chcp 65001 >nul & title Aether AI Studio {} [系統檢測] & {} test_backend.py & pause",
+        CURRENT_VERSION,
         python_bin
     );
 
@@ -966,6 +1110,7 @@ pub fn run() {
             check_update,
             apply_update,
             self_update_launcher,
+            select_custom_project_dir,
             close_all_instances,
             launch_mode,
             create_desktop_shortcut,
