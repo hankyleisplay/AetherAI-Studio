@@ -25,7 +25,8 @@ export const App: React.FC = () => {
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
   const [settingsTab, setSettingsTab] = useState<'model' | 'telegram' | 'tools'>('model');
-  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+  // On phones the sidebar is a full-screen overlay, so start closed there
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => typeof window === 'undefined' || window.innerWidth >= 768);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
   const [isWorkspaceDrawerOpen, setIsWorkspaceDrawerOpen] = useState<boolean>(false);
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);

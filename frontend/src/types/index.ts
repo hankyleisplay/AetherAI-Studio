@@ -15,7 +15,8 @@ export interface ToolCall {
 }
 
 export interface ToolDisplay {
-  kind?: 'diff' | 'command' | 'todos';
+  kind?: 'diff' | 'command' | 'todos' | 'action';
+  text?: string;
   path?: string;
   diff?: string;
   added?: number;

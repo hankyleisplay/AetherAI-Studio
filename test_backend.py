@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.0 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.0.1 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "4.0.0"
+            assert res.json()["version"] == "4.0.1"
 
 
 
@@ -449,7 +449,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.0.0" in res.text
+            assert "Aether AI Studio 4.0.1" in res.text
 
 
 
@@ -540,6 +540,17 @@ async def run_tests():
             assert edit_res.ok and edit_res.display["kind"] == "diff"
             assert not code_agent.tools.execute("read_file", {"path": "../../app/config.py"}).ok
             code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "Hi from", "new_string": "Hello from"})
+            # Whitespace-tolerant edit, alias names, string booleans, and the definition-removal guard
+            assert {"multi_edit", "delete_path", "move_path", "git", "check_syntax", "web_fetch", "web_search"} <= tool_names
+            assert code_agent.tools.execute("cat", {"file_path": "main.py"}).ok
+            flex = code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "def main():\n  print(\"Hello from", "new_string": "def main():\n  print(\"Hey from", "replace_all": "false"})
+            assert flex.ok and '    print("Hey from' in (code_agent.root / "main.py").read_text(encoding="utf-8")
+            code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "Hey from", "new_string": "Hello from"})
+            guard = code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "def main():", "new_string": "def run():"})
+            assert not guard.ok and "rejected" in guard.output
+            assert code_agent.tools.execute("check_syntax", {"path": "main.py"}).ok
+            cmd = code_agent.tools.execute("run_command", {"command": 'python -c "import sys; sys.exit(3)"'})
+            assert cmd.display["exit_code"] == 3
             print("14. Code agent prompt, toolset, read-before-edit and path sandbox verified successfully!")
 
             # 15. Verify Message Deletion & AI Session Title Endpoints
@@ -635,7 +646,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 4.0.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.0.1 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

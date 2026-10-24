@@ -21,7 +21,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import Any, AsyncGenerator, Dict, List, Optional
 
-from backend.app.coding.tools import CodingToolset, ToolResult, truncate_middle
+from backend.app.coding.tools import CodingToolset, ToolResult, shell_info, truncate_middle
 from backend.app.config import get_effective_workspace_dir
 from backend.app.llm.provider import ModelConfig, UnifiedLLMClient
 from backend.app.storage.database import db
@@ -29,12 +29,15 @@ from backend.app.storage.database import db
 MAX_STEPS = 50
 APPROVAL_TIMEOUT_S = 30 * 60
 KEEP_RECENT_TOOL_OUTPUTS = 6
+FAIL_STREAK_WARN = 4   # consecutive failed tool calls before the model is told to stop and re-plan
+FAIL_STREAK_STOP = 8   # ... before the turn is ended so a stuck model doesn't burn every step
 PROJECT_INSTRUCTION_FILES = ("AGENTS.md", "CLAUDE.md", ".aether.md", "AETHER.md")
 
 # Pending approvals and stop requests, shared with the HTTP endpoints
 _pending_approvals: Dict[str, asyncio.Future] = {}
 _approval_sessions: Dict[str, str] = {}
 _stop_flags: Dict[str, asyncio.Event] = {}
+_running_toolsets: Dict[str, CodingToolset] = {}
 
 
 def resolve_approval(request_id: str, approved: bool, feedback: str = "") -> bool:
@@ -50,6 +53,10 @@ def request_stop(session_id: str) -> bool:
     if not ev:
         return False
     ev.set()
+    # Abort a command that is running right now
+    ts = _running_toolsets.get(session_id)
+    if ts:
+        ts.cancel.set()
     # Unblock an approval wait so the loop can notice the stop
     for rid, sid in list(_approval_sessions.items()):
         if sid == session_id:
@@ -60,21 +67,25 @@ def request_stop(session_id: str) -> bool:
 TEXT = {
     "zh-TW": {"lang": "Reply in the language the user writes in; default to Traditional Chinese (繁體中文).",
               "max_steps": "\n\n> ⚠️ 已達單回合最多 {n} 個步驟，任務暫停。輸入「繼續」即可接著完成。",
+              "stuck": "\n\n> ⚠️ Agent 連續 {n} 次工具操作失敗，看起來卡住了，已暫停。請補充說明或換個方式描述需求後再試。",
               "stopped": "\n\n> ⏹️ 已依你的要求停止。",
               "rejected": "使用者拒絕了這個操作。",
               "empty": "（模型沒有產生回覆。）"},
     "zh-CN": {"lang": "Reply in the language the user writes in; default to Simplified Chinese (简体中文).",
               "max_steps": "\n\n> ⚠️ 已达单回合最多 {n} 个步骤，任务暂停。输入「继续」即可接着完成。",
+              "stuck": "\n\n> ⚠️ Agent 连续 {n} 次工具操作失败，看起来卡住了，已暂停。请补充说明或换个方式描述需求后再试。",
               "stopped": "\n\n> ⏹️ 已按你的要求停止。",
               "rejected": "用户拒绝了这个操作。",
               "empty": "（模型没有产生回复。）"},
     "en": {"lang": "Reply in the language the user writes in; default to English.",
            "max_steps": "\n\n> ⚠️ Reached the limit of {n} steps for one turn. Say \"continue\" to keep going.",
+           "stuck": "\n\n> ⚠️ The agent's last {n} tool calls all failed, so it looks stuck and has paused. Add details or rephrase the request and try again.",
            "stopped": "\n\n> ⏹️ Stopped as requested.",
            "rejected": "The user rejected this action.",
            "empty": "(The model returned no response.)"},
     "ja": {"lang": "Reply in the language the user writes in; default to Japanese (日本語).",
            "max_steps": "\n\n> ⚠️ 1 ターンの上限 {n} ステップに達したため一時停止しました。「続けて」と入力すると再開します。",
+           "stuck": "\n\n> ⚠️ ツール操作が {n} 回連続で失敗したため、エージェントは一時停止しました。補足説明を加えるか、依頼を言い換えて再試行してください。",
            "stopped": "\n\n> ⏹️ 指示により停止しました。",
            "rejected": "ユーザーがこの操作を拒否しました。",
            "empty": "（モデルは応答を返しませんでした。）"},
@@ -130,7 +141,7 @@ class CodingAgent:
 
     # ------------------------------------------------------------ prompt
     def _environment(self) -> str:
-        shell = "PowerShell" if platform.system() == "Windows" else "bash"
+        shell = shell_info()["name"]
         lines = [
             f"- Project root: {self.root}",
             f"- OS: {platform.system()} {platform.release()} | Shell for run_command: {shell}",
@@ -166,8 +177,9 @@ class CodingAgent:
 # How to work
 1. Understand before changing: use glob / grep / list_dir to locate the relevant code, then read_file the parts you need. Never guess file contents or APIs.
 2. For tasks with several steps, call todo_write with a short plan first and keep it updated as you go.
-3. Make focused changes with edit_file (exact string replacement). Use write_file only for new files or full rewrites. Match the surrounding code style.
-4. Verify your work: run the project's tests, build, linter or the script itself with run_command. If something fails, read the error, fix the cause and run it again.
+3. Make focused changes with edit_file (exact string replacement) or multi_edit for several changes to one file. Use write_file only for new files or full rewrites. Match the surrounding code style.
+4. Verify your work: check_syntax right after editing, then run the project's tests, build or the script itself with run_command. If something fails, read the error, fix the cause and run it again.
+   Use git (status / diff) to review what you changed; web_search and web_fetch when you need documentation.
 5. Keep going until the task is complete. When you are done, reply WITHOUT calling a tool: summarise what changed (files and why) and how you verified it. Be concise.
 
 # Rules
@@ -176,7 +188,11 @@ class CodingAgent:
 - Never print entire files back to the user; refer to file paths and lines instead.
 - Do not start servers or interactive programs with run_command; they would block until timeout.
 - Don't run destructive commands (deleting data, force-pushing, resetting git history) unless the user explicitly asked.
+- Never make tests pass by weakening, changing the expected values of, or deleting tests, or by removing existing functionality. When a test fails, fix the code under test unless the user asked you to change the test.
+- To ADD code (a new function, method or test), insert it next to the existing code: use an old_string that ends where the new code should go and repeat that text at the start of new_string. Do not replace existing definitions.
 - If a tool call keeps failing the same way, change approach instead of repeating it.
+- Call tools through the native tool interface. Only if that is unavailable, write exactly one call per block as
+  <tool_call>{{"name": "read_file", "arguments": {{"path": "src/app.py"}}}}</tool_call>
 - {MODE_GUIDANCE[self.mode]}
 - {self.text['lang']}
 
@@ -255,12 +271,18 @@ class CodingAgent:
 
     # ------------------------------------------------------------ text tool-call fallback
     _TOOL_BLOCK = re.compile(r"<tool_call>\s*(\{.*?\})\s*</tool_call>|```(?:json|tool)?\s*(\{[^`]*?\"name\"[^`]*?\})\s*```", re.S)
+    _FUNCTION_TAG = re.compile(r"<function=([\w.-]+)>\s*(\{.*?\})\s*</function>", re.S)
 
     def _parse_text_tool_calls(self, text: str) -> List[Dict[str, Any]]:
         """For models without native tool calling: <tool_call>{...}</tool_call> or a fenced JSON block."""
         calls = []
-        for m in self._TOOL_BLOCK.finditer(text or ""):
-            raw = m.group(1) or m.group(2)
+        raws = [m.group(1) or m.group(2) for m in self._TOOL_BLOCK.finditer(text or "")]
+        for m in self._FUNCTION_TAG.finditer(text or ""):
+            raws.append(json.dumps({"name": m.group(1), "arguments": m.group(2)}))
+        stripped = (text or "").strip()
+        if not raws and stripped.startswith("{") and stripped.endswith("}") and '"name"' in stripped:
+            raws.append(stripped)
+        for raw in raws:
             try:
                 obj = json.loads(raw)
             except Exception:
@@ -272,6 +294,7 @@ class CodingAgent:
                     args = json.loads(args)
                 except Exception:
                     args = {}
+            name = self.tools.canonical_name(str(name or ""), args)
             if name in self.tools.specs:
                 calls.append({"id": f"text_{uuid.uuid4().hex[:10]}", "name": name, "args": args})
         return calls
@@ -293,10 +316,13 @@ class CodingAgent:
 
         stop = asyncio.Event()
         _stop_flags[self.session_id] = stop
+        _running_toolsets[self.session_id] = self.tools
+        self.tools.cancel.clear()
         visible_text = ""
         thought_text = ""
         tool_records: List[Dict[str, Any]] = []
         recent_calls: List[str] = []
+        loop_state = {"fail_streak": 0}
         ended_by = "answer"
 
         if self.state.get("todos"):
@@ -357,14 +383,17 @@ class CodingAgent:
 
                 for call in step_calls:
                     holder: Dict[str, Any] = {}
-                    async for ev in self._run_tool(call, recent_calls, holder):
+                    async for ev in self._run_tool(call, recent_calls, holder, loop_state):
                         yield ev
                     tool_records.append(holder["record"])
-                    if call["name"] == "todo_write" and holder["record"]["success"]:
+                    if holder["record"]["name"] == "todo_write" and holder["record"]["success"]:
                         yield {"type": "todos", "todos": self.state.get("todos", [])}
-                    if stop.is_set():
+                    if stop.is_set() or loop_state["fail_streak"] >= FAIL_STREAK_STOP:
                         break
                 self._save()
+                if loop_state["fail_streak"] >= FAIL_STREAK_STOP:
+                    ended_by = "stuck"
+                    break
             else:
                 ended_by = "max_steps"
         except asyncio.CancelledError:
@@ -373,10 +402,13 @@ class CodingAgent:
             raise
         finally:
             _stop_flags.pop(self.session_id, None)
+            _running_toolsets.pop(self.session_id, None)
 
         notice = ""
         if ended_by == "max_steps":
             notice = self.text["max_steps"].format(n=MAX_STEPS)
+        elif ended_by == "stuck":
+            notice = self.text["stuck"].format(n=FAIL_STREAK_STOP)
         elif ended_by == "stopped":
             notice = self.text["stopped"]
         if notice:
@@ -391,11 +423,12 @@ class CodingAgent:
         yield {"type": "done", "message_id": saved["id"], "session_id": self.session_id,
                "executed_tools": len(tool_records), "content": visible_text, "thought": thought_text}
 
-    async def _run_tool(self, call: Dict[str, Any], recent_calls: List[str],
-                        out: Dict[str, Any]) -> AsyncGenerator[Dict[str, Any], None]:
+    async def _run_tool(self, call: Dict[str, Any], recent_calls: List[str], out: Dict[str, Any],
+                        loop_state: Dict[str, int]) -> AsyncGenerator[Dict[str, Any], None]:
         """Execute one tool call, yielding UI events as they happen (incl. the approval request before
         blocking on it). The UI record for the saved message is returned through `out["record"]`."""
-        name, args, call_id = call["name"], call["args"], call["id"]
+        args, call_id = call["args"], call["id"]
+        name = self.tools.canonical_name(call["name"], args)
         yield {"type": "tool_start", "id": call_id, "name": name, "args": args}
         spec = self.tools.specs.get(name)
         start = time.time()
@@ -407,7 +440,7 @@ class CodingAgent:
             _pending_approvals[request_id] = fut
             _approval_sessions[request_id] = self.session_id
             yield {"type": "approval_request", "request_id": request_id, "tool_id": call_id,
-                   "name": name, "args": args, "preview": self._preview(name, args)}
+                   "name": name, "args": args, "preview": self.tools.preview(name, args)}
             try:
                 decision = await asyncio.wait_for(fut, timeout=APPROVAL_TIMEOUT_S)
             except asyncio.TimeoutError:
@@ -430,27 +463,14 @@ class CodingAgent:
         if recent_calls[-3:] == [key] * 3:
             output_for_model += ("\n\n[Note: you have made this exact call three times in a row. "
                                  "It is not working; try a different approach or explain the blocker to the user.]")
+        loop_state["fail_streak"] = 0 if result.ok else loop_state["fail_streak"] + 1
+        if loop_state["fail_streak"] >= FAIL_STREAK_WARN:
+            output_for_model += (f"\n\n[STOP: your last {loop_state['fail_streak']} tool calls all failed. Do not retry the "
+                                 "same thing. Re-read the relevant file to see its current content, then make one "
+                                 "different, careful attempt — or, if the task is already done, give your final answer.]")
         self.transcript.append({"role": "tool", "tool_call_id": call_id, "name": name, "content": output_for_model})
 
         record = {"id": call_id, "name": name, "args": args, "output": truncate_middle(result.output, 6000),
                   "success": result.ok, "duration": round(time.time() - start, 2), "display": result.display}
         out["record"] = record
         yield {"type": "tool_result", **record}
-
-    def _preview(self, name: str, args: Dict[str, Any]) -> Dict[str, Any]:
-        """What the user sees on the approval card."""
-        if name == "run_command":
-            return {"kind": "command", "command": args.get("command", ""), "cwd": args.get("cwd", ".")}
-        path = args.get("path") or args.get("file_path") or ""
-        try:
-            p = self.tools._resolve(path)
-            rel = self.tools._rel(p)
-            old = p.read_text(encoding="utf-8", errors="replace").replace("\r\n", "\n") if p.is_file() else ""
-        except Exception:
-            rel, old = path, ""
-        if name == "edit_file":
-            o, n = args.get("old_string", ""), args.get("new_string", "")
-            new = old.replace(o, n) if args.get("replace_all") else old.replace(o, n, 1)
-        else:
-            new = (args.get("content") or "").replace("\r\n", "\n")
-        return {"kind": "diff", "path": rel, "diff": self.tools._diff(old, new, rel), "created": not old}

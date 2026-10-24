@@ -28,7 +28,12 @@ import {
   FilePlus2,
   ListTodo,
   Check,
-  X
+  X,
+  FileStack,
+  Trash2,
+  MoveRight,
+  ShieldQuestion,
+  Link2
 } from 'lucide-react';
 import { ToolCall } from '../types';
 import { useI18n } from '../i18n/I18nContext';
@@ -71,7 +76,19 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         return a.offset ? `${a.path} : ${a.offset}+` : a.path;
       case 'edit_file':
       case 'write_file':
+      case 'multi_edit':
         return d?.path || a.path;
+      case 'delete_path':
+      case 'check_syntax':
+        return a.path;
+      case 'move_path':
+        return `${a.source} → ${a.destination}`;
+      case 'git':
+        return [a.action, a.path].filter(Boolean).join(' ');
+      case 'web_fetch':
+        return a.url;
+      case 'web_search':
+        return a.query;
       case 'run_command':
         return a.command;
       case 'grep':
@@ -144,6 +161,18 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
         return <Terminal className="w-4 h-4 text-emerald-400" />;
       case 'todo_write':
         return <ListTodo className="w-4 h-4 text-violet-400" />;
+      case 'multi_edit':
+        return <FileStack className="w-4 h-4 text-amber-400" />;
+      case 'delete_path':
+        return <Trash2 className="w-4 h-4 text-rose-400" />;
+      case 'move_path':
+        return <MoveRight className="w-4 h-4 text-sky-400" />;
+      case 'git':
+        return <GitBranch className="w-4 h-4 text-orange-400" />;
+      case 'check_syntax':
+        return <ShieldQuestion className="w-4 h-4 text-teal-400" />;
+      case 'web_fetch':
+        return <Link2 className="w-4 h-4 text-sky-400" />;
       default:
         return <Wrench className="w-4 h-4 text-cyan-400" />;
     }
@@ -236,9 +265,15 @@ export const ToolCallCard: React.FC<ToolCallCardProps> = ({ tool }) => {
           <div className="text-[11px] text-amber-200/90">
             {tool.name === 'run_command'
               ? t('approval_command_prompt', 'Agent 想要執行這個指令：')
-              : t('approval_edit_prompt', 'Agent 想要修改這個檔案：')}
+              : tool.approval.preview?.kind === 'action'
+                ? t('approval_action_prompt', 'Agent 想要執行這個操作：')
+                : t('approval_edit_prompt', 'Agent 想要修改這個檔案：')}
           </div>
-          {tool.approval.preview?.kind === 'command' ? (
+          {tool.approval.preview?.kind === 'action' ? (
+            <pre className="p-2 rounded-lg bg-black/50 border border-white/10 text-amber-100 font-mono text-[11px] whitespace-pre-wrap break-all">
+              {tool.approval.preview.text}
+            </pre>
+          ) : tool.approval.preview?.kind === 'command' ? (
             <pre className="p-2 rounded-lg bg-black/50 border border-white/10 text-emerald-200 font-mono text-[11px] whitespace-pre-wrap break-all">
               {'$ ' + (tool.approval.preview.command || '')}
             </pre>

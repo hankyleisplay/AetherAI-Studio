@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { 
   Globe, 
   Code2, 
@@ -89,6 +89,38 @@ export const Header: React.FC<HeaderProps> = ({
   const langDropdownRef = useRef<HTMLDivElement>(null);
   const modelDropdownRef = useRef<HTMLDivElement>(null);
 
+  // The space the header gets depends on the sidebar, not just the window, so collapse by the header's own
+  // width: labels go first, then secondary text, then the least important buttons.
+  const headerRef = useRef<HTMLElement>(null);
+  const [headerWidth, setHeaderWidth] = useState<number>(1400);
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    // Measure before first paint so the full-width layout never flashes; RO + resize keep it current
+    const measure = () => setHeaderWidth(el.getBoundingClientRect().width);
+    measure();
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, []);
+  const showToolPills = !isSidebarOpen && headerWidth >= 1560;
+  const showButtonLabels = headerWidth >= 1180;
+  const showLangLabel = headerWidth >= 1040;
+  const showCodeBadge = mode === 'code' && headerWidth >= 960;
+  const showStateText = headerWidth >= 880;
+  const showPersonaName = headerWidth >= 760;
+  const showSecondary = headerWidth >= 680;
+  const showProvider = headerWidth >= 900;
+  const showModelName = headerWidth >= 560;
+  // The Code-mode bar under the chat already has a terminal toggle, so the header copy can go first on phones
+  const showTerminalBtn = headerWidth >= 560;
+  const showToolButton = headerWidth >= 520;
+  const modelNameMax = headerWidth >= 1180 ? 'max-w-[160px]' : headerWidth >= 900 ? 'max-w-[110px]' : 'max-w-[72px]';
+
   // Close dropdowns on click outside
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -127,28 +159,28 @@ export const Header: React.FC<HeaderProps> = ({
         return (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/40 text-xs font-medium animate-pulse shadow-[0_0_12px_rgba(168,85,247,0.3)] whitespace-nowrap shrink-0">
             <span className="w-2 h-2 rounded-full bg-purple-400 animate-ping shrink-0" />
-            {t('status_thinking', '深度思考中...')}
+            {showStateText && t('status_thinking', '深度思考中...')}
           </span>
         );
       case 'calling_tool':
         return (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs font-medium animate-pulse shadow-[0_0_12px_rgba(16,185,129,0.3)] whitespace-nowrap shrink-0">
             <Loader2 className="w-3 h-3 animate-spin text-emerald-400 shrink-0" />
-            {t('status_calling_tool', '調用工具中...')}
+            {showStateText && t('status_calling_tool', '調用工具中...')}
           </span>
         );
       case 'generating':
         return (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 text-xs font-medium shadow-[0_0_12px_rgba(0,242,254,0.3)] whitespace-nowrap shrink-0">
             <span className="w-2 h-2 rounded-full bg-cyan-400 shrink-0" />
-            {t('status_generating', '正在生成...')}
+            {showStateText && t('status_generating', '正在生成...')}
           </span>
         );
       case 'error':
         return (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/40 text-xs font-medium whitespace-nowrap shrink-0">
             <AlertCircle className="w-3 h-3 text-rose-400 shrink-0" />
-            {t('status_error', '異常中斷')}
+            {showStateText && t('status_error', '異常中斷')}
           </span>
         );
       case 'idle':
@@ -156,7 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
         return (
           <span className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/[0.05] text-slate-400 border border-white/10 text-xs font-medium whitespace-nowrap shrink-0">
             <span className="w-2 h-2 rounded-full bg-cyan-400/70 shrink-0" />
-            {t('status_idle', '就緒 (Idle)')}
+            {showStateText && t('status_idle', '就緒 (Idle)')}
           </span>
         );
     }
@@ -168,9 +200,9 @@ export const Header: React.FC<HeaderProps> = ({
     : t('default_agent_name', 'Aether 核心架構系統');
 
   return (
-    <header className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 relative z-30 shrink-0">
-      {/* Left: Sidebar Toggle & Persona Title */}
-      <div className="flex items-center gap-2 sm:gap-3 min-w-0 shrink">
+    <header ref={headerRef} className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 relative z-30 shrink-0">
+      {/* Left: Sidebar Toggle & Persona Title (clipped rather than overlapping the right group) */}
+      <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
         {!isSidebarOpen && (
           <button
             onClick={onToggleSidebar}
@@ -182,24 +214,26 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         )}
 
-        <div className="flex items-center gap-2 min-w-0 shrink">
-          <span className="text-xs font-semibold text-white/90 truncate max-w-[90px] sm:max-w-[130px] md:max-w-[180px]">
-            {displayPersonaName}
-          </span>
+        <div className="flex items-center gap-2 min-w-0">
+          {showPersonaName && (
+            <span className="text-xs font-semibold text-white/90 truncate min-w-0 max-w-[180px]" title={displayPersonaName}>
+              {displayPersonaName}
+            </span>
+          )}
           {getStateBadge()}
         </div>
 
         {/* Code Mode: Compact status badge (Click to configure project) */}
-        {mode === 'code' && (
+        {showCodeBadge && (
           <button
             type="button"
             onClick={onOpenNewProject}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-all shrink-0 ml-1 shadow-sm"
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-emerald-500/15 hover:bg-emerald-500/25 border border-emerald-500/30 text-emerald-300 text-xs font-mono transition-all min-w-0 ml-1 shadow-sm"
             title={t('code_project_settings_tooltip', '點擊設定 Code 專案與執行模式')}
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
             <span className="font-bold truncate max-w-[110px]">{activeProject || 'Root'}</span>
-            <span className="text-[10px] px-1 py-0.2 rounded bg-emerald-500/30 text-emerald-200 uppercase font-mono">{codeExecutionMode}</span>
+            <span className="text-[10px] px-1 py-0.5 rounded bg-emerald-500/30 text-emerald-200 uppercase font-mono shrink-0">{codeExecutionMode}</span>
           </button>
         )}
       </div>
@@ -207,7 +241,7 @@ export const Header: React.FC<HeaderProps> = ({
       {/* Right: Tools Switchers, Language Selector, Model Capsule & Actions */}
       <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
         {/* Code Mode: Interactive Terminal Console Button (Docked Right) */}
-        {mode === 'code' && onToggleTerminal && (
+        {mode === 'code' && onToggleTerminal && showTerminalBtn && (
           <button
             onClick={onToggleTerminal}
             className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono transition-all shadow-sm shrink-0 ${
@@ -218,12 +252,12 @@ export const Header: React.FC<HeaderProps> = ({
             title={t('terminal_title', '開啟/收合右側終端機 (Terminal)')}
           >
             <Terminal className="w-3.5 h-3.5 text-emerald-400 shrink-0" />
-            <span className="hidden sm:inline font-semibold">{t('terminal_title', '終端機')}</span>
+            {showButtonLabels && <span className="font-semibold whitespace-nowrap">{t('terminal_title', '終端機')}</span>}
             {isTerminalOpen && <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />}
           </button>
         )}
         {/* Quick Tools Toggle Pills - Only shown when sidebar is closed on ultra-wide viewports to prevent any overlap */}
-        <div className={`${isSidebarOpen ? 'hidden' : 'hidden 2xl:flex'} items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5 shrink-0`}>
+        <div className={`${showToolPills ? 'flex' : 'hidden'} items-center gap-1 p-1 rounded-xl bg-black/20 border border-white/5 shrink-0`}>
           {tools.slice(0, 4).map((tool) => (
             <button
               key={tool.name}
@@ -256,14 +290,14 @@ export const Header: React.FC<HeaderProps> = ({
         <button
           onClick={() => onOpenSettings('tools')}
           title={t('open_toolbox_tooltip', '開啟工具箱設定 (22 大工具管理)')}
-          className={`${!isSidebarOpen ? '2xl:hidden' : 'flex'} flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
+          className={`${showToolPills || !showToolButton ? 'hidden' : 'flex'} items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-mono text-slate-300 hover:text-cyan-300 border border-white/10 hover:border-cyan-400/40 transition-all shadow-sm whitespace-nowrap shrink-0`}
         >
           <Wrench className="w-3.5 h-3.5 text-amber-400 shrink-0" />
           <span className="text-xs font-semibold">{tools.filter(t => t.enabled).length}/{tools.length}</span>
         </button>
 
         {/* Hardware-Saving Eco Mode Button */}
-        {onToggleEcoMode && (
+        {onToggleEcoMode && showSecondary && (
           <button
             type="button"
             onClick={onToggleEcoMode}
@@ -275,9 +309,11 @@ export const Header: React.FC<HeaderProps> = ({
             title={isEcoMode ? t('eco_mode_on', '⚡ 節省硬體效能模式：已開啟 (點擊關閉)') : t('eco_mode_off', '⚡ 節省硬體效能模式：已關閉 (點擊開啟)')}
           >
             <Zap className={`w-3.5 h-3.5 shrink-0 ${isEcoMode ? 'text-amber-400 fill-amber-400/30' : 'text-slate-400'}`} />
-            <span className="hidden sm:inline whitespace-nowrap">
-              {isEcoMode ? t('eco_active', '節能') : t('eco_inactive', '效能')}
-            </span>
+            {showButtonLabels && (
+              <span className="whitespace-nowrap">
+                {isEcoMode ? t('eco_active', '節能') : t('eco_inactive', '效能')}
+              </span>
+            )}
           </button>
         )}
 
@@ -291,7 +327,7 @@ export const Header: React.FC<HeaderProps> = ({
             <Globe className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
             <span className="text-xs flex items-center gap-1 whitespace-nowrap">
               <span>{activeLangOption.flag}</span>
-              <span className="hidden sm:inline whitespace-nowrap">{activeLangOption.label}</span>
+              {showLangLabel && <span className="whitespace-nowrap">{activeLangOption.label}</span>}
             </span>
             <ChevronDown className={`w-3 h-3 text-slate-400 shrink-0 transition-transform duration-200 ${isLangOpen ? 'rotate-180' : ''}`} />
           </button>
@@ -335,11 +371,15 @@ export const Header: React.FC<HeaderProps> = ({
               title={t('available_models', '可用模型列表')}
             >
               <div className="w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] shrink-0" />
-              <span className="uppercase text-[10px] tracking-wider text-cyan-400 font-bold whitespace-nowrap">
-                {modelConfig.provider}
-              </span>
-              <span className="text-slate-400">/</span>
-              <span className={`font-mono truncate max-w-[85px] sm:max-w-[130px] md:max-w-[160px] ${
+              {showProvider && (
+                <>
+                  <span className="uppercase text-[10px] tracking-wider text-cyan-400 font-bold whitespace-nowrap">
+                    {modelConfig.provider}
+                  </span>
+                  <span className="text-slate-400">/</span>
+                </>
+              )}
+              <span className={`font-mono truncate ${modelNameMax} ${showModelName ? '' : 'hidden'} ${
                 modelConfig.model ? 'text-slate-200' : 'text-amber-300 font-semibold text-[11px]'
               }`}>
                 {modelConfig.model || t('no_model_selected', '未選取模型')}
@@ -436,14 +476,14 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Swarm Roundtable Debate Button */}
-        {onOpenSwarm && (
+        {onOpenSwarm && showSecondary && (
           <button
             onClick={onOpenSwarm}
             className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl glass-button text-xs font-medium text-purple-300 border border-purple-500/30 hover:border-purple-400 hover:bg-purple-500/10 transition-all shadow-sm whitespace-nowrap shrink-0"
             title={t('swarm_debate', '多智能體圓桌辯論 (Swarm)')}
           >
             <Users className="w-3.5 h-3.5 text-purple-400 shrink-0" />
-            <span className="hidden lg:inline whitespace-nowrap">{t('swarm_btn', '論辯')}</span>
+            {showButtonLabels && <span className="whitespace-nowrap">{t('swarm_btn', '論辯')}</span>}
           </button>
         )}
 
@@ -455,12 +495,12 @@ export const Header: React.FC<HeaderProps> = ({
             title={t('workspace_explorer', '工作區檔案導航')}
           >
             <FolderGit2 className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
-            <span className="hidden lg:inline whitespace-nowrap">{t('workspace_btn', '工作區')}</span>
+            {showButtonLabels && <span className="whitespace-nowrap">{t('workspace_btn', '工作區')}</span>}
           </button>
         )}
 
         {/* Export Session Button */}
-        {onExportSession && (
+        {onExportSession && showSecondary && (
           <button
             onClick={onExportSession}
             className="p-2 rounded-xl glass-button text-slate-300 hover:text-cyan-300 transition-all shrink-0"
