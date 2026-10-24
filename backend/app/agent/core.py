@@ -11,15 +11,17 @@ from backend.app.storage.database import db
 VISION_MODEL_KEYWORDS = [
     "vl", "vision", "llava", "bakllava", "qwen2.5-vl", "qwen-vl", 
     "minicpm-v", "llama3.2-vision", "moondream", "gemini", "gpt-4o", 
-    "gpt-4-vision", "claude-3"
+    "gpt-4-vision", "claude-3", "gemma4", "gemma-4", "gemma3", "gemma-3",
+    "pixtral", "internvl", "paligemma"
 ]
 
 def is_vision_model(model_name: str, provider: str = "") -> bool:
-    name = (model_name or "").lower()
-    prov = (provider or "").lower()
+    name = (model_name or "").lower().strip()
+    prov = (provider or "").lower().strip()
     if prov in ["gemini"]:
         return True
-    return any(k in name for k in VISION_MODEL_KEYWORDS)
+    base_name = name.split(":")[0]
+    return any(k in name or k in base_name for k in VISION_MODEL_KEYWORDS)
 
 class AgentOrchestrator:
     def __init__(

@@ -1,5 +1,6 @@
 import json
 import time
+import asyncio
 import httpx
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from pydantic import BaseModel
@@ -424,14 +425,18 @@ class UnifiedLLMClient:
         else:
             options["top_p"] = 0.9
             options["top_k"] = 40
-        # Explicitly configure num_ctx to prevent Ollama from defaulting to 2048/4096 tokens,
-        # which causes premature cutoff in long multi-turn sessions.
-        ctx_size = getattr(self.config, "context_window", None) or 16384
-        min_ctx = (self.config.max_tokens or 8192) + 4096
-        options["num_ctx"] = max(ctx_size, min_ctx)
+        # Smart num_ctx and num_predict management for Ollama:
+        # Default to safe 4096 or user-specified window to prevent GPU VRAM blowout
+        ctx_size = getattr(self.config, "context_window", None)
+        if ctx_size and ctx_size > 0:
+            options["num_ctx"] = ctx_size
+        else:
+            options["num_ctx"] = 4096
 
         if self.config.max_tokens:
-            options["num_predict"] = max(self.config.max_tokens, 8192)
+            options["num_predict"] = min(self.config.max_tokens, options["num_ctx"])
+        else:
+            options["num_predict"] = min(4096, options["num_ctx"])
 
         payload = {
             "model": self.config.model,
@@ -516,23 +521,76 @@ class UnifiedLLMClient:
                             break
 
                 async with client.stream("POST", url, json=payload) as response:
-                    if response.status_code != 200:
-                        err_text = await response.aread()
-                        err_str = err_text.decode('utf-8', errors='ignore')
-                        # If tools caused an error (e.g., model does not support tools), retry without tools
-                        if tools and response.status_code in (400, 500):
-                            payload_no_tools = {**payload}
-                            payload_no_tools.pop("tools", None)
-                            async with client.stream("POST", url, json=payload_no_tools) as retry_resp:
+                    if response.status_code == 200:
+                        async for c in _consume_stream(response):
+                            yield c
+                        return
+
+                    # Error handling and resilient self-healing fallback
+                    err_text = await response.aread()
+                    err_str = err_text.decode('utf-8', errors='ignore')
+                    err_lower = err_str.lower()
+
+                    is_runner_crash = any(kw in err_lower for kw in [
+                        "0xc0000409", "llama-server", "terminated", "cuda error",
+                        "ctx_other", "gemma4assistant", "failed to initialize the context",
+                        "out of memory", "buffer overrun", "shared object initialization"
+                    ])
+
+                    # Attempt self-healing retries for runner crash or 400/500 errors
+                    if is_runner_crash or response.status_code in (400, 500):
+                        if is_runner_crash:
+                            # Ollama needs time to reap the dead llama-server before accepting a new instance
+                            await asyncio.sleep(1.5)
+
+                        fallback_options = dict(options)
+                        fallback_options["num_ctx"] = min(options.get("num_ctx", 4096), 4096)
+                        fallback_options["num_predict"] = min(options.get("num_predict", 2048), 2048)
+
+                        payload_retry = {**payload, "options": fallback_options}
+                        
+                        # Retry 1: Safe context footprint
+                        try:
+                            async with client.stream("POST", url, json=payload_retry) as retry_resp:
                                 if retry_resp.status_code == 200:
                                     async for c in _consume_stream(retry_resp):
                                         yield c
                                     return
-                        yield LLMResponseChunk(type="error", content=f"Ollama Error ({response.status_code}): {err_str}")
+                        except Exception:
+                            pass
+
+                        # Retry 2: If tools were provided, strip tools and use safe context
+                        if tools:
+                            if is_runner_crash:
+                                await asyncio.sleep(1.5)
+                            payload_no_tools = {**payload_retry}
+                            payload_no_tools.pop("tools", None)
+                            try:
+                                async with client.stream("POST", url, json=payload_no_tools) as retry2_resp:
+                                    if retry2_resp.status_code == 200:
+                                        async for c in _consume_stream(retry2_resp):
+                                            yield c
+                                        return
+                            except Exception:
+                                pass
+
+                    # If all retries failed, provide user-friendly diagnostic guidance
+                    if is_runner_crash:
+                        msg = (
+                            f"❌ Ollama 顯存不足或 llama-server 執行異常 (500)。\n\n"
+                            f"【原因診斷】：模型權重過大、GPU 顯存 (VRAM) 空間不足，或上下文 (Context Window) 超出硬體限制導致 llama-server 崩潰。\n"
+                            f"【自動救援】：系統已嘗試以安全模式 (num_ctx=4096) 自動重試仍未能啟動。\n"
+                            f"【建議解法】：\n"
+                            f"1. 請至右上角「設定」將「上下文容量 (Context Window)」調小為 4096 或 2048。\n"
+                            f"2. 若為 NVIDIA RTX 50 系列顯卡 (Blackwell)，系統已自動設置 OLLAMA_FLASH_ATTENTION=false。\n"
+                            f"3. 可在終端機執行 `ollama stop {self.config.model}` 釋放顯存後重新發送。\n\n"
+                            f"原始錯誤細節：{err_str}"
+                        )
+                        yield LLMResponseChunk(type="error", content=msg)
                         return
 
-                    async for c in _consume_stream(response):
-                        yield c
+                    yield LLMResponseChunk(type="error", content=f"Ollama Error ({response.status_code}): {err_str}")
+                    return
 
             except Exception as e:
                 yield LLMResponseChunk(type="error", content=f"Ollama stream error: {str(e)}")

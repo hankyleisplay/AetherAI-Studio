@@ -1,4 +1,7 @@
 import os
+# Prevent Blackwell/RTX 50 CUDA shared object initialization failure in Ollama
+if "OLLAMA_FLASH_ATTENTION" not in os.environ:
+    os.environ["OLLAMA_FLASH_ATTENTION"] = "false"
 import json
 from pathlib import Path
 from contextlib import asynccontextmanager
@@ -335,10 +338,15 @@ async def chat_stream(request: ChatRequest):
 
     # Code Mode Context Window Expansion & Max Tokens Relaxation
     if request.mode == "code":
-        cw = active_config.context_window or 16384
-        mt = active_config.max_tokens or 8192
-        active_config.context_window = max(cw, 32768)
-        active_config.max_tokens = max(mt, 16384)
+        cw = active_config.context_window or (8192 if active_config.provider == "ollama" else 16384)
+        mt = active_config.max_tokens or 4096
+        if active_config.provider == "ollama":
+            # For local Ollama, prevent GPU VRAM exhaustion / llama-server buffer overrun
+            active_config.context_window = min(max(cw, 4096), 8192)
+            active_config.max_tokens = min(max(mt, 4096), 8192)
+        else:
+            active_config.context_window = max(cw, 32768)
+            active_config.max_tokens = max(mt, 16384)
 
     orchestrator = AgentOrchestrator(
         config=active_config,
