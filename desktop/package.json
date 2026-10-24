@@ -1,7 +1,7 @@
 {
   "name": "@hankyleisplay/aetherai-studio-desktop",
-  "version": "3.0.0",
-  "description": "AetherAI Studio 3.0 - Native Cross-Platform Desktop Client (Official Release)",
+  "version": "4.0.0",
+  "description": "AetherAI Studio 4.0 - Native Cross-Platform Desktop Client (Official Release)",
   "main": "main.js",
   "scripts": {
     "start": "electron .",
@@ -24,7 +24,7 @@
   },
   "build": {
     "appId": "com.hankyleisplay.aetherai.studio",
-    "productName": "AetherAI Studio 3.0",
+    "productName": "AetherAI Studio 4.0",
     "directories": {
       "output": "dist-electron"
     },

@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul 2>&1
-title Aether AI Studio 3.5
+title Aether AI Studio 4.0
 
 if not "%~1"=="" (
     powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0run.ps1" %*
@@ -10,7 +10,7 @@ if not "%~1"=="" (
 
 cls
 echo ==============================================================
-echo          Aether AI Studio 3.5 (Official Release)
+echo          Aether AI Studio 4.0 (Official Release)
 echo    Liquid Glass 3.5 - Next-Gen Desktop Autonomous AI Agent
 echo ==============================================================
 echo.

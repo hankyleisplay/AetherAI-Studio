@@ -1,4 +1,4 @@
-// Aether AI Studio 3.5 - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode, Launcher Self-Update & Full i18n
+// Aether AI Studio 4.0 - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode, Launcher Self-Update & Full i18n
 
 const I18N = {
   "zh-TW": {
@@ -20,11 +20,11 @@ const I18N = {
     update_failed: "更新失敗: ",
     update_error_title: "離線或更新檢查略過",
     install_tag: "自動安裝精靈 (Setup Wizard)",
-    install_title: "一鍵自動安裝 Aether AI Studio 3.5",
+    install_title: "一鍵自動安裝 Aether AI Studio 4.0",
     install_desc: "尚未偵測到核心系統。點擊按鈕將自動從官方 GitHub 下載核心檔案、自動配置 Python 相依套件並建立桌面捷徑！",
     btn_install_now: "⚡ 一鍵自動安裝與配置",
     btn_installing: "⏳ 正在自動下載核心檔案與安裝依賴套件 (請稍候)...",
-    install_success: "🎉 Aether AI Studio 3.5 核心檔案與相依套件已自動安裝完成！",
+    install_success: "🎉 Aether AI Studio 4.0 核心檔案與相依套件已自動安裝完成！",
     install_failed: "安裝失敗: ",
     confirm_install: "尚未安裝 Aether AI Studio 核心檔案，是否立即執行一鍵自動安裝？",
     btn_retry: "重試",
@@ -65,7 +65,7 @@ const I18N = {
     footer_update_launcher: "🚀 自動更新啟動器",
     footer_health_check: "🩺 環境健康檢查",
     footer_status_standby: "Aether AI Studio v{version} Official Release • 系統狀態：待命中",
-    shortcut_success: "⭐ 已成功在您的 Windows 桌面建立「Aether AI Studio 3.5」捷徑！",
+    shortcut_success: "⭐ 已成功在您的 Windows 桌面建立「Aether AI Studio 4.0」捷徑！",
     shortcut_fail: "建立捷徑失敗: ",
     open_folder_fail: "開啟目錄失敗: ",
     health_check_fail: "啟動診斷失敗: ",
@@ -95,11 +95,11 @@ const I18N = {
     update_failed: "更新失败: ",
     update_error_title: "离线或更新检查略过",
     install_tag: "自动安装精灵 (Setup Wizard)",
-    install_title: "一键自动安装 Aether AI Studio 3.5",
+    install_title: "一键自动安装 Aether AI Studio 4.0",
     install_desc: "尚未检测到核心系统。点击按钮将自动从官方 GitHub 下载核心文件、配置 Python 依赖并创建桌面快捷方式！",
     btn_install_now: "⚡ 一键自动安装与配置",
     btn_installing: "⏳ 正在自动下载核心文件与安装依赖包 (请稍候)...",
-    install_success: "🎉 Aether AI Studio 3.5 核心文件与依赖包已自动安装完成！",
+    install_success: "🎉 Aether AI Studio 4.0 核心文件与依赖包已自动安装完成！",
     install_failed: "安装失败: ",
     confirm_install: "尚未安装 Aether AI Studio 核心文件，是否立即执行一键自动安装？",
     btn_retry: "重试",
@@ -140,7 +140,7 @@ const I18N = {
     footer_update_launcher: "🚀 自动更新启动器",
     footer_health_check: "🩺 环境健康检查",
     footer_status_standby: "Aether AI Studio v{version} Official Release • 系统状态：待命中",
-    shortcut_success: "⭐ 已成功在您的 Windows 桌面创建「Aether AI Studio 3.5」快捷方式！",
+    shortcut_success: "⭐ 已成功在您的 Windows 桌面创建「Aether AI Studio 4.0」快捷方式！",
     shortcut_fail: "创建快捷方式失败: ",
     open_folder_fail: "打开目录失败: ",
     health_check_fail: "启动诊断失败: ",
@@ -170,11 +170,11 @@ const I18N = {
     update_failed: "Update failed: ",
     update_error_title: "Offline or update check skipped",
     install_tag: "Setup Wizard",
-    install_title: "One-Click Install Aether AI Studio 3.5",
+    install_title: "One-Click Install Aether AI Studio 4.0",
     install_desc: "Core system not detected. Click below to automatically download core files from GitHub, configure Python dependencies, and create desktop shortcut!",
     btn_install_now: "⚡ One-Click Auto Install",
     btn_installing: "⏳ Downloading core files & installing dependencies (Please wait)...",
-    install_success: "🎉 Aether AI Studio 3.5 core files and dependencies installed successfully!",
+    install_success: "🎉 Aether AI Studio 4.0 core files and dependencies installed successfully!",
     install_failed: "Installation failed: ",
     confirm_install: "Core files not found. Would you like to run one-click auto installation now?",
     btn_retry: "Retry",
@@ -215,7 +215,7 @@ const I18N = {
     footer_update_launcher: "🚀 Update Launcher",
     footer_health_check: "🩺 System Health Check",
     footer_status_standby: "Aether AI Studio v{version} Official Release • Status: Standby",
-    shortcut_success: "⭐ Successfully created 'Aether AI Studio 3.5' shortcut on Desktop!",
+    shortcut_success: "⭐ Successfully created 'Aether AI Studio 4.0' shortcut on Desktop!",
     shortcut_fail: "Failed to create shortcut: ",
     open_folder_fail: "Failed to open folder: ",
     health_check_fail: "Failed to launch health check: ",
@@ -244,11 +244,11 @@ const I18N = {
     update_failed: "更新失敗: ",
     update_error_title: "オフラインまたは更新チェックをスキップ",
     install_tag: "セットアップウィザード",
-    install_title: "Aether AI Studio 3.5 ワンクリック自動インストール",
+    install_title: "Aether AI Studio 4.0 ワンクリック自動インストール",
     install_desc: "コアシステムが検出されません。ボタンをクリックするとGitHubから自動ダウンロードし、Python環境とショートカットを設定します！",
     btn_install_now: "⚡ ワンクリック自動インストール",
     btn_installing: "⏳ コアファイルをダウンロードし依存関係をインストール中...",
-    install_success: "🎉 Aether AI Studio 3.5 のインストールが完了しました！",
+    install_success: "🎉 Aether AI Studio 4.0 のインストールが完了しました！",
     install_failed: "インストール失敗: ",
     confirm_install: "コアファイルが見つかりません。今すぐワンクリック自動インストールを実行しますか？",
     btn_retry: "再試行",
@@ -291,7 +291,7 @@ const I18N = {
     footer_update_launcher: "🚀 起動ツール更新",
     footer_health_check: "🩺 システム健全性診断",
     footer_status_standby: "Aether AI Studio v{version} Official Release • 状態：待機中",
-    shortcut_success: "⭐ デスクトップに「Aether AI Studio 3.5」ショートカットを作成しました！",
+    shortcut_success: "⭐ デスクトップに「Aether AI Studio 4.0」ショートカットを作成しました！",
     shortcut_fail: "ショートカット作成失敗: ",
     open_folder_fail: "フォルダを開けませんでした: ",
     health_check_fail: "診断の起動に失敗しました: ",
@@ -696,7 +696,7 @@ function renderUpdateResult(res) {
   } else {
     updateBanner.className = "update-banner state-latest";
     updateIcon.textContent = "✅";
-    const curVer = res?.current_version || "3.7.5";
+    const curVer = res?.current_version || "4.0.0";
     updateTitle.textContent = t("update_latest_title", { version: curVer });
     updateDesc.textContent = t("update_latest_desc");
 

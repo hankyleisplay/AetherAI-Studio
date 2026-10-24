@@ -117,7 +117,7 @@ class AgentOrchestrator:
         self.project = project
         self.code_execution_mode = code_execution_mode
         self.language = language if language in BACKEND_MESSAGES else "zh-TW"
-        self.max_iterations = 8 if mode == "code" else 6
+        self.max_iterations = 6
 
     def _msg(self, key: str) -> str:
         return BACKEND_MESSAGES.get(self.language, BACKEND_MESSAGES["zh-TW"])[key]
@@ -154,7 +154,7 @@ class AgentOrchestrator:
         if persona:
             base_prompt = persona.get("system_prompt", "")
         else:
-            base_prompt = "你是 Aether AI Studio 3.0 (AetherAgent) 智能助理。"
+            base_prompt = "你是 Aether AI Studio 4.0 (AetherAgent) 智能助理。"
 
         developer_identity = (
             "### 開發者與身分認證 (Developer Identity & Authorship):\n"
@@ -262,38 +262,8 @@ class AgentOrchestrator:
             "- 讓解說親切生動、結構躍然紙上，兼具頂尖專業工程深度與活潑互動體驗。\n\n"
         )
 
+        # Code mode is handled by backend.app.coding.agent.CodingAgent
         code_mode_directive = ""
-        if self.mode == "code":
-            proj_name = self.project or "預設工作區"
-            exec_mode = getattr(self, "code_execution_mode", "auto")
-
-            if exec_mode == "accept_edit":
-                mode_guidance = (
-                    "- 🛡️ 【當前模式：Accept Edit 模式 (代碼審查核准)】：在建立或變更任何專案程式碼檔案（如調用 file_system write/edit）或執行具變更性指令前，你【必須】先向使用者呈現即將變更的檔案路徑與清晰的 Code Diff / 變更預覽，並明確提示：『🛡️ 【代碼變更審查】：請檢視上述預計變更，是否確認接受並執行？』獲得使用者確認後才正式執行變更。\n"
-                )
-            elif exec_mode == "turbo":
-                mode_guidance = (
-                    "- ⚡ 【當前模式：Turbo 模式 (極速模式)】：專為極速代碼生成而優化。跳過冗長的思維鋪陳與多餘客套，直接輸出最高效、最簡潔且立即可用的生產級程式碼與關鍵終端命令，最大化輸出速度與 Token 吞吐量！\n"
-                )
-            else:  # auto
-                mode_guidance = (
-                    "- 🤖 【當前模式：Auto 模式 (全自動推進)】：你擁有全自動自主研發權限，請自主讀寫專案檔案、調用 bash_executor 與 python_eval 執行單元測試或指令驗證，遇到報錯自動自我閉環修正，全流程主動閉環解決任務，無需反覆詢問使用者。\n"
-                )
-
-            code_mode_directive = (
-                "### 💻 AETHER CODE AGENT (Autonomous Software Engineering & Terminal Operations):\n"
-                "你現在處於【Code 模式 (Aether Code Mode)】，這是一個專為全端軟體工程、本地模型深度編程、除錯與終端自動化打造的高階工作區模式：\n"
-                f"- 📂 專案工程基準：當前活躍專案為 '{proj_name}'，實體工作目錄為 '{project_dir}'。所有代碼編寫、檔案讀寫與指令執行均以此目錄為核心。\n"
-                f"{mode_guidance}"
-                "- 🛠️ 自主工具調用準則：\n"
-                "  * 專案代碼讀寫：優先且積極調用 `file_system` 工具（read / write / list），自主建立、分析與修改專案模組程式碼。\n"
-                "  * 終端指令與測試執行：主動調用 `bash_executor` 執行專案目錄下的編譯、套件安裝、單元測試、程式運行驗證（例如 `python main.py`、`npm test` 等）。\n"
-                "  * 數值演算與邏輯驗證：調用 `python_eval` 執行即時計算與演算法沙盒驗證。\n"
-                "  * 版本管理與代碼審查：調用 `git_version_control` 檢視檔案變更或檢查專案 Git 狀態。\n"
-                "- 📝 完整代碼輸出保證：Code 模式已全面放寬上下文視窗與 Token 輸出長度限制（Up to 32K~64K Context / 16K Output）！請永遠輸出【完整無省略】、語法正確且具備生產級強健度的完整程式碼，絕對不要使用「// 其餘代碼省略」或「...」！\n"
-                "- 🧪 自主閉環除錯：當執行代碼或測試遇到報錯時，自主分析 Stack Trace 與錯誤根因，直接修改檔案並再次執行驗證，直到程式能完美運行。\n"
-                "- 🚀 專業結構化總結：完成任務後，使用生動表情符號清楚總結變更檔案清單、核心實現邏輯、測試結果與後續維護建議。\n\n"
-            )
 
         system_instruction = (
             f"{base_prompt}\n\n"

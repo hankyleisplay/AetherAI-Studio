@@ -1,7 +1,7 @@
 @echo off
 setlocal
 chcp 65001 >nul 2>&1
-title Aether AI Studio 3.5 QuickStart
+title Aether AI Studio 4.0 QuickStart
 
 set "SCRIPT_DIR=%~dp0"
 set "PS1_FILE=%SCRIPT_DIR%quickstart.ps1"
@@ -10,19 +10,19 @@ set "PS1_FILE=%SCRIPT_DIR%quickstart.ps1"
 if not exist "%PS1_FILE%" (
     echo.
     echo ==============================================================
-    echo          Aether AI Studio 3.5 QuickStart
+    echo          Aether AI Studio 4.0 QuickStart
     echo ==============================================================
-    echo [*] 正在取得 Aether AI Studio 3.5 啟動腳本 quickstart.ps1 ...
-    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object System.Net.WebClient).DownloadFile('https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/v3.5-experimental/quickstart.ps1', '%PS1_FILE%') } catch { exit 1 }"
+    echo [*] 正在取得 Aether AI Studio 4.0 啟動腳本 quickstart.ps1 ...
+    powershell.exe -NoProfile -ExecutionPolicy Bypass -Command "[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12; try { (New-Object System.Net.WebClient).DownloadFile('https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/quickstart.ps1', '%PS1_FILE%') } catch { exit 1 }"
     if not exist "%PS1_FILE%" (
-        curl.exe -fsSL "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/v3.5-experimental/quickstart.ps1" -o "%PS1_FILE%" >nul 2>&1
+        curl.exe -fsSL "https://raw.githubusercontent.com/hankyleisplay/AetherAI-Studio/main/quickstart.ps1" -o "%PS1_FILE%" >nul 2>&1
     )
 )
 
 if not exist "%PS1_FILE%" (
     echo.
     echo [!] 無法取得 quickstart.ps1，請確認網路連線是否正常。
-    echo 或請直接至 GitHub Release 下載 AetherAI-Studio-3.5-Official-Launcher.zip 解壓縮後執行。
+    echo 或請直接至 GitHub Release 下載 AetherLauncher.exe 執行。
     echo.
     pause
     exit /b 1

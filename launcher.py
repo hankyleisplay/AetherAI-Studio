@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
-Aether AI Studio 3.5 - 官方專屬統一啟動器 (Official Standalone Launcher)
+Aether AI Studio 4.0 - 官方專屬統一啟動器 (Official Standalone Launcher)
 自動檢查更新 • 模式切換（獨立桌面版 vs 終端 CLI 版 vs 瀏覽器版） • 桌面捷徑 • 跨平台高相容
 """
 
@@ -47,7 +47,7 @@ if not (PROJECT_ROOT / "start.py").exists():
             PROJECT_ROOT = c
             break
 
-VERSION = "3.7.5"
+VERSION = "4.0.0"
 
 
 def print_banner():
@@ -79,11 +79,11 @@ def create_desktop_shortcut() -> bool:
 
         ps_code = f"""
 $desktop = [Environment]::GetFolderPath('Desktop')
-$s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Aether AI Studio 3.5.lnk")
+$s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\\Aether AI Studio 4.0.lnk")
 $s.TargetPath = '{target_path}'
 $s.Arguments = '{target_args}'
 $s.WorkingDirectory = '{PROJECT_ROOT}'
-$s.Description = 'Aether AI Studio 3.5 官方專屬啟動器'
+$s.Description = 'Aether AI Studio 4.0 官方專屬啟動器'
 $s.Save()
 """
         subprocess.run(["powershell", "-NoProfile", "-Command", ps_code], capture_output=True, check=True)
@@ -331,7 +331,7 @@ def start_gui():
     def on_create_shortcut():
         ok = create_desktop_shortcut()
         if ok:
-            messagebox.showinfo("成功", "已在您的 Windows 桌面上建立「Aether AI Studio 3.5」捷徑！")
+            messagebox.showinfo("成功", "已在您的 Windows 桌面上建立「Aether AI Studio 4.0」捷徑！")
         else:
             messagebox.showwarning("提示", "未能自動建立桌面捷徑。")
 
@@ -395,7 +395,7 @@ def start_cli_menu():
         print(f"\033[1;36m[i] {msg}\033[0m")
 
     print("\n" + "=" * 62)
-    print(" 請選擇 Aether AI Studio 3.5 啟動模式：")
+    print(" 請選擇 Aether AI Studio 4.0 啟動模式：")
     print("  [1] 🖥️  獨立原生桌面版 (Standalone Desktop App) - [推薦，沉浸無分頁干擾]")
     print("  [2] 💻  終端命令列版 (CLI Mode / Headless Server) - [即時終端輸出]")
     print("  [3] 🌐  一般瀏覽器版 (Web Browser Mode) - [開啟預設瀏覽器]")
@@ -418,7 +418,7 @@ def start_cli_menu():
         run_aether("browser")
     elif choice == "4":
         if create_desktop_shortcut():
-            print("\n\033[1;32m[✓] 已成功在您的 Windows 桌面建立「Aether AI Studio 3.5」捷徑！\033[0m\n")
+            print("\n\033[1;32m[✓] 已成功在您的 Windows 桌面建立「Aether AI Studio 4.0」捷徑！\033[0m\n")
         else:
             print("\n\033[1;31m[!] 建立捷徑失敗。\033[0m\n")
         start_cli_menu()

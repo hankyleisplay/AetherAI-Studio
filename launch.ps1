@@ -1,7 +1,7 @@
 ﻿# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
 Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 ﻿# ==========================================================================
-# Aether AI Studio 3.0 - Interactive Quickstart Launcher
+# Aether AI Studio 4.0 - Interactive Quickstart Launcher
 # ==========================================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,7 +11,7 @@ Set-Location $ScriptDir
 Clear-Host
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          Aether AI Studio 3.0 (AetherAgent) 啟動導航" -ForegroundColor Cyan
+Write-Host "          Aether AI Studio 4.0 (AetherAgent) 啟動導航" -ForegroundColor Cyan
 Write-Host "    Liquid Glass 3.0 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""

@@ -19,6 +19,7 @@ from backend.app.storage.database import db
 from backend.app.tools.registry import registry
 from backend.app.llm.provider import UnifiedLLMClient, ModelConfig
 from backend.app.agent.core import AgentOrchestrator
+from backend.app.coding.agent import CodingAgent, resolve_approval, request_stop
 from backend.app.services.telegram_bridge import telegram_bridge
 
 @asynccontextmanager
@@ -391,14 +392,41 @@ async def chat_stream(request: ChatRequest):
             active_config.context_window = max(cw, 32768)
             active_config.max_tokens = max(mt, 16384)
 
-    orchestrator = AgentOrchestrator(
-        config=active_config,
-        persona_id=request.persona_id or "assistant",
-        mode=request.mode or "chat",
-        project=request.project,
-        code_execution_mode=request.code_execution_mode or "auto",
-        language=request.language or "zh-TW"
-    )
+    if request.mode == "code":
+        # Code mode runs the dedicated autonomous coding agent (own tools, transcript and approvals)
+        coding_agent = CodingAgent(
+            config=active_config,
+            session_id=session_id,
+            project=request.project,
+            execution_mode=request.code_execution_mode or "auto",
+            language=request.language or "zh-TW"
+        )
+
+        def run_agent():
+            return coding_agent.run_stream(
+                user_prompt=request.message,
+                user_message_id=request.user_message_id,
+                assistant_message_id=request.assistant_message_id,
+                images=request.images
+            )
+    else:
+        orchestrator = AgentOrchestrator(
+            config=active_config,
+            persona_id=request.persona_id or "assistant",
+            mode=request.mode or "chat",
+            project=request.project,
+            code_execution_mode=request.code_execution_mode or "auto",
+            language=request.language or "zh-TW"
+        )
+
+        def run_agent():
+            return orchestrator.run_stream(
+                session_id=session_id,
+                user_prompt=request.message,
+                user_message_id=request.user_message_id,
+                assistant_message_id=request.assistant_message_id,
+                images=request.images
+            )
 
     async def event_generator():
         # First event sends session info
@@ -407,13 +435,7 @@ async def chat_stream(request: ChatRequest):
             "data": json.dumps({"session_id": session_id}, ensure_ascii=False)
         }
         try:
-            async for ev in orchestrator.run_stream(
-                session_id=session_id,
-                user_prompt=request.message,
-                user_message_id=request.user_message_id,
-                assistant_message_id=request.assistant_message_id,
-                images=request.images
-            ):
+            async for ev in run_agent():
                 ev_type = ev.get("type", "message")
                 yield {
                     "event": ev_type,
@@ -435,6 +457,27 @@ async def chat_stream(request: ChatRequest):
             }
 
     return EventSourceResponse(event_generator())
+
+# Code agent control: approvals (Accept Edit mode), stop, and resetting the agent's memory
+class CodeApprovalPayload(BaseModel):
+    request_id: str
+    approved: bool
+    feedback: Optional[str] = ""
+
+@app.post("/api/code/approve")
+async def code_approve(payload: CodeApprovalPayload):
+    if not resolve_approval(payload.request_id, payload.approved, payload.feedback or ""):
+        raise HTTPException(status_code=404, detail="No pending approval with this id")
+    return {"status": "ok"}
+
+@app.post("/api/code/stop/{session_id}")
+async def code_stop(session_id: str):
+    return {"status": "stopping" if request_stop(session_id) else "idle"}
+
+@app.delete("/api/code/session/{session_id}")
+async def code_reset(session_id: str):
+    db.delete_agent_session(session_id)
+    return {"status": "reset"}
 
 # Sessions Endpoints
 @app.get("/api/sessions")
@@ -550,7 +593,7 @@ async def export_session(session_id: str, format: str = "markdown"):
         ""
     ]
     for m in messages:
-        role_label = "👤 使用者" if m["role"] == "user" else "💧 Aether AI Studio 3.0 (AetherAgent)"
+        role_label = "👤 使用者" if m["role"] == "user" else "💧 Aether AI Studio 4.0 (AetherAgent)"
         lines.append(f"### {role_label}")
         if m.get("thought"):
             lines.append(f"> 💭 **思維鏈過程**:\n> {m['thought'].replace(chr(10), chr(10) + '> ')}")

@@ -189,6 +189,8 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   };
 
   const displayStatus = getLocalizedStatus(message.status_text);
+  // Live plan from the stream, or the last saved todo_write when reopening a session
+  const planTodos = message.todos ?? [...(message.tool_calls || [])].reverse().find(tc => tc.name === 'todo_write' && tc.display?.todos)?.display?.todos;
   const isAwaitingContent = isStreaming && (!message.content || !message.content.trim());
 
   return (
@@ -431,6 +433,40 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
               </div>
             )}
 
+            {/* Code agent plan */}
+            {planTodos && planTodos.length > 0 && (
+              <div className="mb-3 p-3 rounded-xl border border-violet-400/20 bg-violet-500/[0.05]">
+                <div className="flex items-center justify-between mb-1.5">
+                  <span className="text-[11px] font-semibold text-violet-200 tracking-wider uppercase">
+                    {t('code_plan_title', '執行計畫')}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    {planTodos.filter(td => td.status === 'completed').length}/{planTodos.length}
+                  </span>
+                </div>
+                <ul className="space-y-1">
+                  {planTodos.map((td, idx) => (
+                    <li key={idx} className="flex items-start gap-2 text-xs">
+                      <span className={`mt-[3px] w-3 h-3 rounded-full border shrink-0 flex items-center justify-center ${
+                        td.status === 'completed' ? 'bg-emerald-500/70 border-emerald-400'
+                        : td.status === 'in_progress' ? 'border-cyan-400 animate-pulse'
+                        : 'border-slate-500'
+                      }`}>
+                        {td.status === 'completed' && <span className="text-[8px] leading-none text-white">✓</span>}
+                      </span>
+                      <span className={
+                        td.status === 'completed' ? 'text-slate-500 line-through'
+                        : td.status === 'in_progress' ? 'text-cyan-200 font-medium'
+                        : 'text-slate-300'
+                      }>
+                        {td.content}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
             {/* Tool Calls Sequence */}
             {message.tool_calls && message.tool_calls.length > 0 && (
               <div className="mb-4 space-y-2">
@@ -438,7 +474,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping" />
                   {t('tool_execution_sequence', '智能體工具調用序列 :')}
                 </div>
-                {message.tool_calls.map((tc, idx) => (
+                {message.tool_calls.filter(tc => tc.name !== 'todo_write').map((tc, idx) => (
                   <React.Fragment key={tc.id || idx}>
                     <ToolCallCard tool={tc} />
                     {tc.name === 'generate_chart' && tc.output && (() => {
@@ -631,7 +667,10 @@ export const MessageItem = React.memo<MessageItemProps>(
     const prevTc = prev.message.tool_calls || [];
     const nextTc = next.message.tool_calls || [];
     if (prevTc.length !== nextTc.length) return false;
+    if (prev.message.todos !== next.message.todos) return false;
     for (let i = 0; i < prevTc.length; i++) {
+      if (prevTc[i].approval?.status !== nextTc[i].approval?.status) return false;
+      if (prevTc[i].display !== nextTc[i].display) return false;
       if (prevTc[i].isRunning !== nextTc[i].isRunning) return false;
       if (prevTc[i].output !== nextTc[i].output) return false;
       if (prevTc[i].success !== nextTc[i].success) return false;

@@ -1,7 +1,8 @@
-# 💧 Aether AI Studio 3.0 (AetherAgent)
+# 💧 Aether AI Studio 4.0 (AetherAgent)
 
 > **極致美感 Liquid Glass（流光水感毛玻璃 / Apple VisionOS 前瞻設計風格）本地與雲端雙模自主 AI Agent 系統。**  
-> 全新 3.0 版本升級：原生獨立桌面應用程式 (Desktop App)、Ctrl+V 貼上/拖曳圖片多模態視覺識別、雙軌視覺路由 (Dual-Track Vision Routing)、Windows 本機 OCR 引擎、22 大智慧工具鏈與跨平台免安裝一鍵啟動。
+> 全新 4.0 版本升級：全面重構的自主編程 Agent（Code 模式：精準編輯、程式碼搜尋、跨回合記憶、Accept Edit 真實審核關卡）、硬體效能評估、生成速度大幅優化。
+> 既有功能：原生獨立桌面應用程式 (Desktop App)、Ctrl+V 貼上/拖曳圖片多模態視覺識別、雙軌視覺路由 (Dual-Track Vision Routing)、Windows 本機 OCR 引擎、22 大智慧工具鏈與跨平台免安裝一鍵啟動。
 
 ---
 
@@ -104,7 +105,7 @@ cd AetherAI-Studio
 
 ### 2. 🖥️ 原生獨立桌面版 (Native Desktop App)
 * 透過原生視窗引擎獨立運行，擺脫瀏覽器分頁干擾。
-* 隨附 `create_desktop_shortcut.bat` 一鍵在 Windows 桌面生成 Aether AI Studio 3.0 專屬圖示捷徑。
+* 隨附 `create_desktop_shortcut.bat` 一鍵在 Windows 桌面生成 Aether AI Studio 4.0 專屬圖示捷徑。
 
 ### 3. 🌊 Liquid Glass 3.0 水感極致美學 (Liquid Glass Aesthetics)
 * **動態流體光球反應（Adaptive Ambient Fluid）**：背景光暈球依據 Agent 當前運作狀態即時變幻色彩與脈動律動：

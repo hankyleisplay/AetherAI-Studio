@@ -3,7 +3,7 @@ set -e
 cd "$(dirname "$0")"
 
 echo "=============================================================="
-echo "          Aether AI Studio 3.0 (AetherAgent) 系統更新程式"
+echo "          Aether AI Studio 4.0 (AetherAgent) 系統更新程式"
 echo "=============================================================="
 echo ""
 

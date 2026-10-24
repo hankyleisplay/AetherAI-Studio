@@ -546,7 +546,7 @@ fn install_or_repair_core(target_path: Option<String>) -> Result<String, String>
     // 3. Create desktop shortcut
     let _ = create_desktop_shortcut();
 
-    Ok(format!("🎉 Aether AI Studio 3.5 核心檔案與相依套件已成功安裝並配置完成！\n安裝路徑: {}", install_dir.display()))
+    Ok(format!("🎉 Aether AI Studio 4.0 核心檔案與相依套件已成功安裝並配置完成！\n安裝路徑: {}", install_dir.display()))
 }
 
 #[tauri::command]

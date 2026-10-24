@@ -9,6 +9,35 @@ export interface ToolCall {
   success?: boolean;
   duration?: number;
   isRunning?: boolean;
+  // Code agent: structured result (diff / command) and Accept Edit approval state
+  display?: ToolDisplay;
+  approval?: ToolApproval;
+}
+
+export interface ToolDisplay {
+  kind?: 'diff' | 'command' | 'todos';
+  path?: string;
+  diff?: string;
+  added?: number;
+  removed?: number;
+  created?: boolean;
+  command?: string;
+  cwd?: string;
+  exit_code?: number | null;
+  timed_out?: boolean;
+  duration?: number;
+  todos?: TodoItem[];
+}
+
+export interface ToolApproval {
+  request_id: string;
+  status: 'pending' | 'approved' | 'rejected';
+  preview?: ToolDisplay;
+}
+
+export interface TodoItem {
+  content: string;
+  status: 'pending' | 'in_progress' | 'completed';
 }
 
 export interface MessageTelemetry {
@@ -34,6 +63,7 @@ export interface Message {
   status_text?: string;
   images?: string[];
   telemetry?: MessageTelemetry;
+  todos?: TodoItem[];
 }
 
 export interface WorkspaceFile {

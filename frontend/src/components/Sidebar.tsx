@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { Session, Persona, Message, CodeExecutionMode } from '../types';
 import { useI18n } from '../i18n/I18nContext';
+import { APP_VERSION } from '../version';
 
 interface SidebarProps {
   sessions: Session[];
@@ -204,7 +205,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {t('brand_name', 'Aether AI Studio')}
                   </h1>
                   <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-400/40 uppercase tracking-widest font-mono font-bold shadow-[0_0_10px_rgba(0,242,254,0.3)] shrink-0">
-                    v3.7.0
+                    v{APP_VERSION}
                   </span>
                 </div>
                 <span className="text-[10px] text-cyan-400/90 font-mono tracking-wider truncate block">

@@ -66,7 +66,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#090d16',
-    title: 'Aether AI Studio 3.0',
+    title: 'Aether AI Studio 4.0',
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
@@ -124,7 +124,7 @@ function createTray() {
   tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: '顯示 Aether AI Studio 3.0',
+      label: '顯示 Aether AI Studio 4.0',
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -156,7 +156,7 @@ function createTray() {
     }
   ]);
 
-  tray.setToolTip('AetherAI Studio 3.0 (AetherAgent)');
+  tray.setToolTip('AetherAI Studio 4.0 (AetherAgent)');
   tray.setContextMenu(contextMenu);
   tray.on('double-click', () => {
     if (mainWindow) {

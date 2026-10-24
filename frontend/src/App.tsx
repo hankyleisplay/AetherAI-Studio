@@ -556,6 +556,19 @@ export const App: React.FC = () => {
   };
 
   const handleStopGeneration = () => {
+    const sessionId = streamingSessionIdRef.current || activeSessionId;
+    if (mode === 'code' && sessionId && abortControllerRef.current) {
+      const controller = abortControllerRef.current;
+      fetch(`/api/code/stop/${sessionId}`, { method: 'POST' }).catch(() => {});
+      // The agent finishes the current step and saves; abort only if it hasn't ended shortly after
+      window.setTimeout(() => {
+        if (abortControllerRef.current === controller) {
+          controller.abort();
+          abortControllerRef.current = null;
+        }
+      }, 4000);
+      return;
+    }
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
       abortControllerRef.current = null;
@@ -777,6 +790,7 @@ export const App: React.FC = () => {
                             output: data.output,
                             success: data.success,
                             duration: data.duration,
+                            display: data.display,
                             isRunning: false
                           };
                         }
@@ -787,6 +801,26 @@ export const App: React.FC = () => {
                     return m;
                   });
                 });
+              } else if (currentEvent === 'todos' || data.type === 'todos') {
+                setMessages(prev => prev.map(m => m.id === assistantMsgId ? { ...m, todos: data.todos || [] } : m));
+              } else if (currentEvent === 'approval_request' || data.type === 'approval_request') {
+                setAgentState('idle');
+                setMessages(prev => prev.map(m => {
+                  if (m.id !== assistantMsgId) return m;
+                  const calls = (m.tool_calls || []).map(tc => tc.id === data.tool_id
+                    ? { ...tc, approval: { request_id: data.request_id, status: 'pending' as const, preview: data.preview } }
+                    : tc);
+                  return { ...m, tool_calls: calls, status_text: t('approval_waiting', '等待你的確認') };
+                }));
+              } else if (currentEvent === 'approval_resolved' || data.type === 'approval_resolved') {
+                setAgentState('calling_tool');
+                setMessages(prev => prev.map(m => {
+                  if (m.id !== assistantMsgId) return m;
+                  const calls = (m.tool_calls || []).map(tc => tc.id === data.tool_id && tc.approval
+                    ? { ...tc, approval: { ...tc.approval, status: data.approved ? 'approved' as const : 'rejected' as const } }
+                    : tc);
+                  return { ...m, tool_calls: calls };
+                }));
               } else if (currentEvent === 'token' || data.type === 'token') {
                 if (firstTokenTimeRef.current === null) {
                   firstTokenTimeRef.current = performance.now();

@@ -1,7 +1,7 @@
 ﻿# Automatically unblock all scripts in current repository to eliminate digital signature warnings on Windows
 Get-ChildItem -Path $PSScriptRoot -Filter *.ps1 -Recurse -ErrorAction SilentlyContinue | Unblock-File -ErrorAction SilentlyContinue
 ﻿# ==========================================================================
-# Aether AI Studio 3.0 - Automatic One-Click Updater
+# Aether AI Studio 4.0 - Automatic One-Click Updater
 # ==========================================================================
 
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -11,7 +11,7 @@ Set-Location $ScriptDir
 Clear-Host
 Write-Host ""
 Write-Host " ==============================================================" -ForegroundColor Cyan
-Write-Host "          Aether AI Studio 3.0 (AetherAgent) 系統更新程式" -ForegroundColor Cyan
+Write-Host "          Aether AI Studio 4.0 (AetherAgent) 系統更新程式" -ForegroundColor Cyan
 Write-Host "    Liquid Glass 3.0 - Next-Gen Desktop Autonomous AI Agent" -ForegroundColor DarkCyan
 Write-Host " ==============================================================" -ForegroundColor Cyan
 Write-Host ""
@@ -74,7 +74,7 @@ if ($pythonExe) {
 # 4. Prompt to Launch
 Write-Host "[4/4] 更新完成！" -ForegroundColor Green
 Write-Host ""
-Write-Host "請選擇是否立即啟動 Aether AI Studio 3.0：" -ForegroundColor Yellow
+Write-Host "請選擇是否立即啟動 Aether AI Studio 4.0：" -ForegroundColor Yellow
 Write-Host "  [1] 獨立桌面視窗版 (Desktop App) - 推薦" -ForegroundColor White
 Write-Host "  [2] 一般網頁瀏覽器版 (Web Browser)" -ForegroundColor White
 Write-Host "  [3] 暫不啟動，結束程式" -ForegroundColor White
@@ -84,7 +84,7 @@ $launchChoice = Read-Host "請輸入選項 [1-3，預設 1]"
 if ($launchChoice -eq "2") {
     & powershell -NoProfile -ExecutionPolicy Bypass -File "$ScriptDir\run.ps1"
 } elseif ($launchChoice -eq "3") {
-    Write-Host "感謝使用 Aether AI Studio 3.0！隨時可執行 .\launch.bat 啟動。" -ForegroundColor Cyan
+    Write-Host "感謝使用 Aether AI Studio 4.0！隨時可執行 .\launch.bat 啟動。" -ForegroundColor Cyan
 } else {
     & powershell -NoProfile -ExecutionPolicy Bypass -File "$ScriptDir\run.ps1" -Desktop
 }

@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.7.5 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.0.0 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "3.7.5"
+            assert res.json()["version"] == "4.0.0"
 
 
 
@@ -449,7 +449,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 3.7.5" in res.text
+            assert "Aether AI Studio 4.0.0" in res.text
 
 
 
@@ -526,13 +526,21 @@ async def run_tests():
             assert "Hello from Aether Code Agent" in term_data["stdout"]
             print("13. Terminal exec verified! Output:", term_data["stdout"], "Exit code:", term_data["exit_code"])
 
-            # 14. Verify Code Mode System Prompt & Emoji Directives
-            code_orch = AgentOrchestrator(ModelConfig(), mode="code", project="test_app")
-            code_sys_prompt = code_orch._get_system_prompt()
-            assert "AETHER CODE AGENT" in code_sys_prompt
-            assert "視覺排版與生動表情符號表達準則" in code_sys_prompt
-            assert "32K~64K Context / 16K Output" in code_sys_prompt
-            print("14. Code mode system prompt & emoji directive verified successfully!")
+            # 14. Verify the Code mode coding agent: prompt, toolset, read-before-edit and sandboxing
+            from backend.app.coding.agent import CodingAgent
+            code_agent = CodingAgent(ModelConfig(), session_id="test-code-agent", project="test_app")
+            code_sys_prompt = code_agent._system_prompt()
+            assert "autonomous software engineering agent" in code_sys_prompt
+            assert "main.py" in code_sys_prompt  # project tree is included
+            tool_names = {s["function"]["name"] for s in code_agent.tools.schemas()}
+            assert {"read_file", "edit_file", "write_file", "grep", "glob", "run_command", "todo_write"} <= tool_names
+            assert not code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "main", "new_string": "x"}).ok
+            assert code_agent.tools.execute("read_file", {"path": "main.py"}).ok
+            edit_res = code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "Hello from", "new_string": "Hi from"})
+            assert edit_res.ok and edit_res.display["kind"] == "diff"
+            assert not code_agent.tools.execute("read_file", {"path": "../../app/config.py"}).ok
+            code_agent.tools.execute("edit_file", {"path": "main.py", "old_string": "Hi from", "new_string": "Hello from"})
+            print("14. Code agent prompt, toolset, read-before-edit and path sandbox verified successfully!")
 
             # 15. Verify Message Deletion & AI Session Title Endpoints
             test_msg = db.add_message(sess["id"], role="user", content="測試提示詞修改與刪除功能")
@@ -627,7 +635,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 3.7.5 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.0.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 
