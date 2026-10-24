@@ -89,6 +89,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const lastPastedRef = useRef<{ time: number; size: number }>({ time: 0, size: 0 });
 
   const handleEnhancePrompt = async () => {
     if (!inputText.trim() || isEnhancing || isStreaming) return;
@@ -225,7 +226,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
         base64,
         size: file.size
       };
-      setAttachedImages(prev => [...prev, newImg]);
+      setAttachedImages(prev => {
+        // Guard against duplicate image injection
+        const isDuplicate = prev.some(img => img.size === newImg.size && img.base64 === newImg.base64);
+        if (isDuplicate) return prev;
+        return [...prev, newImg];
+      });
     };
     reader.readAsDataURL(file);
     // Background upload so workspace tools have the physical file available
@@ -236,39 +242,59 @@ export const ChatView: React.FC<ChatViewProps> = ({
     setAttachedImages(prev => prev.filter((_, i) => i !== index));
   };
 
-  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
-    const items = e.clipboardData?.items;
-    if (!items) return;
+  const handleImagePaste = (
+    clipboardData: DataTransfer | null,
+    e?: { preventDefault: () => void; stopPropagation?: () => void }
+  ): boolean => {
+    if (!clipboardData) return false;
+    const items = clipboardData.items;
+    if (!items || items.length === 0) return false;
+
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      if (item.type.startsWith('image/')) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
         const file = item.getAsFile();
         if (file) {
-          e.preventDefault();
+          if (e) {
+            e.preventDefault();
+            if (e.stopPropagation) e.stopPropagation();
+          }
+
+          // Debounce duplicate paste events within 500ms for the same file size
+          const now = Date.now();
+          if (now - lastPastedRef.current.time < 500 && lastPastedRef.current.size === file.size) {
+            return true;
+          }
+          lastPastedRef.current = { time: now, size: file.size };
+
           const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
           processImageFile(file, `pasted_image_${timestamp}.png`);
+          return true; // Stop after processing first image file
         }
       }
     }
+    return false;
+  };
+
+  const handlePaste = (e: React.ClipboardEvent<HTMLTextAreaElement>) => {
+    handleImagePaste(e.clipboardData, e);
   };
 
   useEffect(() => {
     const onGlobalPaste = (e: ClipboardEvent) => {
-      if (document.activeElement && document.activeElement.tagName === 'INPUT') return;
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      for (let i = 0; i < items.length; i++) {
-        const item = items[i];
-        if (item.type.startsWith('image/')) {
-          const file = item.getAsFile();
-          if (file) {
-            e.preventDefault();
-            const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-            processImageFile(file, `pasted_image_${timestamp}.png`);
-          }
-        }
+      // Ignore if user is pasting inside an input, textarea, or contenteditable element
+      const target = e.target as HTMLElement | null;
+      const activeEl = document.activeElement as HTMLElement | null;
+      const isTextInput = (el: HTMLElement | null) =>
+        Boolean(el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable));
+
+      if (isTextInput(target) || isTextInput(activeEl)) {
+        return;
       }
+
+      handleImagePaste(e.clipboardData, e);
     };
+
     window.addEventListener('paste', onGlobalPaste);
     return () => window.removeEventListener('paste', onGlobalPaste);
   }, []);
