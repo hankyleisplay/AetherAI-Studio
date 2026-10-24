@@ -65,7 +65,7 @@ def print_banner():
         r" / ___ /  __/ /_/ / / /  __/ /  / ___ |_/ /    ___/ / /_/ /_/ / /_/ / / /_/ / " "\n"
         r"/_/  |_\___/\__/_/ /_/\___/_/  /_/  |_/___/   /____/\__/\__,_/\__,_/_/\____/  " "\n"
         "\n"
-        "      Liquid Glass 3.7.3 • Next-Gen Desktop Autonomous AI Agent (Official Release)\n"
+        "      Aether AI Studio 3.7.4 • Next-Gen Desktop Autonomous AI Agent (Official Release)\n"
         "\033[0m"
     )
     print(banner)
@@ -223,47 +223,34 @@ def wait_for_server(port: int, timeout: float = 30.0) -> bool:
 
 def launch_desktop_window(url: str, low_spec: bool = False):
     """
-    Launch native desktop window using Chrome/Edge in standalone app mode with isolated profile.
+    Launch native desktop window using Edge/Chrome in standalone app mode.
     Guarantees exactly ONE window is launched and isolates it from regular browser tabs.
     Falls back to system default browser only if no standalone browser is available.
     """
     import shutil
-    from pathlib import Path
 
     candidates = []
     if sys.platform == "win32":
         candidates = [
+            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
+            os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
             os.path.expandvars(r"%ProgramFiles%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles(x86)%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%LocalAppData%\Google\Chrome\Application\chrome.exe"),
             os.path.expandvars(r"%ProgramFiles%\BraveSoftware\Brave-Browser\Application\brave.exe"),
-            os.path.expandvars(r"%ProgramFiles(x86)%\Microsoft\Edge\Application\msedge.exe"),
-            os.path.expandvars(r"%ProgramFiles%\Microsoft\Edge\Application\msedge.exe"),
-            os.path.expandvars(r"%LocalAppData%\Microsoft\Edge\Application\msedge.exe"),
         ]
     elif sys.platform == "darwin":
         candidates = [
-            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Microsoft Edge.app/Contents/MacOS/Microsoft Edge",
+            "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome",
             "/Applications/Brave Browser.app/Contents/MacOS/Brave Browser",
         ]
     else:  # Linux / Unix
-        for bin_name in ["google-chrome", "google-chrome-stable", "chromium-browser", "chromium", "microsoft-edge"]:
+        for bin_name in ["microsoft-edge", "google-chrome", "google-chrome-stable", "chromium-browser", "chromium"]:
             p = shutil.which(bin_name)
             if p:
                 candidates.append(p)
-
-    # Use a dedicated profile directory so the desktop app runs as an independent, single-instance process
-    profile_dir = Path.home() / ".aether" / "desktop_profile"
-    try:
-        profile_dir.mkdir(parents=True, exist_ok=True)
-        # Purge stale disk cache so newest assets and HTML are guaranteed to load immediately
-        for stale_sub in ["Cache", "Code Cache"]:
-            stale_path = profile_dir / "Default" / stale_sub
-            if stale_path.exists():
-                shutil.rmtree(stale_path, ignore_errors=True)
-    except Exception:
-        profile_dir = None
 
     for exe in candidates:
         if exe and os.path.exists(exe):
@@ -271,19 +258,14 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                 cmd = [
                     exe,
                     f"--app={url}",
+                    "--new-window",
                     "--window-size=1360,900",
                     "--window-position=center",
-                    "--disable-extensions",
                     "--no-first-run",
                     "--no-default-browser-check",
-                    "--disable-http-cache",
-                    "--disable-application-cache",
                 ]
-                if profile_dir:
-                    cmd.append(f"--user-data-dir={profile_dir}")
-
                 p = subprocess.Popen(cmd)
-                # Success! Return immediately to guarantee single-instance window and prevent duplicate openings
+                # Success! Return immediately to guarantee single-instance window
                 return p
             except Exception:
                 continue
@@ -296,6 +278,9 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     """Launch single-port unified FastAPI + built SPA mode."""
     check_frontend_dist()
     ensure_shortcuts()
+
+    # Free port if previously occupied by a zombie Aether process
+    free_port_if_aether(port)
 
     # Load diagnostic summary
     from backend.app.storage.database import db
@@ -314,7 +299,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
     url = f"http://localhost:{actual_port}"
     if low_spec:
         url += "?eco=1"
-    print("\033[1;32m🚀 Aether AI Studio 3.7.3 (Official Release) 服務就緒！\033[0m")
+    print("\033[1;32m🚀 Aether AI Studio 3.7.4 (Official Release) 服務就緒！\033[0m")
     if actual_port != port:
         print(f"\033[1;35m✨ 多開實例已啟用 (連接埠: {actual_port})\033[0m")
     if desktop:
@@ -336,17 +321,7 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
                 return
 
             time.sleep(0.3)
-            p = launch_desktop_window(url, low_spec=low_spec)
-            if p and hasattr(p, "wait"):
-                t_spawn = time.time()
-                try:
-                    p.wait()
-                    # Only exit if the desktop window was open for more than 3 seconds (avoid accidental premature exits)
-                    if time.time() - t_spawn > 3.0:
-                        print("\n\033[32m[✓] 原生桌面視窗已關閉，正在安全退出後端伺服器...\033[0m")
-                        os.kill(os.getpid(), signal.SIGTERM if hasattr(signal, "SIGTERM") else signal.SIGINT)
-                except Exception:
-                    pass
+            launch_desktop_window(url, low_spec=low_spec)
         import threading
         threading.Thread(target=open_desktop, daemon=True).start()
     elif not no_browser:
@@ -367,14 +342,14 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
             log_level="info"
         )
     except KeyboardInterrupt:
-        print("\n\033[32m[✓] Aether AI Studio 3.5 服務已安全結束。\033[0m")
+        print("\n\033[32m[✓] Aether AI Studio 3.7.4 服務已安全結束。\033[0m")
 
 def main():
-    parser = argparse.ArgumentParser(description="LiquidGlass Agent 啟動器")
+    parser = argparse.ArgumentParser(description="Aether AI Studio 啟動器")
     parser.add_argument("--port", type=int, default=8000, help="服務監聽連接埠 (預設: 8000)")
     parser.add_argument("--host", type=str, default="0.0.0.0", help="監聽主機 IP (預設: 0.0.0.0)")
     parser.add_argument("--dev", action="store_true", help="啟用前端 Vite 熱重載開發模式")
-    parser.add_argument("--desktop", action="store_true", help="以原生獨立桌面視窗模式執行 (Aether AI Studio 3.5 桌面版)")
+    parser.add_argument("--desktop", action="store_true", help="以原生獨立桌面視窗模式執行 (Aether AI Studio 桌面版)")
     parser.add_argument("--no-browser", action="store_true", help="啟動時不自動開啟瀏覽器")
     parser.add_argument("--check", action="store_true", help="執行系統依賴與整合檢驗後離開")
     parser.add_argument("--low-spec", action="store_true", help="啟用節能輕量硬體模式 (停用高耗能 GPU 特效與降低記憶體佔用)")

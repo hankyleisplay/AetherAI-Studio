@@ -642,7 +642,7 @@ btnSelfUpdateLauncher.addEventListener("click", () => {
 function renderUpdateResult(res) {
   updateAction.innerHTML = "";
 
-  if (res.has_update) {
+  if (res && res.has_update) {
     updateBanner.className = "update-banner state-update-available";
     updateIcon.textContent = "🎉";
     updateTitle.textContent = t("update_available_title", { version: res.latest_version });
@@ -657,6 +657,13 @@ function renderUpdateResult(res) {
       btnUpdateProject.textContent = t("btn_updating");
       try {
         const pullMsg = await invoke("apply_update");
+        // CRITICAL FIX: Reset has_update state so switching language never pops up update alert again!
+        res.has_update = false;
+        lastUpdateResult = {
+          ...res,
+          has_update: false,
+          current_version: res.latest_version || res.current_version
+        };
         if (res.launcher_download_url) {
           btnUpdateProject.textContent = t("btn_updating_launcher");
           await invoke("self_update_launcher", { downloadUrl: res.launcher_download_url });
@@ -689,7 +696,8 @@ function renderUpdateResult(res) {
   } else {
     updateBanner.className = "update-banner state-latest";
     updateIcon.textContent = "✅";
-    updateTitle.textContent = t("update_latest_title", { version: res.current_version });
+    const curVer = res?.current_version || "3.7.4";
+    updateTitle.textContent = t("update_latest_title", { version: curVer });
     updateDesc.textContent = t("update_latest_desc");
 
     const btnRecheck = document.createElement("button");

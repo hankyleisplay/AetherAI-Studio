@@ -146,78 +146,66 @@ fn find_project_root() -> Option<PathBuf> {
         }
     }
 
-    // 1. Current working directory
+    let mut candidates: Vec<PathBuf> = Vec::new();
+
+    // 1. Current working directory & parents
     if let Ok(cwd) = env::current_dir() {
-        if cwd.join("start.py").exists() {
-            return Some(cwd);
-        }
-        if cwd.join("AetherAI-Studio").join("start.py").exists() {
-            return Some(cwd.join("AetherAI-Studio"));
-        }
+        candidates.push(cwd.clone());
+        candidates.push(cwd.join("AetherAI-Studio"));
         if let Some(parent) = cwd.parent() {
-            if parent.join("start.py").exists() {
-                return Some(parent.to_path_buf());
-            }
-            if parent.join("AetherAI-Studio").join("start.py").exists() {
-                return Some(parent.join("AetherAI-Studio"));
-            }
+            candidates.push(parent.to_path_buf());
+            candidates.push(parent.join("AetherAI-Studio"));
         }
     }
 
-    // 2. Executable's directory
+    // 2. Executable's directory & parents
     if let Ok(exe_path) = env::current_exe() {
         if let Some(exe_dir) = exe_path.parent() {
-            if exe_dir.join("start.py").exists() {
-                return Some(exe_dir.to_path_buf());
-            }
-            if exe_dir.join("AetherAI-Studio").join("start.py").exists() {
-                return Some(exe_dir.join("AetherAI-Studio"));
-            }
+            candidates.push(exe_dir.to_path_buf());
+            candidates.push(exe_dir.join("AetherAI-Studio"));
             if let Some(parent) = exe_dir.parent() {
-                if parent.join("start.py").exists() {
-                    return Some(parent.to_path_buf());
-                }
-                if parent.join("AetherAI-Studio").join("start.py").exists() {
-                    return Some(parent.join("AetherAI-Studio"));
-                }
+                candidates.push(parent.to_path_buf());
+                candidates.push(parent.join("AetherAI-Studio"));
             }
         }
     }
 
-    // 3. Known user home candidate paths
-    let home = env::var("USERPROFILE").unwrap_or_default();
-    let candidates = [
-        format!(r"{}\AetherAI-Studio", home),
-        format!(r"{}\Documents\Project\AetherAI-Studio", home),
-        format!(r"{}\Documents\AetherAI-Studio", home),
-        format!(r"{}\Desktop\AetherAI-Studio", home),
-        format!(r"{}\Downloads\AetherAI-Studio", home),
-    ];
-
-    for candidate in &candidates {
-        let p = Path::new(candidate);
-        if p.join("start.py").exists() {
-            return Some(p.to_path_buf());
-        }
-    }
-
-    // 4. Scan all drive roots (C: to Z:) to cover mapped network drives and external SSDs
-    for drive in b'C'..=b'Z' {
+    // 3. Scan all drive roots (Z: down to C: to prioritize custom/virtual workspace drives)
+    for drive in (b'C'..=b'Z').rev() {
         let drive_char = drive as char;
-        let drive_candidates = [
-            format!(r"{}:\AetherAI-Studio", drive_char),
-            format!(r"{}:\Project\AetherAI-Studio", drive_char),
-            format!(r"{}:\Projects\AetherAI-Studio", drive_char),
-        ];
-        for candidate in &drive_candidates {
-            let p = Path::new(candidate);
-            if p.join("start.py").exists() {
-                return Some(p.to_path_buf());
+        candidates.push(PathBuf::from(format!(r"{}:\AetherAI-Studio", drive_char)));
+        candidates.push(PathBuf::from(format!(r"{}:\Project\AetherAI-Studio", drive_char)));
+        candidates.push(PathBuf::from(format!(r"{}:\Projects\AetherAI-Studio", drive_char)));
+    }
+
+    // 4. Known user home candidate paths
+    let home = env::var("USERPROFILE").unwrap_or_default();
+    candidates.push(PathBuf::from(format!(r"{}\AetherAI-Studio", home)));
+    candidates.push(PathBuf::from(format!(r"{}\Documents\Project\AetherAI-Studio", home)));
+    candidates.push(PathBuf::from(format!(r"{}\Documents\AetherAI-Studio", home)));
+    candidates.push(PathBuf::from(format!(r"{}\Desktop\AetherAI-Studio", home)));
+    candidates.push(PathBuf::from(format!(r"{}\Downloads\AetherAI-Studio", home)));
+
+    // Collect all valid directories that contain start.py
+    let mut valid_roots: Vec<(PathBuf, std::time::SystemTime)> = Vec::new();
+    let mut seen = std::collections::HashSet::new();
+
+    for p in candidates {
+        if p.join("start.py").exists() {
+            let key = p.to_string_lossy().to_lowercase();
+            if seen.insert(key) {
+                let mtime = std::fs::metadata(p.join("start.py"))
+                    .and_then(|m| m.modified())
+                    .unwrap_or(std::time::SystemTime::UNIX_EPOCH);
+                valid_roots.push((p, mtime));
             }
         }
     }
 
-    None
+    // Sort by modification time descending (most recently updated/modified first)
+    valid_roots.sort_by(|a, b| b.1.cmp(&a.1));
+
+    valid_roots.into_iter().next().map(|(p, _)| p)
 }
 
 fn find_python() -> Option<String> {
@@ -296,11 +284,17 @@ fn get_system_info() -> SystemInfo {
     let is_installed = project_dir.is_some();
     let is_ready = is_installed && python_exe.is_some();
 
+    let ver = project_dir
+        .as_ref()
+        .and_then(|p| get_project_version(p))
+        .map(|pv| if is_newer_version(&pv, CURRENT_VERSION) { pv } else { CURRENT_VERSION.to_string() })
+        .unwrap_or_else(|| CURRENT_VERSION.to_string());
+
     SystemInfo {
         project_path: project_dir.map(|p| p.to_string_lossy().to_string()),
         python_path: python_exe,
         git_available: git,
-        current_version: CURRENT_VERSION.to_string(),
+        current_version: ver,
         is_ready,
         is_installed,
     }
@@ -314,11 +308,17 @@ fn check_update() -> UpdateResult {
         .and_then(|p| get_project_version(p))
         .unwrap_or_else(|| CURRENT_VERSION.to_string());
 
+    let current_ver = if is_newer_version(&project_ver, CURRENT_VERSION) {
+        project_ver.clone()
+    } else {
+        CURRENT_VERSION.to_string()
+    };
+
     let mut result = UpdateResult {
         has_update: false,
-        current_version: CURRENT_VERSION.to_string(),
-        latest_version: CURRENT_VERSION.to_string(),
-        release_name: format!("Aether AI Studio {} (Official Release)", CURRENT_VERSION),
+        current_version: current_ver.clone(),
+        latest_version: current_ver.clone(),
+        release_name: format!("Aether AI Studio {} (Official Release)", current_ver),
         release_notes: "".to_string(),
         published_at: "".to_string(),
         html_url: "https://github.com/hankyleisplay/AetherAI-Studio/releases".to_string(),
@@ -372,12 +372,11 @@ fn check_update() -> UpdateResult {
                     let launcher_has_update = is_newer_version(clean_tag, CURRENT_VERSION);
                     let project_has_update = is_newer_version(clean_tag, &project_ver);
 
-                    if launcher_has_update {
+                    if launcher_has_update || project_has_update {
                         result.has_update = true;
-                        result.launcher_download_url = remote_launcher_url.clone();
-                    } else if project_has_update {
-                        result.has_update = true;
-                        // Launcher itself is already latest; do NOT force downloading launcher unless requested
+                        if launcher_has_update {
+                            result.launcher_download_url = remote_launcher_url.clone();
+                        }
                     }
                 }
             }
@@ -407,9 +406,10 @@ fn check_update() -> UpdateResult {
                         let count_str = String::from_utf8_lossy(&rev_out.stdout).trim().to_string();
                         if let Ok(count) = count_str.parse::<u32>() {
                             if count > 0 {
-                                result.has_update = true;
-                                if !is_newer_version(&result.latest_version, CURRENT_VERSION) {
-                                    result.release_name = format!("檢測到主分支倉庫有 {} 個最新提交尚未拉取", count);
+                                // Only trigger has_update = true if remote version is strictly newer than local!
+                                if is_newer_version(&result.latest_version, CURRENT_VERSION)
+                                    || is_newer_version(&result.latest_version, &project_ver) {
+                                    result.has_update = true;
                                 }
                             }
                         }
