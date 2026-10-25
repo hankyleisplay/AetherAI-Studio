@@ -133,8 +133,13 @@ export const renderMathFormula = (mathStr: string): string => {
     '\\Omega': 'Ω',
   };
 
+  // Alphabetic commands are matched whole (longest name wins), so \leq is never read as \le + "q"
+  rendered = rendered.replace(/\\mathbb\{[A-Za-z]\}|\\[A-Za-z]+/g, (cmd) => mathSymbols[cmd] ?? cmd);
+  // Punctuation commands (\{, \,, \; ...) have no name to match, so replace those literally
   for (const [cmd, symbol] of Object.entries(mathSymbols)) {
-    rendered = rendered.split(cmd).join(symbol);
+    if (!/^\\(?:mathbb\{[A-Za-z]\}|[A-Za-z]+)$/.test(cmd)) {
+      rendered = rendered.split(cmd).join(symbol);
+    }
   }
 
   // Fractions: \frac{a}{b}

@@ -133,8 +133,8 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
     // 4. Links: [text](url), Images: ![alt](url)
     // 5. Math: $...$, \(...\)
     // 6. Code: `...`
-    // 7. Bold: **...**, Strikethrough: ~~...~~, Italic: *...*, _..._
-    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$)|(?:\\\(.*?\\\))|(?:```[\s\S]+?```)|(?:``[\s\S]+?``)|(?:`[^`\r\n]+?`)|(?:\|\|[\s\S]+?\|\|)|(?:>![\s\S]+?!<)|(?:<spoiler>[\s\S]*?<\/spoiler>)|(?:==[\s\S]+?==)|(?:<mark\b[^>]*>[\s\S]*?<\/mark>)|(?:<strong>[\s\S]*?<\/strong>)|(?:<b>[\s\S]*?<\/b>)|(?:<em>[\s\S]*?<\/em>)|(?:<i>[\s\S]*?<\/i>)|(?:<del>[\s\S]*?<\/del>)|(?:<s>[\s\S]*?<\/s>)|(?:<br\s*\/?>)|(?:<kbd>[\s\S]*?<\/kbd>)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*[^*\n]+?\*)|(?:_[^_\n]+?_))/gi;
+    // 7. Bold: **...**, Strikethrough: ~~...~~, Italic: *...*, _..._ (their content is parsed again: math, code, links...)
+    const inlineRegex = /(!?\[.*?\]\(.*?\)|(?:\$[^$\n]+?\$(?!\d))|(?:\\\(.*?\\\))|(?:```[\s\S]+?```)|(?:``[\s\S]+?``)|(?:`[^`\r\n]+?`)|(?:\|\|[\s\S]+?\|\|)|(?:>![\s\S]+?!<)|(?:<spoiler>[\s\S]*?<\/spoiler>)|(?:==[\s\S]+?==)|(?:<mark\b[^>]*>[\s\S]*?<\/mark>)|(?:<strong>[\s\S]*?<\/strong>)|(?:<b>[\s\S]*?<\/b>)|(?:<em>[\s\S]*?<\/em>)|(?:<i>[\s\S]*?<\/i>)|(?:<del>[\s\S]*?<\/del>)|(?:<s>[\s\S]*?<\/s>)|(?:<br\s*\/?>)|(?:<kbd>[\s\S]*?<\/kbd>)|(?:\*\*[^*\n]+?\*\*)|(?:~~[^~\n]+?~~)|(?:\*(?!\s)[^*\n]+?\*)|(?:(?<![A-Za-z0-9_])_[^_\n]+?_(?![A-Za-z0-9_])))/gi;
 
     const parts = text.split(inlineRegex);
 
@@ -321,7 +321,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
       if (part.startsWith('**') && part.endsWith('**') && part.length > 4) {
         return (
           <strong key={idx} className="font-bold text-white">
-            {part.slice(2, -2)}
+            {renderInline(part.slice(2, -2))}
           </strong>
         );
       }
@@ -330,7 +330,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
       if (part.startsWith('~~') && part.endsWith('~~') && part.length > 4) {
         return (
           <del key={idx} className="line-through text-slate-500">
-            {part.slice(2, -2)}
+            {renderInline(part.slice(2, -2))}
           </del>
         );
       }
@@ -340,7 +340,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           (part.startsWith('_') && part.endsWith('_') && part.length > 2)) {
         return (
           <em key={idx} className="italic text-slate-300">
-            {part.slice(1, -1)}
+            {renderInline(part.slice(1, -1))}
           </em>
         );
       }

@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.1.0 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.1.1 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "4.1.0"
+            assert res.json()["version"] == "4.1.1"
 
 
 
@@ -453,7 +453,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.1.0" in res.text
+            assert "Aether AI Studio 4.1.1" in res.text
 
 
 
@@ -608,6 +608,31 @@ async def run_tests():
             assert no_prompt.status_code == 400
             print("16c. Media studio config verified successfully!")
 
+            # 16d. Every place that shows or reports the app version must agree (a stale one shipped in 4.1.0)
+            import json as _json, re as _re
+            root_dir = Path(__file__).resolve().parent
+            from backend.app.config import settings as _settings
+            expected = _settings.version
+            def _json_version(rel):
+                return _json.loads((root_dir / rel).read_text(encoding="utf-8"))["version"]
+            versions = {
+                "package.json": _json_version("package.json"),
+                "frontend/package.json": _json_version("frontend/package.json"),
+                "desktop/package.json": _json_version("desktop/package.json"),
+                "launcher tauri.conf.json": _json_version("launcher/src-tauri/tauri.conf.json"),
+                "launcher Cargo.toml": _re.search(r'^version\s*=\s*"([^"]+)"', (root_dir / "launcher/src-tauri/Cargo.toml").read_text(encoding="utf-8"), _re.M).group(1),
+                "launcher.py": _re.search(r'VERSION\s*=\s*"([^"]+)"', (root_dir / "launcher.py").read_text(encoding="utf-8")).group(1),
+            }
+            stale = {k: v for k, v in versions.items() if v != expected}
+            assert not stale, f"Version mismatch (backend is {expected}): {stale}"
+            dist_dir = root_dir / "frontend" / "dist"
+            if (dist_dir / "index.html").exists():
+                # The sidebar badge and window title are built from package.json, so the build must carry the same version
+                assert f"Aether AI Studio {expected}" in (dist_dir / "index.html").read_text(encoding="utf-8"), "dist/index.html title is stale; rebuild the frontend"
+                bundle = "".join(f.read_text(encoding="utf-8", errors="ignore") for f in (dist_dir / "assets").glob("*.js"))
+                assert f'"{expected}"' in bundle, "frontend bundle does not contain the current version; rebuild the frontend"
+            print(f"16d. Version consistency verified successfully! ({expected})")
+
             # 17. Verify Web Filesystem Browser
             drives_res = await client.get("/api/system/fs-browse")
             assert drives_res.status_code == 200
@@ -667,7 +692,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 4.1.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.1.1 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

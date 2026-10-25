@@ -66,7 +66,7 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#090d16',
-    title: 'Aether AI Studio 4.0',
+    title: `Aether AI Studio ${require('./package.json').version}`,
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
