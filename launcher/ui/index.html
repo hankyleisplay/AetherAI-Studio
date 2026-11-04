@@ -3,20 +3,28 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aether AI Studio 4.0 - 官方專屬啟動器</title>
+  <title>Aether AI Studio - 官方專屬啟動器</title>
   <link rel="icon" type="image/x-icon" href="icon.ico">
   <link rel="icon" type="image/png" href="icon.png">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="launcher-container" id="launcher-container">
+    <!-- Liquid Glass backdrop: the panels blur and refract these light blobs -->
+    <div class="aurora" aria-hidden="true">
+      <span class="blob blob-1"></span>
+      <span class="blob blob-2"></span>
+      <span class="blob blob-3"></span>
+      <span class="blob blob-4"></span>
+    </div>
+
     <!-- Top Brand Header with Custom Language Dropdown -->
     <header class="launcher-header">
       <div class="logo-area">
         <div class="logo-glow"></div>
-        <div class="logo-badge"><img src="icon.png" alt="Aether" style="width: 28px; height: 28px; object-fit: contain; border-radius: 8px;" /></div>
+        <div class="logo-badge"><img src="icon.png" alt="Aether" /></div>
         <div class="header-titles">
-          <h1>AETHER AI STUDIO <span>3.5</span></h1>
+          <h1>AETHER AI STUDIO <span id="app-version-badge"></span></h1>
           <p class="subtitle" data-i18n="app_subtitle">次世代獨立原生桌面代理系統 • 官方正式版 (Tauri + Rust)</p>
         </div>
       </div>
@@ -72,7 +80,7 @@
           <div class="install-icon">⚡</div>
           <div class="install-details">
             <div class="install-tag" data-i18n="install_tag">自動安裝精靈 (Setup Wizard)</div>
-            <h3 class="install-title" data-i18n="install_title">一鍵自動安裝 Aether AI Studio 4.0</h3>
+            <h3 class="install-title" data-i18n="install_title">一鍵自動安裝 Aether AI Studio</h3>
             <p class="install-desc" data-i18n="install_desc">尚未偵測到核心系統。點擊按鈕將自動從官方 GitHub 下載核心檔案、自動配置 Python 相依套件並建立桌面捷徑！</p>
           </div>
         </div>
@@ -208,7 +216,7 @@
         </button>
       </div>
       <div class="footer-status-bar" id="footer-status-bar" data-i18n="footer_status_standby">
-        Aether AI Studio v4.1.2 Official Release • 系統狀態：待命中
+        Aether AI Studio v4.1.3 Official Release • 系統狀態：待命中
       </div>
     </footer>
   </div>
