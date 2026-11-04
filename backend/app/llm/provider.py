@@ -18,6 +18,12 @@ class ModelConfig(BaseModel):
 
 OLLAMA_KEEP_ALIVE = "30m"
 
+# Short-lived probe results, shared so concurrent model-list requests cost one round trip.
+PROBE_TTL_OK = 8.0
+PROBE_TTL_FAIL = 3.0
+_PROBE_CACHE: Dict[tuple, tuple] = {}
+_PROBE_INFLIGHT: Dict[tuple, "asyncio.Future"] = {}
+
 class LLMResponseChunk(BaseModel):
     type: str  # "token", "thought", "tool_call", "done", "error"
     content: Optional[str] = None
@@ -42,9 +48,36 @@ class UnifiedLLMClient:
     }
 
     async def test_connection(self) -> Dict[str, Any]:
+        """Probe the provider, sharing one in-flight request and a few seconds of cache between callers.
+
+        The UI asks for the model list from several places at once (page load, settings, the active-config
+        endpoint); without this every caller paid the full connect timeout when the server was down or busy.
+        """
+        cfg = self.config
+        key = (cfg.provider, (cfg.base_url or "").rstrip("/"), cfg.api_key or "")
+        now = time.time()
+        hit = _PROBE_CACHE.get(key)
+        if hit and hit[0] > now:
+            return dict(hit[1])
+        task = _PROBE_INFLIGHT.get(key)
+        if task is None:
+            task = asyncio.ensure_future(self._probe())
+            _PROBE_INFLIGHT[key] = task
+
+            def _done(t: "asyncio.Future", key=key) -> None:
+                _PROBE_INFLIGHT.pop(key, None)
+                if not t.cancelled() and t.exception() is None:
+                    result = t.result()
+                    ttl = PROBE_TTL_OK if result.get("success") else PROBE_TTL_FAIL
+                    _PROBE_CACHE[key] = (time.time() + ttl, result)
+
+            task.add_done_callback(_done)
+        return dict(await asyncio.shield(task))
+
+    async def _probe(self) -> Dict[str, Any]:
         """Test connection and return latency + available models if discoverable."""
         start = time.time()
-        timeout = httpx.Timeout(5.0)
+        timeout = httpx.Timeout(5.0, connect=1.0)
         provider = self.config.provider
         fallback_models = self.DEFAULT_PROVIDER_MODELS.get(provider, [self.config.model] if self.config.model else [])
 
@@ -52,9 +85,11 @@ class UnifiedLLMClient:
             try:
                 if provider == "ollama":
                     base = self.config.base_url.rstrip("/")
+                    # "localhost" tries IPv6 first and, with Ollama listening on IPv4 only, costs an extra
+                    # connect timeout every call; go straight to 127.0.0.1 and keep the original as a fallback.
                     urls_to_try = [f"{base}/api/tags"]
                     if "localhost" in base:
-                        urls_to_try.append(f"{base.replace('localhost', '127.0.0.1')}/api/tags")
+                        urls_to_try.insert(0, f"{base.replace('localhost', '127.0.0.1')}/api/tags")
 
                     last_err = ""
                     for url in urls_to_try:
@@ -78,13 +113,14 @@ class UnifiedLLMClient:
                     # Try `ollama list` CLI if daemon isn't responding or on another port
                     try:
                         import subprocess
-                        res = subprocess.run(
+                        res = await asyncio.to_thread(
+                            subprocess.run,
                             ["ollama", "list"],
                             capture_output=True,
                             text=True,
                             encoding="utf-8",
                             errors="replace",
-                            timeout=3
+                            timeout=2
                         )
                         if res.returncode == 0 and res.stdout:
                             lines = [ln.strip() for ln in res.stdout.strip().splitlines() if ln.strip()]

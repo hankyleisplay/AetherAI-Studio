@@ -1,4 +1,5 @@
 import os
+import asyncio
 # Prevent Blackwell/RTX 50 CUDA shared object initialization failure in Ollama
 if "OLLAMA_FLASH_ATTENTION" not in os.environ:
     os.environ["OLLAMA_FLASH_ATTENTION"] = "false"
@@ -224,7 +225,8 @@ async def get_active_model_config():
     # Auto-probe local Ollama: sync actual installed models, never load fake models!
     if cfg.provider == "ollama":
         try:
-            probe = await UnifiedLLMClient(cfg).test_connection()
+            # Never let a slow or restarting Ollama hold up loading the saved config.
+            probe = await asyncio.wait_for(UnifiedLLMClient(cfg).test_connection(), timeout=2.5)
             models = probe.get("models") or []
             if probe.get("success") and models:
                 if not cfg.model or cfg.model not in models:
