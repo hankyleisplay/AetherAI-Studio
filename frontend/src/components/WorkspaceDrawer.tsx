@@ -261,12 +261,12 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
     <div className="fixed inset-0 z-50 flex justify-end">
       {/* Dimmed backdrop */}
       <div 
-        className="absolute inset-0 bg-black/40 backdrop-blur-sm transition-opacity duration-300"
+        className="absolute inset-0 lg-scrim animate-fade-in"
         onClick={onClose}
       />
 
       {/* Slide-out Drawer Panel */}
-      <div className="relative w-full max-w-md h-full bg-[#0d1322]/95 border-l border-white/10 shadow-2xl backdrop-blur-2xl flex flex-col z-10 animate-slide-left text-slate-100">
+      <div className="w-full max-w-md h-full sm:h-auto sm:my-3 sm:mr-3 glass-modal rounded-l-3xl sm:rounded-3xl overflow-hidden flex flex-col z-10 animate-slide-left text-slate-100">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
           <div className="flex items-center gap-2.5">
@@ -550,8 +550,8 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
 
       {/* File Preview Modal */}
       {previewFile && (
-        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-3xl max-h-[85vh] bg-[#0c111e] border border-cyan-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-slate-100">
+        <div className="fixed inset-0 z-60 flex items-center justify-center p-4 sm:p-6 lg-scrim animate-fade-in">
+          <div className="w-full max-w-3xl max-h-[85vh] glass-modal rounded-3xl flex flex-col overflow-hidden text-slate-100 animate-in fade-in zoom-in-95">
             {/* Modal Header */}
             <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
               <div className="flex items-center gap-2.5 min-w-0">

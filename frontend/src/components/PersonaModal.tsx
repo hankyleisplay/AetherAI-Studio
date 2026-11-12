@@ -101,8 +101,8 @@ export const PersonaModal: React.FC<PersonaModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-      <div className="w-full max-w-lg glass-panel rounded-3xl border border-white/15 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg-scrim animate-fade-in">
+      <div className="w-full max-w-lg glass-modal rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
         
         {/* Header */}
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between">

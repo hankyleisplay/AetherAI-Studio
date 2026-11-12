@@ -178,16 +178,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {isOpen && (
         <div 
           onClick={onToggle}
-          className="md:hidden fixed inset-0 bg-black/70 backdrop-blur-sm z-30 transition-opacity"
+          className="md:hidden fixed inset-0 lg-scrim z-30 animate-fade-in"
         />
       )}
 
       {/* Sidebar Container with Responsive Collapse */}
       <aside
-        className={`fixed md:relative inset-y-0 left-0 z-40 h-full glass-panel flex flex-col border-r border-white/10 transition-all duration-300 ease-in-out shrink-0 ${
-          isOpen 
-            ? 'w-72 md:w-80 min-w-[18rem] md:min-w-[20rem] translate-x-0 opacity-100 pointer-events-auto' 
-            : 'w-0 min-w-0 max-w-0 -translate-x-full md:translate-x-0 opacity-0 overflow-hidden border-r-0 pointer-events-none p-0 m-0'
+        className={`fixed md:relative inset-y-0 left-0 z-40 h-full md:h-auto glass-panel rounded-r-3xl md:rounded-3xl flex flex-col overflow-hidden transition-all duration-300 ease-in-out shrink-0 ${
+          isOpen
+            ? 'w-72 md:w-80 min-w-[18rem] md:min-w-[20rem] md:my-3 md:ml-3 translate-x-0 opacity-100 pointer-events-auto'
+            : 'w-0 min-w-0 max-w-0 -translate-x-full md:translate-x-0 opacity-0 border-0 pointer-events-none p-0 m-0'
         }`}
       >
         {/* Fixed-width Inner Wrapper */}
@@ -226,13 +226,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Work Mode Switcher: Chat vs Code */}
           <div className="px-3 pt-3 pb-1">
-            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-xl bg-black/40 border border-white/10 backdrop-blur-md">
+            <div className="grid grid-cols-2 gap-1.5 p-1 rounded-full bg-black/25 border border-white/10 shadow-[inset_0_1px_3px_rgba(0,0,20,0.35)]">
               <button
                 type="button"
                 onClick={() => onToggleMode?.('chat')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                className={`py-1.5 px-2 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   mode === 'chat'
-                    ? 'bg-gradient-to-r from-cyan-500 to-indigo-600 text-white shadow-md'
+                    ? 'glass-button-primary text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
                 title={t('mode_chat', '對話模式 (Chat)')}
@@ -244,7 +244,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={() => onToggleMode?.('code')}
-                className={`py-1.5 px-2 rounded-lg text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
+                className={`py-1.5 px-2 rounded-full text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
                   mode === 'code'
                     ? 'bg-gradient-to-r from-emerald-500 to-cyan-500 text-white shadow-[0_0_14px_rgba(16,185,129,0.35)] font-bold'
                     : 'text-slate-400 hover:text-slate-200'
@@ -370,7 +370,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <div className="p-3 pb-2">
             <button
               onClick={onNewSession}
-              className="w-full py-2.5 px-3.5 rounded-xl glass-button-primary flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-md active:scale-95 hover:shadow-[0_0_18px_rgba(0,242,254,0.4)]"
+              className="w-full py-2.5 px-3.5 rounded-full glass-button-primary flex items-center justify-center gap-2 text-xs font-semibold text-white transition-all shadow-md active:scale-95 hover:shadow-[0_0_18px_rgba(0,242,254,0.4)]"
               title={t('new_session', '開啟新對話')}
             >
               <Plus className="w-4 h-4" />
@@ -387,7 +387,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder={t('search_placeholder', '搜尋會話或對話內容...')}
-                className="w-full pl-8 pr-7 py-1.5 text-xs bg-black/40 border border-white/10 rounded-xl text-slate-200 placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-1 focus:ring-cyan-500/20 transition-all"
+                className="w-full pl-8 pr-7 py-1.5 text-xs glass-input rounded-full text-slate-200 placeholder-slate-400"
               />
               {searchQuery && (
                 <button
@@ -459,12 +459,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
           {/* Tab Selector: Sessions vs Bookmarks */}
           <div className="px-3 pt-2">
-            <div className="grid grid-cols-2 gap-1 p-1 bg-black/30 border border-white/5 rounded-xl">
+            <div className="grid grid-cols-2 gap-1 p-1 bg-black/25 border border-white/10 rounded-full shadow-[inset_0_1px_3px_rgba(0,0,20,0.35)]">
               <button
                 onClick={() => setActiveTab('sessions')}
-                className={`flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-full transition-all ${
                   activeTab === 'sessions'
-                    ? 'bg-white/10 text-white shadow-sm'
+                    ? 'glass-button text-white'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
@@ -476,7 +476,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   setActiveTab('bookmarks');
                   fetchBookmarks();
                 }}
-                className={`flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-lg transition-all ${
+                className={`flex items-center justify-center gap-1.5 py-1 text-xs font-medium rounded-full transition-all ${
                   activeTab === 'bookmarks'
                     ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -613,10 +613,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
 
           {/* Bottom Bar Settings */}
-          <div className="p-3 border-t border-white/[0.08] flex items-center justify-between bg-black/20">
+          <div className="p-3 border-t border-white/[0.08] flex items-center justify-between">
             <button
               onClick={onOpenSettings}
-              className="flex-1 py-2 px-3 rounded-xl glass-button text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center gap-2 transition-all hover:border-cyan-400/30"
+              className="flex-1 py-2 px-3 rounded-full glass-button text-xs font-medium text-slate-300 hover:text-white flex items-center justify-center gap-2 transition-all hover:border-cyan-400/30"
             >
               <SettingsIcon className="w-3.5 h-3.5 text-cyan-400" />
               <span>{t('system_settings', '模型與系統配置 (Settings)')}</span>

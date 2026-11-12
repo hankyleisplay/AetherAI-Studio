@@ -1,95 +1,95 @@
-/* Liquid Glass Design System */
+/* Main-app layer of the Aether Liquid Glass design system.
+ *
+ * Colours, radii and the glass materials live in launcher/ui/liquid-glass.css, shared with the launcher. The
+ * .glass-* class names used across the components are aliases of those materials; this file only adds what the
+ * main app needs on top (rim layer, entrance animations, math styles, eco-mode overrides).
+ */
+@import '../../../launcher/ui/liquid-glass.css';
 
-.glass-panel {
-  background: rgba(18, 24, 38, 0.65);
-  backdrop-filter: blur(24px) saturate(190%);
-  -webkit-backdrop-filter: blur(24px) saturate(190%);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.15),
-    0 16px 36px -10px rgba(0, 0, 0, 0.6);
+:root {
+  /* Long reading surfaces with small grey labels: darken the glass a little more than in the launcher */
+  --lg-shade: 0.34;
 }
 
-.glass-card {
-  background: rgba(255, 255, 255, 0.04);
-  backdrop-filter: blur(16px);
-  -webkit-backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow: inset 0 1px 0 0 rgba(255, 255, 255, 0.08);
-  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+/* Tailwind shadow utilities (shadow-2xl, shadow-[...]) replace box-shadow and with it the specular rim, so in the
+   main app the rim is drawn by a separate layer that utilities cannot touch. The element keeps only the drop. */
+.glass-panel,
+.glass-hud-card,
+.glass-modal,
+.glass-button,
+.glass-button-primary,
+.lg-surface,
+.lg-surface-thick {
+  position: relative;
 }
 
-.glass-card:hover {
-  background: rgba(255, 255, 255, 0.07);
-  border-color: rgba(255, 255, 255, 0.18);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.15),
-    0 8px 24px -6px rgba(0, 242, 254, 0.15);
+.glass-panel,
+.glass-hud-card,
+.lg-surface {
+  box-shadow: var(--lg-drop);
 }
 
-.glass-input {
-  background: rgba(13, 18, 30, 0.7);
-  backdrop-filter: blur(16px);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4);
-  transition: all 0.2s ease;
+.glass-modal,
+.lg-surface-thick {
+  box-shadow: var(--lg-drop-deep);
 }
 
-.glass-input:focus {
-  border-color: rgba(0, 242, 254, 0.6);
-  box-shadow: 
-    inset 0 1px 2px rgba(0, 0, 0, 0.3),
-    0 0 16px rgba(0, 242, 254, 0.3);
-  outline: none;
+.glass-panel::before,
+.glass-hud-card::before,
+.lg-surface::before,
+.glass-modal::before,
+.lg-surface-thick::before,
+.glass-button::before,
+.glass-button-primary::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow: var(--lg-rim);
+}
+
+.glass-modal::before,
+.lg-surface-thick::before {
+  box-shadow: var(--lg-rim-soft);
+}
+
+.glass-button::before {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.glass-button-primary::before {
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.7), inset 0 -8px 14px rgba(8, 24, 120, 0.3);
 }
 
 .glass-button {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.03) 100%);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.2),
-    0 4px 12px rgba(0, 0, 0, 0.3);
-  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-button:hover {
-  background: linear-gradient(135deg, rgba(255, 255, 255, 0.18) 0%, rgba(255, 255, 255, 0.06) 100%);
-  border-color: rgba(255, 255, 255, 0.3);
-  transform: translateY(-1px);
-  box-shadow: 
-    inset 0 1px 0 0 rgba(255, 255, 255, 0.3),
-    0 6px 20px rgba(0, 242, 254, 0.2);
+  box-shadow: 0 2px 8px rgba(0, 0, 14, 0.22);
 }
 
 .glass-button-primary {
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.35) 0%, rgba(79, 172, 254, 0.2) 100%);
-  border: 1px solid rgba(0, 242, 254, 0.5);
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.4),
-    0 4px 20px rgba(0, 242, 254, 0.3);
+  box-shadow: 0 8px 22px rgba(47, 155, 255, 0.4);
 }
 
-.glass-button-primary:hover {
-  background: linear-gradient(135deg, rgba(0, 242, 254, 0.5) 0%, rgba(79, 172, 254, 0.35) 100%);
-  border-color: rgba(0, 242, 254, 0.8);
-  box-shadow: 
-    inset 0 1px 1px 0 rgba(255, 255, 255, 0.6),
-    0 6px 24px rgba(0, 242, 254, 0.5);
+/* ---------- Entrance animations used by the components ----------
+   (`animate-in fade-in zoom-in-95` come from tailwindcss-animate, which is not installed; without these the
+   menus and dialogs simply popped in.) */
+.animate-in {
+  animation: lg-enter 0.22s var(--lg-ease) backwards;
 }
 
-/* Liquid Fluid Glowing Background Orbs */
-.liquid-orb {
-  position: absolute;
-  border-radius: 50%;
-  filter: blur(80px);
-  opacity: 0.45;
-  pointer-events: none;
-  mix-blend-mode: screen;
-  transition: all 1.2s cubic-bezier(0.16, 1, 0.3, 1);
+.animate-in.fade-in:not(.zoom-in-95) {
+  animation-name: lg-fade;
 }
 
-/* Custom Sleek Scrollbar */
+.animate-fade-in {
+  animation: lg-fade 0.22s ease backwards;
+}
+
+.animate-slide-left {
+  animation: lg-slide-left 0.3s var(--lg-ease) backwards;
+}
+
+/* ---------- Scrollbars ---------- */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -98,12 +98,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(255, 255, 255, 0.18);
   border-radius: 9999px;
-  backdrop-filter: blur(4px);
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.25);
+  background: rgba(255, 255, 255, 0.3);
 }
 
 /* Pulse animation for thinking state */
@@ -122,11 +121,27 @@
   animation: liquid-pulse 4s ease-in-out infinite;
 }
 
-/* LaTeX Math Styles with Liquid Glass Optics */
+/* Live aurora border for active elements */
+@keyframes aurora-border-flow {
+  0%, 100% {
+    border-color: rgba(94, 231, 255, 0.4);
+    box-shadow: 0 0 16px rgba(94, 231, 255, 0.16);
+  }
+  50% {
+    border-color: rgba(167, 139, 250, 0.5);
+    box-shadow: 0 0 24px rgba(167, 139, 250, 0.24);
+  }
+}
+
+.glass-aurora-active {
+  animation: aurora-border-flow 4s ease-in-out infinite;
+}
+
+/* ---------- LaTeX math ---------- */
 .math-inline {
   font-family: 'Cambria Math', 'STIXGeneral', 'DejaVu Serif', 'Outfit', serif;
   font-style: italic;
-  color: #38bdf8;
+  color: #7dd3fc;
   padding: 0 4px;
   text-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
   display: inline-flex;
@@ -137,18 +152,17 @@
 .math-block {
   font-family: 'Cambria Math', 'STIXGeneral', 'DejaVu Serif', 'Outfit', serif;
   font-style: italic;
-  color: #38bdf8;
+  color: #7dd3fc;
   text-align: center;
   padding: 16px 20px;
   margin: 14px 0;
-  background: rgba(14, 165, 233, 0.08);
-  border-radius: 16px;
-  border: 1px solid rgba(56, 189, 248, 0.25);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 4px 20px rgba(0, 242, 254, 0.15);
+  background: linear-gradient(145deg, rgba(94, 231, 255, 0.12), rgba(94, 231, 255, 0.04));
+  border-radius: var(--lg-r-lg);
+  border: 1px solid rgba(94, 231, 255, 0.28);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22), 0 4px 20px rgba(0, 0, 14, 0.25);
   font-size: 1.15em;
   text-shadow: 0 0 12px rgba(56, 189, 248, 0.3);
   overflow-x: auto;
-  backdrop-filter: blur(16px);
 }
 
 .math-frac {
@@ -229,51 +243,6 @@
   font-family: 'Plus Jakarta Sans', sans-serif;
 }
 
-/* ==========================================================================
-   AetherAI Studio 4.0 Avant-Garde Futuristic Liquid Glass Additions
-   ========================================================================== */
-
-/* Liquid Aurora Border Pulse */
-@keyframes aurora-border-flow {
-  0% {
-    border-color: rgba(0, 242, 254, 0.35);
-    box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-  }
-  50% {
-    border-color: rgba(168, 85, 247, 0.45);
-    box-shadow: 0 0 24px rgba(168, 85, 247, 0.22), inset 0 1px 1px rgba(255, 255, 255, 0.3);
-  }
-  100% {
-    border-color: rgba(0, 242, 254, 0.35);
-    box-shadow: 0 0 16px rgba(0, 242, 254, 0.15), inset 0 1px 1px rgba(255, 255, 255, 0.2);
-  }
-}
-
-.glass-aurora-active {
-  animation: aurora-border-flow 4s ease-in-out infinite;
-}
-
-/* Futuristic HUD Panel with Corner Accents */
-.glass-hud-card {
-  position: relative;
-  background: rgba(15, 22, 38, 0.65);
-  backdrop-filter: blur(28px) saturate(210%);
-  -webkit-backdrop-filter: blur(28px) saturate(210%);
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 
-    inset 0 1px 2px rgba(255, 255, 255, 0.15),
-    0 20px 40px -15px rgba(0, 0, 0, 0.7);
-  transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
-}
-
-.glass-hud-card:hover {
-  border-color: rgba(0, 242, 254, 0.4);
-  transform: translateY(-2px);
-  box-shadow: 
-    inset 0 1px 2px rgba(255, 255, 255, 0.25),
-    0 24px 48px -12px rgba(0, 242, 254, 0.2);
-}
-
 /* Desktop App Drag Region for frameless desktop clients */
 .desktop-drag-region {
   -webkit-app-region: drag;
@@ -285,53 +254,16 @@
 }
 
 /* -------------------------------------------------------------
-   Hardware-Saving Eco Mode (⚡ 節省硬體效能模式)
-   Eliminates expensive Gaussian blurs and heavy glowing shadows
-   so that even entry-level laptops / low-spec PCs render at
-   lightning-fast, instantaneous 60+ FPS without slowing down
-   streaming response speed.
+   Hardware-saving Eco mode (節省硬體效能模式)
+   The shared file turns the glass materials into solid panels; this also strips the blur and glow utilities the
+   components use directly, so low-end machines keep a smooth frame rate while a local model is generating.
    ------------------------------------------------------------- */
-.eco-mode,
-.low-spec {
-  --eco-panel-bg: rgba(15, 23, 42, 0.96);
-  --eco-card-bg: rgba(22, 32, 54, 0.94);
-  --eco-input-bg: rgba(10, 15, 26, 0.96);
-}
-
-.eco-mode .glass-panel,
-.low-spec .glass-panel,
-.eco-mode .glass-hud-card,
-.low-spec .glass-hud-card {
-  background: var(--eco-panel-bg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
-}
-
-.eco-mode .glass-card,
-.low-spec .glass-card {
-  background: var(--eco-card-bg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-  box-shadow: none !important;
-}
-
-.eco-mode .glass-input,
-.low-spec .glass-input {
-  background: var(--eco-input-bg) !important;
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.eco-mode .glass-button,
-.low-spec .glass-button {
-  backdrop-filter: none !important;
-  -webkit-backdrop-filter: none !important;
-}
-
-.eco-mode .liquid-orb,
-.low-spec .liquid-orb {
-  display: none !important;
+.eco-mode .glass-panel::before,
+.eco-mode .glass-modal::before,
+.eco-mode .glass-hud-card::before,
+.low-spec .glass-panel::before,
+.low-spec .glass-modal::before {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12);
 }
 
 .eco-mode [class*="backdrop-blur"],
@@ -348,9 +280,11 @@
 .eco-mode .glass-aurora-active,
 .low-spec .glass-aurora-active {
   animation: none !important;
-  border-color: rgba(0, 242, 254, 0.4) !important;
+  border-color: rgba(94, 231, 255, 0.4) !important;
 }
 
-
-
-
+.eco-mode .animate-in,
+.eco-mode .animate-fade-in,
+.eco-mode .animate-slide-left {
+  animation: none !important;
+}

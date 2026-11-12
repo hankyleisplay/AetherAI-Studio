@@ -286,8 +286,8 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/75 backdrop-blur-lg animate-fade-in text-slate-100">
-      <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0b101d] border border-cyan-500/30 rounded-2xl shadow-2xl flex flex-col overflow-hidden">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 lg-scrim animate-fade-in text-slate-100">
+      <div className="w-full max-w-4xl max-h-[90vh] glass-modal rounded-3xl flex flex-col overflow-hidden animate-in fade-in zoom-in-95">
         {/* Modal Header */}
         <div className="flex items-center justify-between p-4 border-b border-white/10 bg-white/5">
           <div className="flex items-center gap-3">

@@ -211,8 +211,8 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({ isOpen, onCl
   const input = 'w-full px-3 py-2 rounded-xl glass-input text-xs text-slate-100 placeholder:text-slate-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-      <div className="w-full max-w-3xl glass-panel rounded-3xl border border-white/15 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg-scrim animate-fade-in">
+      <div className="w-full max-w-3xl glass-modal rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-fuchsia-500/20 border border-fuchsia-400/40 flex items-center justify-center text-fuchsia-300">

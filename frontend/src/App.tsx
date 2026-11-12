@@ -1025,7 +1025,7 @@ export const App: React.FC = () => {
   const activePersona = personas.find(p => p.id === selectedPersonaId);
 
   return (
-    <div className="relative w-screen h-screen overflow-hidden flex bg-[#070a12] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
+    <div className="relative w-screen h-screen overflow-hidden flex bg-[#070b1c] text-slate-100 font-['Plus_Jakarta_Sans',sans-serif]">
       {/* Dynamic Animated Liquid Glass Background */}
       <LiquidBackground state={agentState} isEcoMode={isEcoMode} />
 

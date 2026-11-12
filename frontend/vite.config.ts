@@ -32,6 +32,10 @@ export default defineConfig({
   },
   server: {
     port: 5173,
+    // The Liquid Glass stylesheet is shared with the launcher (launcher/ui/liquid-glass.css)
+    fs: {
+      allow: ['.', '../launcher/ui']
+    },
     proxy: {
       '/api': {
         target: 'http://localhost:8000',

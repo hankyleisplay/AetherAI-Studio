@@ -45,8 +45,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-xl p-4 animate-in fade-in duration-200">
-      <div className="w-full max-w-sm rounded-3xl bg-slate-900/90 border border-cyan-500/30 p-6 md:p-8 shadow-[0_0_50px_rgba(0,242,254,0.25)] text-center">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center lg-scrim bg-[#04061a]/80 p-4 animate-fade-in">
+      <div className="w-full max-w-sm rounded-3xl glass-modal p-6 md:p-8 text-center animate-in fade-in zoom-in-95">
         <div className="w-16 h-16 mx-auto mb-4 rounded-2xl bg-gradient-to-tr from-cyan-500/20 to-indigo-600/30 border border-cyan-400/40 flex items-center justify-center text-cyan-300 shadow-inner">
           <Lock className="w-8 h-8 text-cyan-400 animate-pulse" />
         </div>

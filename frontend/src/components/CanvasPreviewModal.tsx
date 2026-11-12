@@ -169,9 +169,9 @@ export const CanvasPreviewModal: React.FC<CanvasPreviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 lg-scrim animate-fade-in">
       <div 
-        className={`glass-panel border border-white/20 rounded-2xl flex flex-col shadow-[0_0_50px_rgba(0,242,254,0.25)] overflow-hidden transition-all duration-300 ${
+        className={`glass-modal rounded-3xl flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 ${
           isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-6xl h-[92vh]'
         }`}
       >

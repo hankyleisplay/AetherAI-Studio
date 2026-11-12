@@ -575,7 +575,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   ];
 
   return (
-    <div className="flex-1 flex flex-col h-[calc(100vh-4rem)] relative z-10 overflow-hidden">
+    <div className="flex-1 flex flex-col min-h-0 relative z-10 overflow-hidden">
       
       {/* Messages Scroll Container */}
       <div 
@@ -586,7 +586,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {messages.length === 0 ? (
           /* Empty State Welcome Screen */
           <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center px-4 py-8">
-            <div className="w-16 h-16 rounded-3xl glass-button flex items-center justify-center mb-5 border border-cyan-500/30 shadow-[0_0_30px_rgba(0,242,254,0.3)] bg-gradient-to-tr from-cyan-500/20 via-blue-600/20 to-purple-600/20">
+            <div className="w-16 h-16 rounded-3xl glass-panel flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(94,231,255,0.3)]">
               <Sparkles className="w-8 h-8 text-cyan-300" />
             </div>
 
@@ -603,7 +603,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   key={idx}
                   onClick={() => onSendMessage(s.prompt)}
-                  className="p-3.5 rounded-2xl glass-card text-left transition-all hover:scale-[1.02] border border-white/10 flex items-start gap-3 group active:scale-95 shadow-sm hover:shadow-[0_0_15px_rgba(0,242,254,0.2)]"
+                  className="p-3.5 rounded-3xl glass-panel text-left transition-transform duration-300 hover:-translate-y-0.5 flex items-start gap-3 group active:scale-[0.98]"
                 >
                   <div className="p-2 rounded-xl bg-white/[0.05] border border-white/10 group-hover:bg-cyan-500/20 transition-colors shrink-0">
                     {s.icon}
@@ -646,7 +646,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
       {showScrollBottom && (
         <button
           onClick={() => scrollToBottom(true)}
-          className="absolute bottom-28 right-6 md:right-10 px-3.5 py-2 rounded-full glass-panel border border-cyan-400/40 text-cyan-300 hover:text-white hover:bg-cyan-500/20 shadow-2xl transition-all duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 z-30 group backdrop-blur-xl bg-black/60"
+          className="absolute bottom-28 right-6 md:right-10 px-3.5 py-2 rounded-full glass-panel text-cyan-200 hover:text-white transition-transform duration-200 hover:scale-105 active:scale-95 flex items-center gap-2 z-30 group"
           title={t('scroll_to_bottom', '滑至最底部')}
         >
           <div className="p-1 rounded-full bg-cyan-500/20 border border-cyan-400/30 group-hover:bg-cyan-500/30 transition-all">
@@ -714,12 +714,12 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <span className="text-[11px] font-medium">{t('reasoning_tuning', '推論調優')}:</span>
             </div>
 
-            <div className="flex items-center gap-1.5 p-1 rounded-xl bg-black/30 border border-white/5 backdrop-blur-md shrink-0">
+            <div className="flex items-center gap-1 p-1 rounded-full glass-panel shrink-0">
               {/* Precise (0.2) */}
               <button
                 type="button"
                 onClick={() => onTemperatureChange(0.2)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature <= 0.3
                     ? 'bg-cyan-500/25 text-cyan-200 border border-cyan-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -734,7 +734,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => onTemperatureChange(0.7)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature > 0.3 && temperature <= 0.8
                     ? 'bg-blue-500/25 text-blue-200 border border-blue-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -749,7 +749,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button
                 type="button"
                 onClick={() => onTemperatureChange(1.1)}
-                className={`px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
+                className={`px-2.5 py-1 rounded-full text-[11px] font-medium transition-all flex items-center gap-1 whitespace-nowrap ${
                   temperature > 0.8
                     ? 'bg-purple-500/25 text-purple-200 border border-purple-400/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
@@ -768,7 +768,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
           onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
           onDragLeave={() => setIsDragging(false)}
           onDrop={handleDrop}
-          className={`glass-panel rounded-2xl p-2 md:p-3 border shadow-2xl relative transition-all ${
+          className={`glass-panel rounded-3xl p-2 md:p-3 transition-[border-color,box-shadow] duration-300 ${
             isDragging 
               ? 'border-cyan-400 bg-cyan-500/10 shadow-[0_0_30px_rgba(0,242,254,0.3)]' 
               : 'border-white/15 focus-within:border-cyan-400/50 focus-within:shadow-[0_0_25px_rgba(0,242,254,0.2)]'
@@ -776,7 +776,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         >
           {/* Drag & Drop Visual Overlay */}
           {isDragging && (
-            <div className="absolute inset-0 z-20 rounded-2xl bg-cyan-950/80 backdrop-blur-md flex flex-col items-center justify-center border-2 border-dashed border-cyan-400 text-cyan-200">
+            <div className="absolute inset-0 z-20 rounded-3xl bg-cyan-950/80 backdrop-blur-md flex flex-col items-center justify-center border-2 border-dashed border-cyan-400 text-cyan-200">
               <UploadCloud className="w-8 h-8 animate-bounce mb-1" />
               <p className="text-xs font-semibold">{t('drag_drop_hint', '放開滑鼠即可將檔案上傳至工作區')}</p>
             </div>
@@ -877,7 +877,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                   : t('chat_placeholder', '請輸入指令或問題... (支援 Ctrl+V 貼上或拖曳圖片/代碼至此，Enter 發送)')
             }
             disabled={isStreaming}
-            className="w-full bg-transparent px-3 py-2 text-sm md:text-[15px] text-slate-100 placeholder-slate-500 focus:outline-none resize-none max-h-80 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap selection:bg-cyan-500/30"
+            className="w-full bg-transparent px-3 py-2 text-sm md:text-[15px] text-slate-100 placeholder-slate-300/70 focus:outline-none resize-none max-h-80 overflow-y-auto font-sans leading-relaxed whitespace-pre-wrap selection:bg-cyan-500/30"
           />
 
           <div className="flex items-center justify-between pt-2 border-t border-white/[0.06] mt-1 px-1">
@@ -887,7 +887,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 type="button"
                 onClick={() => fileInputRef.current?.click()}
                 disabled={isUploading || isStreaming}
-                className="p-1.5 rounded-lg glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-xs"
+                className="p-1.5 px-2 rounded-full glass-button text-slate-400 hover:text-cyan-300 transition-colors flex items-center gap-1 text-xs"
                 title={t('upload_file', '上傳檔案')}
               >
                 {isUploading ? (
@@ -903,7 +903,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 type="button"
                 onClick={toggleListening}
                 disabled={isStreaming}
-                className={`p-1.5 rounded-lg glass-button transition-all flex items-center gap-1 text-xs ${
+                className={`p-1.5 px-2 rounded-full glass-button transition-all flex items-center gap-1 text-xs ${
                   isListening 
                     ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 animate-pulse shadow-[0_0_10px_rgba(244,63,94,0.4)]' 
                     : 'text-slate-400 hover:text-cyan-300'
@@ -923,7 +923,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 type="button"
                 onClick={handleEnhancePrompt}
                 disabled={!inputText.trim() || isEnhancing || isStreaming}
-                className={`p-1.5 rounded-lg glass-button transition-all flex items-center gap-1 text-xs ${
+                className={`p-1.5 px-2 rounded-full glass-button transition-all flex items-center gap-1 text-xs ${
                   inputText.trim() && !isStreaming
                     ? 'text-cyan-300 hover:text-white border-cyan-400/30 hover:border-cyan-400/60 shadow-[0_0_10px_rgba(0,242,254,0.15)]'
                     : 'text-slate-500 opacity-50 cursor-not-allowed'
@@ -950,7 +950,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 <button
                   type="button"
                   onClick={handleUndoEnhance}
-                  className="p-1.5 rounded-lg glass-button text-amber-300 hover:text-white text-xs flex items-center gap-1 transition-all"
+                  className="p-1.5 px-2 rounded-full glass-button text-amber-300 hover:text-white text-xs flex items-center gap-1 transition-all"
                   title={t('undo_enhance_tooltip', '復原為優化前的原始提示詞')}
                 >
                   <X className="w-3 h-3 text-amber-400" />
@@ -968,7 +968,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             {isStreaming ? (
               <button
                 onClick={onStopGeneration}
-                className="px-3 py-1.5 rounded-xl bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                className="px-3.5 py-1.5 rounded-full bg-rose-500/20 hover:bg-rose-500/30 text-rose-300 border border-rose-500/40 text-xs font-semibold flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
               >
                 <Square className="w-3.5 h-3.5 fill-current" />
                 <span>{t('stop_generation', '停止生成')}</span>
@@ -977,9 +977,9 @@ export const ChatView: React.FC<ChatViewProps> = ({
               <button
                 onClick={handleSubmit}
                 disabled={!inputText.trim() && !uploadedFile && attachedImages.length === 0}
-                className={`px-3.5 py-1.5 rounded-xl text-xs font-semibold flex items-center gap-1.5 transition-all shadow-md active:scale-95 ${
+                className={`px-4 py-1.5 rounded-full text-xs font-semibold flex items-center gap-1.5 transition-all active:scale-95 ${
                   (inputText.trim() || uploadedFile || attachedImages.length > 0)
-                    ? 'glass-button-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.3)]'
+                    ? 'glass-button-primary text-white'
                     : 'bg-white/[0.04] text-slate-500 border border-white/5 cursor-not-allowed'
                 }`}
               >

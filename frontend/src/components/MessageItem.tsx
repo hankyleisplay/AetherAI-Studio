@@ -251,7 +251,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                   value={editContent}
                   onChange={(e) => setEditContent(e.target.value)}
                   rows={Math.min(10, Math.max(2, editContent.split('\n').length))}
-                  className="w-full p-3.5 rounded-2xl bg-black/75 border border-cyan-400/60 text-slate-100 text-sm md:text-[15px] focus:outline-none focus:ring-2 focus:ring-cyan-400/50 font-sans leading-relaxed resize-y shadow-2xl backdrop-blur-xl"
+                  className="w-full p-3.5 rounded-2xl glass-input text-slate-100 text-sm md:text-[15px] font-sans leading-relaxed resize-y"
                   autoFocus
                   onKeyDown={(e) => {
                     if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
@@ -274,7 +274,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                       setIsEditing(false);
                       setEditContent(message.content);
                     }}
-                    className="px-3 py-1.5 rounded-xl bg-white/10 hover:bg-white/15 text-slate-300 transition-colors"
+                    className="px-3.5 py-1.5 rounded-full glass-button text-slate-200"
                   >
                     {t('cancel_edit', '取消')}
                   </button>
@@ -287,15 +287,15 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                         setIsEditing(false);
                       }
                     }}
-                    className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 text-slate-950 font-bold shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all flex items-center gap-1.5 cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="px-4 py-1.5 rounded-full glass-button-primary font-bold flex items-center gap-1.5 cursor-pointer"
                   >
-                    <Zap className="w-3.5 h-3.5 fill-slate-950" />
+                    <Zap className="w-3.5 h-3.5 fill-white/80" />
                     <span>{t('save_and_resend', '儲存並重新發送')}</span>
                   </button>
                 </div>
               </div>
             ) : (
-              <div className="px-4 py-3 rounded-2xl glass-button-primary text-slate-100 text-sm md:text-[15px] font-medium leading-relaxed shadow-lg">
+              <div className="px-4 py-3 rounded-3xl rounded-br-lg glass-button-primary text-white text-sm md:text-[15px] font-medium leading-relaxed">
                 <p className="whitespace-pre-wrap break-words">{message.content}</p>
               </div>
             )}
@@ -360,7 +360,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
           </div>
         ) : (
           /* Assistant Message Card */
-          <div className="w-full glass-panel rounded-3xl p-4 md:p-6 border border-white/10 shadow-2xl relative group transition-all duration-300">
+          <div className="w-full glass-panel rounded-3xl p-4 md:p-6 group">
             
             {/* Assistant Branding Header Bar */}
             <div className="flex items-center justify-between gap-2 mb-3 pb-2.5 border-b border-white/[0.06]">
