@@ -6,23 +6,24 @@
   <title>Aether AI Studio - 官方專屬啟動器</title>
   <link rel="icon" type="image/x-icon" href="icon.ico">
   <link rel="icon" type="image/png" href="icon.png">
+  <link rel="stylesheet" href="liquid-glass.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <div class="launcher-container" id="launcher-container">
-    <!-- Liquid Glass backdrop: the panels blur and refract these light blobs -->
-    <div class="aurora" aria-hidden="true">
-      <span class="blob blob-1"></span>
-      <span class="blob blob-2"></span>
-      <span class="blob blob-3"></span>
-      <span class="blob blob-4"></span>
+    <!-- Liquid Glass backdrop: the panels blur and saturate these light blobs -->
+    <div class="lg-aurora" aria-hidden="true">
+      <span class="lg-blob blob-1"></span>
+      <span class="lg-blob blob-2"></span>
+      <span class="lg-blob blob-3"></span>
+      <span class="lg-blob blob-4"></span>
     </div>
 
     <!-- Top Brand Header with Custom Language Dropdown -->
     <header class="launcher-header">
       <div class="logo-area">
         <div class="logo-glow"></div>
-        <div class="logo-badge"><img src="icon.png" alt="Aether" /></div>
+        <div class="logo-badge lg-surface"><img src="icon.png" alt="Aether" /></div>
         <div class="header-titles">
           <h1>AETHER AI STUDIO <span id="app-version-badge"></span></h1>
           <p class="subtitle" data-i18n="app_subtitle">次世代獨立原生桌面代理系統 • 官方正式版 (Tauri + Rust)</p>
@@ -31,28 +32,28 @@
 
       <!-- Custom Styled Dropdown Menu -->
       <div class="custom-dropdown" id="lang-dropdown">
-        <button type="button" class="dropdown-trigger" id="lang-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
+        <button type="button" class="dropdown-trigger lg-control lg-blur" id="lang-dropdown-trigger" aria-haspopup="listbox" aria-expanded="false">
           <span class="dropdown-flag" id="dropdown-current-flag">🇹🇼</span>
           <span class="dropdown-label" id="dropdown-current-label">繁體中文</span>
           <span class="dropdown-arrow">▾</span>
         </button>
-        <div class="dropdown-menu" id="lang-dropdown-menu" role="listbox">
-          <div class="dropdown-item active" data-lang="zh-TW" role="option">
+        <div class="dropdown-menu lg-surface-thick" id="lang-dropdown-menu" role="listbox">
+          <div class="dropdown-item active" data-lang="zh-TW" role="option" tabindex="0" aria-selected="true">
             <span class="item-flag">🇹🇼</span>
             <span class="item-text">繁體中文</span>
             <span class="item-check">✓</span>
           </div>
-          <div class="dropdown-item" data-lang="zh-CN" role="option">
+          <div class="dropdown-item" data-lang="zh-CN" role="option" tabindex="0" aria-selected="false">
             <span class="item-flag">🇨🇳</span>
             <span class="item-text">简体中文</span>
             <span class="item-check">✓</span>
           </div>
-          <div class="dropdown-item" data-lang="en" role="option">
+          <div class="dropdown-item" data-lang="en" role="option" tabindex="0" aria-selected="false">
             <span class="item-flag">🇺🇸</span>
             <span class="item-text">English</span>
             <span class="item-check">✓</span>
           </div>
-          <div class="dropdown-item" data-lang="ja" role="option">
+          <div class="dropdown-item" data-lang="ja" role="option" tabindex="0" aria-selected="false">
             <span class="item-flag">🇯🇵</span>
             <span class="item-text">日本語</span>
             <span class="item-check">✓</span>
@@ -62,20 +63,19 @@
     </header>
 
     <!-- Auto-Update Alert Banner -->
-    <div id="update-banner" class="update-banner state-checking">
+    <div id="update-banner" class="update-banner lg-surface state-checking">
       <div class="banner-icon" id="update-icon">⏳</div>
       <div class="banner-text">
         <div class="banner-title" id="update-title">自動更新檢查中...</div>
         <div class="banner-desc" id="update-desc">正在向官方 GitHub 驗證最新發行版本與倉庫狀態</div>
       </div>
       <div class="banner-action" id="update-action">
-        <button id="btn-recheck-update" class="btn-ghost" data-i18n="btn_recheck">🔄 重新檢查</button>
       </div>
     </div>
 
     <!-- One-Click Core Installer Banner (Displayed when project is not installed) -->
     <div id="install-banner" class="install-banner" style="display: none;">
-      <div class="install-card">
+      <div class="install-card lg-surface">
         <div class="install-header">
           <div class="install-icon">⚡</div>
           <div class="install-details">
@@ -84,7 +84,7 @@
             <p class="install-desc" data-i18n="install_desc">尚未偵測到核心系統。點擊按鈕將自動從官方 GitHub 下載核心檔案、自動配置 Python 相依套件並建立桌面捷徑！</p>
           </div>
         </div>
-        <button id="btn-install-core" class="btn-install-primary">
+        <button id="btn-install-core" class="btn-install-primary lg-control-primary">
           <span id="install-btn-text" data-i18n="btn_install_now">⚡ 一鍵自動安裝與配置</span>
           <span class="arrow">➔</span>
         </button>
@@ -92,7 +92,7 @@
     </div>
 
     <!-- Environment Detection & Hardware Mode Card -->
-    <section class="env-card">
+    <section class="env-card lg-surface">
       <div class="env-row">
         <div class="env-item">
           <span class="env-label" data-i18n="env_project_dir">📂 專案目錄:</span>
@@ -108,7 +108,7 @@
         <!-- Custom Stepper Input for Port -->
         <div class="port-setting">
           <label for="server-port" data-i18n="env_port">監聽埠號 (Port):</label>
-          <div class="custom-stepper">
+          <div class="custom-stepper lg-input">
             <input type="number" id="server-port" value="8000" min="1024" max="65535">
             <div class="stepper-buttons">
               <button type="button" class="stepper-btn stepper-up" id="btn-port-up" title="增加埠號 (+1)">▲</button>
@@ -123,7 +123,7 @@
         </div>
 
         <!-- One-Click Close All Clients Button -->
-        <button type="button" class="btn-close-all" id="btn-close-all" title="一鍵關閉所有正在運行的客戶端與伺服器">
+        <button type="button" class="btn-close-all lg-control lg-control-danger" id="btn-close-all">
           <span class="close-all-icon">🛑</span>
           <span data-i18n="btn_close_all_clients">一鍵關閉所有客戶端</span>
         </button>
@@ -149,7 +149,7 @@
       <h2 class="section-title" data-i18n="section_mode_title">請選擇啟動模式：</h2>
       
       <!-- Option 1: Standalone Desktop App (Recommended) -->
-      <div class="mode-card primary-card" id="card-desktop">
+      <div class="mode-card primary-card lg-surface lg-sweep" id="card-desktop">
         <div class="card-icon">🖥️</div>
         <div class="card-content">
           <div class="card-header">
@@ -158,14 +158,14 @@
           </div>
           <p class="card-desc" data-i18n="desktop_desc">獨立原生視窗應用 • 沉浸專注無干擾 • 實時推論 HUD 與即時畫布</p>
         </div>
-        <button class="btn-launch btn-launch-primary" id="btn-launch-desktop">
+        <button class="btn-launch lg-control-primary" id="btn-launch-desktop">
           <span data-i18n="desktop_btn">立即啟動桌面版</span>
           <span class="arrow">➔</span>
         </button>
       </div>
 
       <!-- Option 2: Terminal CLI Mode (Headless / Server) -->
-      <div class="mode-card" id="card-cli">
+      <div class="mode-card lg-surface lg-sweep" id="card-cli">
         <div class="card-icon">💻</div>
         <div class="card-content">
           <div class="card-header">
@@ -174,14 +174,14 @@
           </div>
           <p class="card-desc" data-i18n="cli_desc">在獨立終端視窗運行伺服器 • 實時監控 22 大工具調用日誌與推理進度</p>
         </div>
-        <button class="btn-launch btn-launch-secondary" id="btn-launch-cli">
+        <button class="btn-launch lg-control" id="btn-launch-cli">
           <span data-i18n="cli_btn">啟動終端版</span>
           <span class="arrow">➔</span>
         </button>
       </div>
 
       <!-- Option 3: Web Browser Mode -->
-      <div class="mode-card" id="card-browser">
+      <div class="mode-card lg-surface lg-sweep" id="card-browser">
         <div class="card-icon">🌐</div>
         <div class="card-content">
           <div class="card-header">
@@ -189,7 +189,7 @@
           </div>
           <p class="card-desc" data-i18n="browser_desc">啟動本地後端伺服器，並自動在預設瀏覽器分頁開啟使用</p>
         </div>
-        <button class="btn-launch btn-launch-subtle" id="btn-launch-browser">
+        <button class="btn-launch lg-control" id="btn-launch-browser">
           <span data-i18n="browser_btn">開啟瀏覽器</span>
           <span class="arrow">➔</span>
         </button>
@@ -199,25 +199,23 @@
     <!-- Bottom Quick Actions & Status -->
     <footer class="launcher-footer">
       <div class="footer-buttons">
-        <button id="btn-create-shortcut" class="footer-btn">
+        <button id="btn-create-shortcut" class="footer-btn lg-control lg-blur">
           <span data-i18n="footer_shortcut">⭐ 建立桌面捷徑</span>
         </button>
-        <button id="btn-open-folder" class="footer-btn">
+        <button id="btn-open-folder" class="footer-btn lg-control lg-blur">
           <span data-i18n="footer_open_folder">📂 開啟專案目錄</span>
         </button>
-        <button id="btn-reinstall-core" class="footer-btn">
+        <button id="btn-reinstall-core" class="footer-btn lg-control lg-blur">
           <span data-i18n="footer_reinstall">📦 重新安裝/修復核心</span>
         </button>
-        <button id="btn-self-update-launcher" class="footer-btn">
+        <button id="btn-self-update-launcher" class="footer-btn lg-control lg-blur">
           <span data-i18n="footer_update_launcher">🚀 自動更新啟動器</span>
         </button>
-        <button id="btn-health-check" class="footer-btn">
+        <button id="btn-health-check" class="footer-btn lg-control lg-blur">
           <span data-i18n="footer_health_check">🩺 環境健康檢查</span>
         </button>
       </div>
-      <div class="footer-status-bar" id="footer-status-bar" data-i18n="footer_status_standby">
-        Aether AI Studio v4.1.3 Official Release • 系統狀態：待命中
-      </div>
+      <div class="footer-status-bar" id="footer-status-bar"></div>
     </footer>
   </div>
 

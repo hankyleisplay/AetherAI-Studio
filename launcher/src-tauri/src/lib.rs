@@ -42,6 +42,77 @@ fn save_launcher_config(cfg: &LauncherConfig) {
     }
 }
 
+/// Single-quoted PowerShell literal. Backslashes are not escapes inside single quotes; only `'` needs doubling.
+fn ps_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+/// `find_python` returns either a program path or the two-word launcher form "py -3".
+fn python_command(python_bin: &str) -> Command {
+    if python_bin == "py -3" {
+        let mut c = Command::new("py");
+        c.arg("-3");
+        c
+    } else {
+        Command::new(python_bin)
+    }
+}
+
+/// The same interpreter as text for a `cmd.exe` command line (quoted when the path has spaces).
+fn python_for_shell(python_bin: &str) -> String {
+    if python_bin != "py -3" && python_bin.contains(' ') && !python_bin.starts_with('"') {
+        format!("\"{}\"", python_bin)
+    } else {
+        python_bin.to_string()
+    }
+}
+
+/// `cmd.exe <switch> "<command line>"`. The command line is passed verbatim: Rust's normal argument escaping
+/// turns inner quotes into `\"`, which cmd.exe does not understand, so a quoted Python path never worked.
+fn cmd_shell(switch: &str, command_line: &str) -> Command {
+    let mut cmd = Command::new("cmd.exe");
+    #[cfg(windows)]
+    {
+        cmd.raw_arg(switch);
+        cmd.raw_arg(format!("\"{}\"", command_line));
+    }
+    #[cfg(not(windows))]
+    {
+        cmd.args([switch, command_line]);
+    }
+    cmd
+}
+
+/// Run `pip install -r requirements.txt` for the project. Returns a note for the user when it did not succeed.
+fn install_requirements(project_dir: &Path, quiet: bool) -> Option<String> {
+    let req_file = project_dir.join("backend").join("requirements.txt");
+    if !req_file.exists() {
+        return None;
+    }
+    let python_bin = match find_python() {
+        Some(p) => p,
+        None => return Some("未偵測到 Python，已略過相依套件安裝。請安裝 Python 3.10+ 後再執行一次。".to_string()),
+    };
+    let mut pip_cmd = python_command(&python_bin);
+    pip_cmd.args(["-m", "pip", "install", "-r"]).arg(&req_file);
+    if quiet {
+        pip_cmd.arg("--quiet");
+    }
+    pip_cmd.current_dir(project_dir);
+    #[cfg(windows)]
+    pip_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match pip_cmd.output() {
+        Ok(out) if out.status.success() => None,
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let last_line = stderr.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim().to_string();
+            Some(format!("相依套件安裝未完成 (pip 結束代碼 {})：{}", out.status.code().unwrap_or(-1), last_line))
+        }
+        Err(e) => Some(format!("無法執行 pip：{}", e)),
+    }
+}
+
 pub fn parse_semver(v: &str) -> (u32, u32, u32) {
     let clean = v.trim().trim_start_matches(|c| c == 'v' || c == 'V');
     let parts: Vec<&str> = clean.split(|c: char| c == '.' || c == '-' || c == '+').collect();
@@ -94,11 +165,19 @@ pub struct UpdateResult {
 
 fn cleanup_old_launcher() {
     if let Ok(exe_path) = env::current_exe() {
+        // Only this launcher's own leftovers: the exe may live in Downloads next to unrelated files
+        let own_stem = exe_path.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        if own_stem.is_empty() {
+            return;
+        }
         if let Some(parent) = exe_path.parent() {
             if let Ok(entries) = std::fs::read_dir(parent) {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if !name.starts_with(&own_stem) {
+                            continue;
+                        }
                         if name.ends_with(".exe.bak") || name.contains(".exe.old.") || name.ends_with(".exe.new") {
                             let _ = std::fs::remove_file(&path);
                         }
@@ -240,7 +319,6 @@ fn find_python() -> Option<String> {
         format!(r"{}\AppData\Local\Programs\Python\Python313\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python312\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python311\python.exe", home),
-        r"C:\Users\李秉翰\AppData\Local\Programs\Python\Python314\python.exe".to_string(),
         r"C:\Python314\python.exe".to_string(),
         r"C:\Python313\python.exe".to_string(),
         r"C:\Python312\python.exe".to_string(),
@@ -268,7 +346,7 @@ fn check_git() -> bool {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_system_info() -> SystemInfo {
     let args: Vec<String> = env::args().collect();
     let force_install = args.iter().any(|a| a == "--install" || a == "--fresh");
@@ -300,7 +378,7 @@ fn get_system_info() -> SystemInfo {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn check_update() -> UpdateResult {
     let project_root = find_project_root();
     let project_ver = project_root
@@ -328,7 +406,7 @@ fn check_update() -> UpdateResult {
 
     let mut remote_launcher_url = None;
 
-    // 1. Query GitHub Releases API
+    // Query GitHub Releases API
     let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
     let resp = ureq::get(api_url)
         .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
@@ -383,39 +461,6 @@ fn check_update() -> UpdateResult {
         }
         Err(e) => {
             result.error = Some(format!("GitHub API 查詢失敗: {}", e));
-        }
-    }
-
-    // 2. Local Git repository check (if git clone was used)
-    if let Some(ref project_path) = project_root {
-        let git_dir = project_path.join(".git");
-        if git_dir.exists() {
-            let mut fetch_cmd = Command::new("git");
-            fetch_cmd.args(["fetch", "origin", "main"]).current_dir(project_path);
-            #[cfg(windows)]
-            fetch_cmd.creation_flags(CREATE_NO_WINDOW);
-
-            if let Ok(fetch_out) = fetch_cmd.output() {
-                if fetch_out.status.success() {
-                    let mut rev_cmd = Command::new("git");
-                    rev_cmd.args(["rev-list", "--count", "HEAD..origin/main"]).current_dir(project_path);
-                    #[cfg(windows)]
-                    rev_cmd.creation_flags(CREATE_NO_WINDOW);
-
-                    if let Ok(rev_out) = rev_cmd.output() {
-                        let count_str = String::from_utf8_lossy(&rev_out.stdout).trim().to_string();
-                        if let Ok(count) = count_str.parse::<u32>() {
-                            if count > 0 {
-                                // Only trigger has_update = true if remote version is strictly newer than local!
-                                if is_newer_version(&result.latest_version, CURRENT_VERSION)
-                                    || is_newer_version(&result.latest_version, &project_ver) {
-                                    result.has_update = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
         }
     }
 
@@ -481,9 +526,9 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     if !tar_ok {
         // Fallback: PowerShell Expand-Archive
         let ps_script = format!(
-            r#"$tempZip = '{}'; $target = '{}'; Expand-Archive -Path $tempZip -DestinationPath "$target\_temp_extract" -Force; Copy-Item "$target\_temp_extract\AetherAI-Studio-main\*" "$target" -Recurse -Force; Remove-Item "$target\_temp_extract" -Recurse -Force;"#,
-            temp_zip.to_string_lossy().replace('\\', "\\\\"),
-            target_dir.to_string_lossy().replace('\\', "\\\\")
+            r#"$tempZip = {}; $target = {}; Expand-Archive -LiteralPath $tempZip -DestinationPath "$target\_temp_extract" -Force; Copy-Item "$target\_temp_extract\AetherAI-Studio-main\*" "$target" -Recurse -Force; Remove-Item "$target\_temp_extract" -Recurse -Force;"#,
+            ps_quote(&temp_zip.to_string_lossy()),
+            ps_quote(&target_dir.to_string_lossy())
         );
         let mut ps_cmd = Command::new("powershell");
         ps_cmd.args(["-NoProfile", "-Command", &ps_script]);
@@ -503,7 +548,7 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn install_or_repair_core(target_path: Option<String>) -> Result<String, String> {
     let install_dir = if let Some(p) = target_path {
         if !p.trim().is_empty() {
@@ -524,32 +569,27 @@ fn install_or_repair_core(target_path: Option<String>) -> Result<String, String>
     }
 
     // 2. Install Python dependencies
-    if let Some(python_bin) = find_python() {
-        let req_file = install_dir.join("backend").join("requirements.txt");
-        if req_file.exists() {
-            let mut pip_cmd = if python_bin.contains(" ") {
-                let parts: Vec<&str> = python_bin.split_whitespace().collect();
-                let mut c = Command::new(parts[0]);
-                c.args(&parts[1..]);
-                c
-            } else {
-                Command::new(&python_bin)
-            };
-            pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy()]);
-            pip_cmd.current_dir(&install_dir);
-            #[cfg(windows)]
-            pip_cmd.creation_flags(CREATE_NO_WINDOW);
-            let _ = pip_cmd.output();
-        }
-    }
+    let pip_note = install_requirements(&install_dir, false);
 
     // 3. Create desktop shortcut
     let _ = create_desktop_shortcut();
 
-    Ok(format!("🎉 Aether AI Studio 4.0 核心檔案與相依套件已成功安裝並配置完成！\n安裝路徑: {}", install_dir.display()))
+    match pip_note {
+        None => Ok(format!(
+            "🎉 Aether AI Studio {} 核心檔案與相依套件已安裝完成！\n安裝路徑: {}",
+            CURRENT_VERSION,
+            install_dir.display()
+        )),
+        // The files are in place, so this is not a failure, but the user must know the app may not start yet
+        Some(note) => Ok(format!(
+            "⚠️ 核心檔案已就緒，但{}\n安裝路徑: {}",
+            note,
+            install_dir.display()
+        )),
+    }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn install_python() -> Result<String, String> {
     // 1. Try winget install
     let mut winget = Command::new("winget");
@@ -587,7 +627,7 @@ fn select_custom_project_dir(path: String) -> Result<String, String> {
     Ok(format!("已成功設定並儲存專案目錄: {}", path))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn apply_update() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -648,24 +688,7 @@ fn apply_update() -> Result<String, String> {
         }
 
         // 4. Update python dependencies in case requirements changed
-        if let Some(python_bin) = find_python() {
-            let req_file = project_dir.join("backend").join("requirements.txt");
-            if req_file.exists() {
-                let mut pip_cmd = if python_bin.contains(" ") {
-                    let parts: Vec<&str> = python_bin.split_whitespace().collect();
-                    let mut c = Command::new(parts[0]);
-                    c.args(&parts[1..]);
-                    c
-                } else {
-                    Command::new(&python_bin)
-                };
-                pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy(), "--quiet"]);
-                pip_cmd.current_dir(&project_dir);
-                #[cfg(windows)]
-                pip_cmd.creation_flags(CREATE_NO_WINDOW);
-                let _ = pip_cmd.output();
-            }
-        }
+        let pip_note = install_requirements(&project_dir, true);
 
         // 5. Purge Chromium profile caches so updated assets and HTML load immediately
         let home = env::var("USERPROFILE").unwrap_or_default();
@@ -674,7 +697,10 @@ fn apply_update() -> Result<String, String> {
         let _ = std::fs::remove_dir_all(&cache_dir);
         let _ = std::fs::remove_dir_all(&code_cache_dir);
 
-        Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！".to_string())
+        match pip_note {
+            None => Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！".to_string()),
+            Some(note) => Ok(format!("✅ 已更新至主分支最新版本。⚠️ {}", note)),
+        }
     } else {
         // Non-git installation: download and update files directly
         download_and_extract_repo(&project_dir)?;
@@ -711,7 +737,7 @@ fn get_latest_launcher_url() -> Result<String, String> {
     Err("在最新 GitHub Release 中未找到 AetherLauncher.exe 發行資產。".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn self_update_launcher(download_url: Option<String>) -> Result<String, String> {
     let current_exe = match env::current_exe() {
         Ok(p) => p,
@@ -736,7 +762,7 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
 
     let resp = ureq::get(&target_url)
         .set("User-Agent", "AetherLauncher-Updater")
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(300))
         .call()
         .map_err(|e| format!("下載最新啟動器失敗: {}", e))?;
 
@@ -792,26 +818,31 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
     Ok("✅ 啟動器已成功更新至最新版，正在為您自動重新啟動...".to_string())
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn close_all_instances(port: u16) -> Result<u32, String> {
     let port_str = port.to_string();
 
+    // Only processes that are recognisably Aether: its own start script with a --port argument, the health check,
+    // an app-mode browser window on this port, and whatever listens on the port *if* it is our server. Matching any
+    // command line containing "start.py", or any process on the port, killed unrelated programs.
     let ps_script = format!(
-        r#"$killed = 0;
-$pids = @();
-$conns = Get-NetTCPConnection -LocalPort {} -ErrorAction SilentlyContinue;
-if ($conns) {{ $pids += ($conns | Select-Object -ExpandProperty OwningProcess) }}
-$app_procs = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%aetherai_studio_3%' OR CommandLine LIKE '%start.py%' OR CommandLine LIKE '%test_backend.py%'" -ErrorAction SilentlyContinue;
-if ($app_procs) {{ $pids += ($app_procs | Select-Object -ExpandProperty ProcessId) }}
-$unique_pids = $pids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_ -ne $PID }};
-foreach ($p in $unique_pids) {{
+        r#"$killed = 0
+$ids = @()
+$sig = "CommandLine LIKE '%start.py%--port%' OR CommandLine LIKE '%test_backend.py%' OR CommandLine LIKE '%--app=http://localhost:{port}%' OR CommandLine LIKE '%--app=http://127.0.0.1:{port}%'"
+$ids += @(Get-CimInstance Win32_Process -Filter $sig -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessId)
+$conns = @(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue)
+foreach ($c in $conns) {{
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId = $($c.OwningProcess)" -ErrorAction SilentlyContinue
+    if ($owner -and $owner.CommandLine -match 'start\.py|uvicorn|backend\.app\.main') {{ $ids += $owner.ProcessId }}
+}}
+foreach ($id in ($ids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_ -ne $PID }})) {{
     try {{
-        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue;
-        $killed++;
+        Stop-Process -Id $id -Force -ErrorAction Stop
+        $killed++
     }} catch {{}}
 }}
-Write-Host $killed;"#,
-        port_str
+Write-Output $killed"#,
+        port = port_str
     );
 
     // Also close CMD windows with title starting with Aether AI Studio
@@ -841,7 +872,8 @@ fn is_port_free(port: u16) -> bool {
 }
 
 fn find_available_port(start_port: u16) -> u16 {
-    for p in start_port..(start_port + 200) {
+    // Saturating: near 65535 the plain `+ 200` overflowed u16
+    for p in start_port..=start_port.saturating_add(200) {
         if is_port_free(p) {
             return p;
         }
@@ -849,7 +881,7 @@ fn find_available_port(start_port: u16) -> u16 {
     start_port
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
     // If project is not installed yet, auto-install first!
     let project_dir = match find_project_root() {
@@ -869,11 +901,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         None => return Err("找不到系統 Python。請確認已安裝 Python 3.10+ 並加入系統 PATH。".to_string()),
     };
 
-    let quoted_python = if python_bin.contains(' ') && !python_bin.starts_with('"') && !python_bin.starts_with("py ") {
-        format!("\"{}\"", python_bin)
-    } else {
-        python_bin.clone()
-    };
+    let quoted_python = python_for_shell(&python_bin);
 
     let start_py = project_dir.join("start.py");
     if !start_py.exists() {
@@ -884,7 +912,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
     let actual_port = if is_port_free(port) {
         port
     } else {
-        find_available_port(port + 1)
+        find_available_port(port.saturating_add(1))
     };
     let is_multi = actual_port != port;
     let port_str = actual_port.to_string();
@@ -901,9 +929,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/c", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/c", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NO_WINDOW);
@@ -930,9 +957,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/k", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/k", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NEW_CONSOLE);
@@ -959,9 +985,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/k", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/k", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NEW_CONSOLE);
@@ -981,7 +1006,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn create_desktop_shortcut() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1009,14 +1034,14 @@ fn create_desktop_shortcut() -> Result<String, String> {
     let ps_script = format!(
         r#"$desktop = [Environment]::GetFolderPath('Desktop');
 $s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\Aether AI Studio.lnk");
-$s.TargetPath = '{}';
-$s.WorkingDirectory = '{}';
+$s.TargetPath = {};
+$s.WorkingDirectory = {};
 $s.Description = 'Aether AI Studio 官方專屬啟動器';
-$s.IconLocation = '{},0';
+$s.IconLocation = {};
 $s.Save();"#,
-        launcher_exe.replace('\\', "\\\\"),
-        project_dir.to_string_lossy().replace('\\', "\\\\"),
-        icon_location.replace('\\', "\\\\")
+        ps_quote(&launcher_exe),
+        ps_quote(&project_dir.to_string_lossy()),
+        ps_quote(&format!("{},0", icon_location))
     );
 
     let mut cmd = Command::new("powershell");
@@ -1036,7 +1061,7 @@ $s.Save();"#,
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn open_project_folder() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1060,7 +1085,7 @@ fn open_project_folder() -> Result<String, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn run_health_check() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1075,12 +1100,11 @@ fn run_health_check() -> Result<String, String> {
     let exec_cmd = format!(
         "chcp 65001 >nul & title Aether AI Studio {} [系統檢測] & {} test_backend.py & pause",
         CURRENT_VERSION,
-        python_bin
+        python_for_shell(&python_bin)
     );
 
-    let mut cmd = Command::new("cmd.exe");
-    cmd.args(["/k", &exec_cmd])
-        .current_dir(&project_dir);
+    let mut cmd = cmd_shell("/k", &exec_cmd);
+    cmd.current_dir(&project_dir);
 
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NEW_CONSOLE);

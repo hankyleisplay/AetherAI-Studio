@@ -7,11 +7,9 @@ Aether AI Studio 4.1 - 官方專屬統一啟動器 (Official Standalone Launcher
 
 import os
 import sys
-import time
 import argparse
 import subprocess
 import threading
-import webbrowser
 from pathlib import Path
 
 # Configure Windows console for UTF-8
@@ -178,7 +176,7 @@ def start_gui():
     """Launch Modern Dark-Theme Liquid Glass GUI Launcher."""
     try:
         import tkinter as tk
-        from tkinter import ttk, messagebox
+        from tkinter import messagebox
     except ImportError:
         print("[!] 系統未安裝 Tkinter，退回使用互動命令列啟動選單。")
         start_cli_menu()
@@ -202,7 +200,7 @@ def start_gui():
 
     title_label = tk.Label(
         header_frame,
-        text="AETHER AI STUDIO 3.5",
+        text=f"AETHER AI STUDIO {VERSION}",
         font=("Segoe UI", 16, "bold"),
         fg="#00f2fe",
         bg="#0f172a"
@@ -230,16 +228,28 @@ def start_gui():
     )
     status_bar.pack(fill="x", pady=(0, 15))
 
-    def async_update_check():
-        has_update, msg = check_for_updates(auto_pull=True)
+    def show_update_result(has_update: bool, msg: str, notify: bool = False):
         if has_update:
             status_var.set("🎉 已為您自動更新至最新版本！")
             status_bar.configure(fg="#34d399")
         else:
             status_var.set(f"✅ {msg}")
             status_bar.configure(fg="#38bdf8")
+        if notify:
+            messagebox.showinfo("版本檢查結果", msg)
 
-    threading.Thread(target=async_update_check, daemon=True).start()
+    def run_update_check(notify: bool = False):
+        # Tk widgets may only be touched from the thread running mainloop; hand the result back with after()
+        def worker():
+            has_update, msg = check_for_updates(auto_pull=True)
+            try:
+                root.after(0, lambda: show_update_result(has_update, msg, notify))
+            except Exception:
+                pass  # the window was closed while the check was running
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    run_update_check()
 
     # Content Frame
     body_frame = tk.Frame(root, bg="#0b0f19", padx=28)
@@ -323,10 +333,9 @@ def start_gui():
         run_aether("check")
 
     def on_force_update():
+        # Runs in the background: a slow network used to freeze the window until git gave up
         status_var.set("🔄 正在向 GitHub 檢查並拉取最新版本...")
-        has_update, msg = check_for_updates(auto_pull=True)
-        messagebox.showinfo("版本檢查結果", msg)
-        status_var.set(f"✅ {msg}")
+        run_update_check(notify=True)
 
     def on_create_shortcut():
         ok = create_desktop_shortcut()

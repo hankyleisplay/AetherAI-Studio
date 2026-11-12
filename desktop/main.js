@@ -10,6 +10,7 @@ let backendProcess = null;
 const PORT = process.env.AETHER_PORT || 8000;
 const SERVER_URL = `http://127.0.0.1:${PORT}`;
 const PROJECT_ROOT = path.resolve(__dirname, '..');
+const APP_VERSION = require('./package.json').version;
 
 /**
  * Check if the AetherAI Studio backend is responding.
@@ -66,11 +67,12 @@ function createWindow() {
     minWidth: 960,
     minHeight: 640,
     backgroundColor: '#090d16',
-    title: `Aether AI Studio ${require('./package.json').version}`,
+    title: `Aether AI Studio ${APP_VERSION}`,
     show: false,
     autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, 'preload.js'),
+      additionalArguments: [`--aether-version=${APP_VERSION}`],
       contextIsolation: true,
       nodeIntegration: false,
       sandbox: true
@@ -113,18 +115,20 @@ ipcMain.on('window-close', () => {
 });
 
 function createTray() {
-  const iconPath = path.join(PROJECT_ROOT, 'assets', 'icon.svg');
-  let trayIcon;
-  try {
-    trayIcon = nativeImage.createFromPath(iconPath);
-  } catch (e) {
-    trayIcon = nativeImage.createEmpty();
+  // nativeImage cannot read SVG (it returned an empty image, so the tray icon was invisible); use the PNG
+  const iconPath = path.join(PROJECT_ROOT, 'icon.png');
+  let trayIcon = nativeImage.createFromPath(iconPath);
+  if (trayIcon.isEmpty()) {
+    trayIcon = nativeImage.createFromPath(path.join(PROJECT_ROOT, 'frontend', 'public', 'icon.png'));
+  }
+  if (!trayIcon.isEmpty()) {
+    trayIcon = trayIcon.resize({ width: 16, height: 16 });
   }
 
   tray = new Tray(trayIcon);
   const contextMenu = Menu.buildFromTemplate([
     {
-      label: '顯示 Aether AI Studio 4.0',
+      label: `顯示 Aether AI Studio ${APP_VERSION}`,
       click: () => {
         if (mainWindow) {
           mainWindow.show();
@@ -156,7 +160,7 @@ function createTray() {
     }
   ]);
 
-  tray.setToolTip('AetherAI Studio 4.0 (AetherAgent)');
+  tray.setToolTip(`Aether AI Studio ${APP_VERSION} (AetherAgent)`);
   tray.setContextMenu(contextMenu);
   tray.on('double-click', () => {
     if (mainWindow) {

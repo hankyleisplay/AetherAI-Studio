@@ -260,7 +260,6 @@ def launch_desktop_window(url: str, low_spec: bool = False):
                     f"--app={url}",
                     "--new-window",
                     "--window-size=1360,900",
-                    "--window-position=center",
                     "--no-first-run",
                     "--no-default-browser-check",
                 ]
