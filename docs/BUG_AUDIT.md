@@ -3,8 +3,8 @@
 稽核範圍：主程式前端（`frontend/src`）、後端（`backend/app`）、Tauri 啟動器（`launcher/`）、
 Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop/`）。
 
-- **已修**：本版已修正並驗證。
-- **待決定**：確定是問題，但修正會改變使用方式，需要專案擁有者決定。
+- 所有列出的問題都已在本版修正；驗證方式見第三節（部分 Windows 行為未能實機測試，第三節最後一點列出）。
+- 第二節的項目修正後使用方式有變動，表格最後一欄說明差異。
 
 嚴重度：🔴 嚴重　🟠 高　🟡 中　⚪ 低
 
@@ -66,22 +66,23 @@ Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop
 
 ---
 
-## 二、待決定（會改變使用方式）
+## 二、原「待決定」項目（已修正，使用方式有變動）
 
-| 嚴重度 | 位置 | 問題 | 建議 |
-|---|---|---|---|
-| 🔴 | `backend/app/services/telegram_bridge.py` | 啟用 Telegram 但沒填 Chat ID 時，**任何人**找到這個 Bot 都能和 Agent 對話，並使用 `bash_executor` 等工具在電腦上執行指令。 | 沒填 Chat ID 時拒絕所有訊息，或第一位使用者綁定後鎖定。 |
-| 🟠 | `start.py` 預設 `--host 0.0.0.0` | 預設對整個區網開放；沒設 PIN 時，同一個 Wi-Fi 的任何人都能用終端與檔案 API。 | 預設改為 `127.0.0.1`，需要手機遠端時再明確開啟，或開放區網時強制設定 PIN。 |
-| 🟠 | `lib.rs` `apply_update` | 更新前 `git stash --include-untracked` 之後不會 `stash pop`；`git pull` 失敗時直接 `git reset --hard`。使用者的修改被收起或覆蓋，且沒有提示。 | 更新後還原 stash；有衝突時停下來告知，而不是強制重設。 |
-| 🟡 | `launcher.py` | 每次開啟都自動 `git pull`，沒有詢問。 | 改為提示有更新，由使用者決定。 |
-| 🟡 | 桌面模式 | 關閉 App 視窗後背景伺服器不會結束；下次啟動發現埠被占用就改用下一個埠，殭屍程序越積越多。先前的獨立 profile 方案曾因當機被移除。 | 伺服器監測視窗程序，視窗結束時一起結束。 |
-| 🟡 | `lib.rs` `self_update_launcher` | 下載新版啟動器後只檢查大小，沒有驗證雜湊（GitHub Release API 已提供 sha256）。 | 比對 `digest` 欄位後才替換。 |
-| 🟡 | PIN 機制 | 權杖就是 PIN 本身，存在 localStorage 與 30 天 cookie。 | 改發隨機 session token。 |
-| 🟡 | `/api/workspace/file?raw=true` | 工作區的 HTML／SVG 以主程式同源提供；Agent 寫出的惡意 HTML 被開啟時能呼叫 API。 | 加上 `Content-Security-Policy: sandbox` 或改為下載。 |
-| ⚪ | `launcher/src-tauri/tauri.conf.json` | `csp: null`。 | 設定只允許本地資源的 CSP。 |
-| ⚪ | `lib.rs` `install_or_repair_core` | 「重新安裝/修復核心」在 `start.py` 存在時不會重新下載任何檔案，只重裝 pip 套件。 | 修復時比對或重新下載核心檔案。 |
-| ⚪ | `tools/registry.py` 網路探測 | `http_headers` 動作關閉 TLS 驗證。 | 僅診斷用途，可保留但在輸出註明。 |
-| ⚪ | `/api/upload` | 同名檔案直接覆蓋。 | 自動加上序號。 |
+| 嚴重度 | 位置 | 問題 | 修正 | 使用上的差異 |
+|---|---|---|---|---|
+| 🔴 | `backend/app/services/telegram_bridge.py` | 啟用 Telegram 但沒填 Chat ID 時，**任何人**找到這個 Bot 都能讓 Agent 在電腦上執行指令。 | 沒填 Chat ID 時不執行任何指令，只回覆對方的 Chat ID（每 10 分鐘最多一次）。 | **必須填 Chat ID 才能用**。不知道自己的 ID：傳一則訊息給 Bot 就會收到。 |
+| 🟠 | `backend/app/main.py` 中介層 | 伺服器對整個區網開放；沒設 PIN 時同一個 Wi-Fi 的人都能用終端與檔案 API。 | 仍對區網開放，但**非本機連線一律需要 PIN**；主機沒設 PIN 時，遠端裝置只會看到「遠端存取尚未開啟」說明畫面。 | 用手機或 Cloudflare Tunnel 連線前，要先在主機「設定 → 外網安全」設定 PIN。本機使用不受影響。 |
+| 🟠 | `main.py`、`services/access.py` | PIN 明碼存放，登入權杖就是 PIN 本身（存在 localStorage 與 cookie）。 | PIN 改存 PBKDF2 雜湊（舊值第一次使用時自動轉換）；登入改發隨機權杖，資料庫只存其雜湊；變更或停用 PIN 會登出所有裝置。 | 已登入的遠端裝置需重新輸入一次 PIN。 |
+| 🟠 | `launcher/src-tauri/src/lib.rs` `apply_update` | 更新時 `git stash` 後不還原；`git pull` 失敗就 `git reset --hard`，本地修改與提交直接消失。 | 有修改才用具名 stash 暫存；只做 fast-forward；更新後自動還原修改；與新版衝突時保留 stash 並告知名稱；有本地提交時拒絕更新且不動任何檔案。 | 有自己 commit 的人需手動 `git pull`；衝突時修改在 `git stash list` 裡。 |
+| 🟡 | `launcher.py` | 每次開啟都自動 `git pull`。 | 開啟時只檢查；按「🔄 檢查更新」或選單 [5] 才更新，並改用 `--ff-only`。 | 不會再被默默更新。 |
+| 🟡 | `start.py`、`services/desktop_session.py`、`App.tsx` | 桌面版關閉視窗後背景伺服器不會結束，下次啟動改用下一個埠，殭屍程序越積越多。 | 桌面視窗定時回報；關閉後約 15 秒（或 3 分鐘沒有回報）伺服器自動結束，重新整理不受影響。 | 關掉桌面版視窗即結束伺服器；若手機同時連著同一個桌面版伺服器也會一起斷線。瀏覽器版、CLI 版不受影響。 |
+| 🟡 | `lib.rs` `self_update_launcher` | 自更新只檢查檔案大小，且接受前端傳來的任意下載網址。 | 只接受官方 Release 網址，下載後比對 GitHub 公布的 SHA-256，不符即中止。 | 無。 |
+| 🟡 | `main.py` 檔案端點 | 工作區的 HTML／SVG 以主程式同源提供，Agent 寫出的惡意 HTML 被開啟時能呼叫 API。 | 加上 `Content-Security-Policy: sandbox` 與 `nosniff`。 | 網頁仍可預覽與執行，但無法存取主程式。 |
+| ⚪ | `launcher/src-tauri/tauri.conf.json` | `csp: null`。 | 啟用 Tauri 建議的 CSP。 | 無（已在 Linux 版 WebKit 實跑確認）。 |
+| ⚪ | `lib.rs` `install_or_repair_core` | 「重新安裝/修復核心」在 `start.py` 存在時不會補回任何檔案。 | git 安裝以 `git checkout` 補回被刪除的檔案；非 git 安裝下載後只補缺檔；都不覆蓋既有檔案。 | 修復結果會顯示補回幾個檔案。 |
+| ⚪ | `backend/app/tools/registry.py` 網路診斷 | `http_headers` 關閉 TLS 驗證。 | 預設驗證憑證，失敗才略過並在結果中標註。 | 無。 |
+| ⚪ | `main.py` `/api/upload` | 同名檔案直接覆蓋。 | 改存為「名稱 (1).副檔名」。 | 無。 |
+| ⚪ | `start.py` `is_port_in_use` | Linux／macOS 上伺服器剛結束就重開，埠號因 TIME_WAIT 被判定占用而換到下一個埠。 | 檢查時與 uvicorn 一樣使用 `SO_REUSEADDR`（Windows 除外）。 | 無。 |
 
 ---
 
@@ -89,12 +90,17 @@ Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop
 
 - 後端：`python test_backend.py` 全數通過（19 大項，含版本一致性 4.2.0）。
 - 安全：帶 `Origin: https://evil.example`、`Origin: null`、`Sec-Fetch-Site: cross-site` 呼叫 API 皆回 403；
-  同源、無 Origin（curl）、Vite 開發來源、Cloudflare Tunnel（`X-Forwarded-Host`）正常；
-  錯 5 次 PIN 後第 6 次回 429，其他來源不受影響。
+  同源、無 Origin（curl）、Vite 開發來源、Cloudflare Tunnel（`X-Forwarded-Host`）正常；錯 5 次 PIN 後回 429。
+- 遠端存取（以 `X-Forwarded-For` 模擬）：未設 PIN 時 API 回 403 並顯示說明畫面；舊明碼 PIN 可登入並轉為雜湊；
+  登入權杖為 43 字元隨機值且不等於 PIN；改 PIN 後舊權杖失效；手機模擬器輸入 PIN 後可正常使用。
+- Telegram（模擬 Telegram API 回應）：未綁定時 4 則訊息只回覆 1 次 Chat ID 且不執行任何指令；綁定後正常；其他 Chat ID 一律拒絕。
+- 桌面模式：`start.py --desktop` 啟動，頁面重新整理後伺服器仍在；關閉頁面約 16 秒後伺服器自動結束。
 - 前端（Playwright + 本地假模型伺服器）：數學式 XSS、`javascript:` 連結、串流中切換對話、停止後重新整理、
   串流中編輯提示詞、側邊欄取消收藏，共 13 項全數通過。
-- 啟動器（Playwright 直接開 `launcher/ui/index.html` 並模擬 Tauri API）：埠號按一下 +1、99999 被限制為 65535、
-  鍵盤操作、離線狀態、確認對話框。
-- Rust：由 GitHub Actions（`.github/workflows/build-launcher.yml`）在 Windows 實際編譯。
-  **Windows 上的執行期行為（關閉程序、建立捷徑、含空白或單引號的路徑）未經實機測試**，請下載 Actions 產出的
-  `AetherLauncher.exe` 試跑。
+- 啟動器介面（Playwright 模擬 Tauri API）：埠號按一下 +1、99999 被限制為 65535、鍵盤操作、離線狀態、確認對話框。
+- 啟動器實機（Linux 版 Tauri + WebKitGTK，Xvfb 虛擬螢幕）：啟用 CSP 後 IPC、樣式與圖片皆正常，與未啟用時畫面相同。
+- 啟動器更新與修復邏輯（以真實的暫存 git 倉庫執行 Rust 測試）：一般修改保留、衝突修改留在具名 stash、
+  有本地提交時拒絕更新且不變動任何檔案、修復補回被刪檔案且不覆蓋修改。
+- Windows 編譯：GitHub Actions（`.github/workflows/build-launcher.yml`）。
+- **未能在 Windows 實機測試**：「一鍵關閉」、建立捷徑、路徑含空白或單引號、自更新的實際替換流程。
+  請下載 Actions 產出的 `AetherLauncher.exe` 試跑。

@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
-import { Lock, ShieldCheck, KeyRound, Loader2, ArrowRight } from 'lucide-react';
+import { Lock, ShieldCheck, KeyRound, Loader2, ArrowRight, MonitorSmartphone } from 'lucide-react';
 import { useI18n } from '../i18n/I18nContext';
 
 interface PinLockModalProps {
   isOpen: boolean;
   onSuccess: () => void;
+  /** Opened from another device while the host has no PIN yet: explain how to enable remote access instead. */
+  setupRequired?: boolean;
 }
 
-export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess }) => {
+export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess, setupRequired = false }) => {
   const { t } = useI18n();
   const [pin, setPin] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -31,7 +33,8 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
       });
       if (res.ok) {
         const data = await res.json();
-        localStorage.setItem('aether_access_token', data.token || pin.trim());
+        // A session token issued by the server, never the PIN itself
+        if (data.token) localStorage.setItem('aether_access_token', data.token);
         onSuccess();
       } else {
         const data = await res.json().catch(() => ({}));
@@ -43,6 +46,31 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
       setIsLoading(false);
     }
   };
+
+  if (setupRequired) {
+    return (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center lg-scrim bg-[#04061a]/80 p-4 animate-fade-in">
+        <div className="w-full max-w-sm rounded-3xl glass-modal p-6 md:p-8 text-center animate-in fade-in zoom-in-95">
+          <div className="w-16 h-16 mx-auto mb-4 rounded-2xl glass-panel flex items-center justify-center">
+            <MonitorSmartphone className="w-8 h-8 text-amber-300" />
+          </div>
+          <h2 className="text-lg font-bold text-white mb-2">
+            {t('remote_setup_title', '遠端存取尚未開啟')}
+          </h2>
+          <p className="text-sm text-slate-300 leading-relaxed">
+            {t('remote_setup_desc', '為了安全，從其他裝置連線前必須先設定 PIN 碼。請在執行 Aether AI Studio 的主機電腦上開啟「設定 → 外網安全」設定 PIN，然後重新整理此頁面。')}
+          </p>
+          <button
+            type="button"
+            onClick={() => window.location.reload()}
+            className="mt-6 w-full py-3 px-4 rounded-full glass-button text-white font-semibold text-xs"
+          >
+            {t('remote_setup_reload', '我已設定，重新整理')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center lg-scrim bg-[#04061a]/80 p-4 animate-fade-in">
@@ -69,7 +97,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
                 setErrorMsg('');
               }}
               placeholder={t('pin_enter', '請輸入訪問 PIN 碼')}
-              className="w-full pl-10 pr-4 py-3 rounded-2xl bg-black/50 border border-white/20 text-center text-sm font-mono tracking-widest text-white placeholder-slate-500 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/20"
+              className="w-full pl-10 pr-4 py-3 rounded-full glass-input text-center text-sm font-mono tracking-widest text-white placeholder-slate-400"
               autoFocus
             />
           </div>
@@ -83,7 +111,7 @@ export const PinLockModal: React.FC<PinLockModalProps> = ({ isOpen, onSuccess })
           <button
             type="submit"
             disabled={isLoading || !pin.trim()}
-            className="w-full py-3 px-4 rounded-2xl bg-gradient-to-r from-cyan-500 to-indigo-600 hover:from-cyan-400 hover:to-indigo-500 text-white font-bold text-xs flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.3)] disabled:opacity-40 transition-all"
+            className="w-full py-3 px-4 rounded-full glass-button-primary font-bold text-xs flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>

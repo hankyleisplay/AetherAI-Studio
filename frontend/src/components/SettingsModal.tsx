@@ -991,7 +991,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             <div>
               <div className="flex items-center justify-between mb-1">
                 <label className="text-xs font-semibold text-slate-300">
-                  {t('tg_chat_id', '授權存取 Chat ID (使用者或群組 ID)')}
+                  {t('tg_chat_id', '授權存取 Chat ID（必填）')}
                 </label>
                 <a
                   href="https://t.me/userinfobot"
@@ -1012,7 +1012,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               />
               <p className="text-[11px] text-slate-400 mt-1 flex items-center gap-1">
                 <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
-                {t('tg_security_tip', '安全提示：設定 Chat ID 後，僅授權的 Telegram 帳號可驅動 Agent，避免未授權調用。')}
+                {t('tg_security_tip', '必須填入 Chat ID，Bot 才會執行指令；未填時只會回覆對方的 Chat ID。')}
               </p>
             </div>
 

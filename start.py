@@ -166,6 +166,11 @@ def is_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
     import socket
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            # Uvicorn binds with SO_REUSEADDR, so a port that only has TIME_WAIT connections left (a server that
+            # just exited) is usable. Without the same option here, relaunching right after closing moved to the
+            # next port. On Windows the option means something else (it allows stealing a busy port), so not there.
+            if os.name != "nt":
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind((host, port))
             return False
     except OSError:

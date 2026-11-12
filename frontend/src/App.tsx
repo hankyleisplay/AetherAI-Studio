@@ -33,6 +33,7 @@ export const App: React.FC = () => {
   const [isSwarmModalOpen, setIsSwarmModalOpen] = useState<boolean>(false);
   const [isMediaStudioOpen, setIsMediaStudioOpen] = useState<boolean>(false);
   const [isPinModalOpen, setIsPinModalOpen] = useState<boolean>(false);
+  const [remoteSetupRequired, setRemoteSetupRequired] = useState<boolean>(false);
 
   const checkAuthStatus = async () => {
     try {
@@ -42,7 +43,11 @@ export const App: React.FC = () => {
       });
       if (res.ok) {
         const data = await res.json();
-        if (data.pin_protected && !data.authenticated) {
+        if (data.remote_setup_required) {
+          // Opened from another device, but the host has no PIN yet, so remote use is switched off
+          setRemoteSetupRequired(true);
+          setIsPinModalOpen(true);
+        } else if (data.pin_protected && !data.authenticated) {
           setIsPinModalOpen(true);
         }
       }
@@ -51,6 +56,33 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     checkAuthStatus();
+  }, []);
+
+  // Desktop mode (opened by start.py --desktop with ?desktop=1): tell the server the window is open, so it can
+  // shut down when the window closes instead of lingering in the background
+  useEffect(() => {
+    let isDesktop = false;
+    try {
+      isDesktop = new URLSearchParams(window.location.search).get('desktop') === '1';
+    } catch {
+      isDesktop = false;
+    }
+    if (!isDesktop) return;
+    const beat = () => fetch('/api/desktop/heartbeat', { method: 'POST' }).catch(() => {});
+    beat();
+    const timer = window.setInterval(beat, 20000);
+    const onPageHide = () => {
+      try {
+        navigator.sendBeacon('/api/desktop/closing');
+      } catch {
+        // the server falls back to the heartbeat timeout
+      }
+    };
+    window.addEventListener('pagehide', onPageHide);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('pagehide', onPageHide);
+    };
   }, []);
 
   // Code Mode & Projects state
@@ -1227,6 +1259,7 @@ export const App: React.FC = () => {
       {/* Outer Web Access PIN Protection Modal */}
       <PinLockModal
         isOpen={isPinModalOpen}
+        setupRequired={remoteSetupRequired}
         onSuccess={() => {
           // Initial data requests were rejected before unlocking; reload them with the token
           setIsPinModalOpen(false);
