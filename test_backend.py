@@ -59,7 +59,7 @@ async def run_tests():
     sess = None
     try:
 
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
 
             # 1. Health check
 

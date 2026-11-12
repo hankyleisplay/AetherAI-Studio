@@ -14,7 +14,6 @@ from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-import hmac
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
@@ -25,6 +24,7 @@ from backend.app.llm.provider import UnifiedLLMClient, ModelConfig
 from backend.app.agent.core import AgentOrchestrator
 from backend.app.coding.agent import CodingAgent, resolve_approval, request_stop
 from backend.app.services.telegram_bridge import telegram_bridge
+from backend.app.services import access, desktop_session
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -43,7 +43,9 @@ async def lifespan(app: FastAPI):
         recover_interrupted_jobs()
     except Exception as e:
         print(f"[Media] Startup warning: {e}")
+    desktop_watch = asyncio.create_task(desktop_session.watch())
     yield
+    desktop_watch.cancel()
     # Shutdown
     try:
         await telegram_bridge.stop()
@@ -70,6 +72,8 @@ app.add_middleware(
 # The PIN used to be checked only by the frontend, so any remote client could call the terminal,
 # file and git APIs directly. Enforce it server-side for every non-local /api request.
 PIN_EXEMPT_PATHS = {"/api/health", "/api/auth/status", "/api/auth/verify-pin"}
+# Remote requests while no PIN is set: everything except these is refused
+REMOTE_SETUP_PATHS = {"/api/health", "/api/auth/status"}
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
 PROXY_HEADERS = ("cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded")
 
@@ -90,10 +94,14 @@ def _is_local_request(request: Request) -> bool:
     # A loopback connection asking for some other host name is a header-less proxy or DNS rebinding
     return _host_name(request.headers.get("host", "")) in LOCAL_HOSTS
 
-def _request_pin_ok(request: Request, pin: str) -> bool:
-    token = (request.headers.get("x-access-token") or request.headers.get("x-access-pin")
-             or request.cookies.get("aether_access_token") or "")
-    return hmac.compare_digest(token.encode("utf-8"), pin.encode("utf-8"))
+def _request_authorized(request: Request) -> bool:
+    """A remote request is allowed with a session token from /api/auth/verify-pin (header or cookie) or, for
+    scripts, the PIN itself in x-access-pin."""
+    token = request.headers.get("x-access-token") or request.cookies.get("aether_access_token")
+    if access.token_valid(token):
+        return True
+    pin_header = request.headers.get("x-access-pin")
+    return bool(pin_header) and access.check_pin(pin_header)
 
 def _origin_allowed(request: Request) -> bool:
     """Reject browser requests made by another site (CSRF). Requests without an Origin header are not a browser
@@ -118,11 +126,22 @@ async def enforce_web_access_pin(request: Request, call_next):
     if path.startswith("/api/") and request.method != "OPTIONS":
         if not _origin_allowed(request):
             return JSONResponse(status_code=403, content={"detail": "Cross-origin request blocked"})
-        if path not in PIN_EXEMPT_PATHS:
-            pin = db.get_setting("web_access_pin")
-            if pin and not _is_local_request(request) and not _request_pin_ok(request, pin):
+        if not _is_local_request(request):
+            # The server listens on every interface so phones on the LAN can connect. Without a PIN that meant
+            # anyone on the same Wi-Fi could use the terminal; remote use now needs a PIN set on the host first.
+            if not access.pin_configured():
+                if path not in REMOTE_SETUP_PATHS:
+                    return JSONResponse(status_code=403, content={"detail": "remote_pin_required"})
+            elif path not in PIN_EXEMPT_PATHS and not _request_authorized(request):
                 return JSONResponse(status_code=401, content={"detail": "PIN required"})
     return await call_next(request)
+
+# Files from the workspace and media folders are written by the agent or downloaded from the web. Served from this
+# origin, an HTML or SVG file opened in a tab could call the local API; the sandbox CSP gives it an origin of its own.
+USER_FILE_HEADERS = {
+    "Content-Security-Policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads",
+    "X-Content-Type-Options": "nosniff",
+}
 
 def _project_dir(project: Optional[str] = None) -> Path:
     """Folder that terminal and git commands run in: the named (or active) project, else the workspace root."""
@@ -579,7 +598,7 @@ async def get_media_file(media_id: str):
     path = (media.media_dir() / item["file_name"]).resolve()
     if media.media_dir() not in path.parents or not path.exists():
         raise HTTPException(status_code=404, detail="Media file missing")
-    return FileResponse(str(path))
+    return FileResponse(str(path), headers=USER_FILE_HEADERS)
 
 @app.get("/api/media/{media_id}")
 async def get_media_item(media_id: str):
@@ -713,8 +732,15 @@ async def upload_file(file: UploadFile = File(...)):
         upload_dir = settings.workspace_dir / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         # Sanitize filename
-        safe_name = Path(file.filename or "uploaded_file").name
+        safe_name = Path(file.filename or "uploaded_file").name or "uploaded_file"
         target_path = upload_dir / safe_name
+        # Uploading another file with the same name used to replace the first one silently
+        counter = 1
+        while target_path.exists():
+            stem, suffix = Path(safe_name).stem, Path(safe_name).suffix
+            target_path = upload_dir / f"{stem} ({counter}){suffix}"
+            counter += 1
+        safe_name = target_path.name
         content = await file.read()
         target_path.write_bytes(content)
         
@@ -908,7 +934,7 @@ async def get_workspace_file(path: str, raw: bool = False):
     ext = target.suffix.lower()
     img_exts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"]
     if ext in img_exts or raw:
-        return FileResponse(str(target))
+        return FileResponse(str(target), headers=USER_FILE_HEADERS)
     
     try:
         content = target.read_text(encoding="utf-8", errors="replace")
@@ -1401,11 +1427,12 @@ async def execute_terminal_command(payload: TerminalExecPayload):
 
 @app.get('/api/auth/status')
 async def auth_status(request: Request):
-    pin = db.get_setting("web_access_pin")
-    if not pin:
-        return {"pin_protected": False, "authenticated": True}
-    is_authed = _is_local_request(request) or _request_pin_ok(request, pin)
-    return {"pin_protected": True, "authenticated": is_authed}
+    configured = access.pin_configured()
+    if _is_local_request(request):
+        return {"pin_protected": configured, "authenticated": True, "remote_setup_required": False}
+    if not configured:
+        return {"pin_protected": False, "authenticated": False, "remote_setup_required": True}
+    return {"pin_protected": True, "authenticated": _request_authorized(request), "remote_setup_required": False}
 
 PIN_MAX_FAILURES = 5
 PIN_LOCK_SECONDS = 60
@@ -1417,8 +1444,9 @@ def _pin_client_key(request: Request) -> str:
 
 @app.post('/api/auth/verify-pin')
 async def verify_pin(payload: PinVerifyPayload, request: Request, response: Response):
-    configured_pin = db.get_setting("web_access_pin")
-    if not configured_pin:
+    if not access.pin_configured():
+        if not _is_local_request(request):
+            raise HTTPException(status_code=403, detail="remote_pin_required")
         return {"status": "ok", "authenticated": True, "token": "open"}
     # A short PIN is guessable in seconds without a limit on attempts
     key = _pin_client_key(request)
@@ -1427,11 +1455,13 @@ async def verify_pin(payload: PinVerifyPayload, request: Request, response: Resp
     if entry and entry["locked_until"] > now:
         wait = int(entry["locked_until"] - now) + 1
         raise HTTPException(status_code=429, detail=f"嘗試次數過多，請 {wait} 秒後再試", headers={"Retry-After": str(wait)})
-    if hmac.compare_digest((payload.pin or "").strip().encode("utf-8"), configured_pin.encode("utf-8")):
+    if access.check_pin(payload.pin):
         _pin_failures.pop(key, None)
+        # A random session token, not the PIN: the browser keeps it, so it must not reveal the PIN
+        token = access.issue_token()
         # Cookie covers requests the frontend can't add headers to (<img src>, downloads)
-        response.set_cookie("aether_access_token", configured_pin, httponly=True, samesite="lax", max_age=30 * 86400)
-        return {"status": "ok", "authenticated": True, "token": configured_pin}
+        response.set_cookie("aether_access_token", token, httponly=True, samesite="lax", max_age=access.SESSION_TTL_SECONDS)
+        return {"status": "ok", "authenticated": True, "token": token}
     if len(_pin_failures) > 2000:
         _pin_failures.clear()
     entry = _pin_failures.setdefault(key, {"count": 0, "locked_until": 0.0})
@@ -1443,18 +1473,29 @@ async def verify_pin(payload: PinVerifyPayload, request: Request, response: Resp
 
 @app.post('/api/auth/set-pin')
 async def set_pin(payload: PinSetPayload):
-    configured_pin = db.get_setting("web_access_pin")
-    if configured_pin:
-        if not hmac.compare_digest((payload.old_pin or "").encode("utf-8"), configured_pin.encode("utf-8")):
-            raise HTTPException(status_code=403, detail="原 PIN 碼驗證失敗，無法修改")
+    if access.pin_configured() and not access.check_pin(payload.old_pin):
+        raise HTTPException(status_code=403, detail="原 PIN 碼驗證失敗，無法修改")
     if not payload.enabled or not payload.new_pin:
-        db.set_setting("web_access_pin", None)
+        access.set_pin(None)
         return {"status": "disabled", "pin_protected": False}
     new_pin_clean = payload.new_pin.strip()
     if len(new_pin_clean) < 4:
         raise HTTPException(status_code=400, detail="PIN 碼長度至少需 4 位數")
-    db.set_setting("web_access_pin", new_pin_clean)
+    # Signs out every device; they log in again with the new PIN
+    access.set_pin(new_pin_clean)
     return {"status": "updated", "pin_protected": True}
+
+# ================= Desktop window lifetime =================
+
+@app.post('/api/desktop/heartbeat')
+async def desktop_heartbeat():
+    desktop_session.heartbeat()
+    return {"status": "ok", "desktop_mode": desktop_session.enabled()}
+
+@app.post('/api/desktop/closing')
+async def desktop_closing():
+    desktop_session.closing()
+    return {"status": "ok"}
 
 # ================= Web Filesystem Tree Browser (for Remote & Mobile) =================
 

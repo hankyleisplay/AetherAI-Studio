@@ -8,6 +8,7 @@ from backend.app.storage.database import db
 from backend.app.llm.provider import ModelConfig
 from backend.app.agent.core import AgentOrchestrator
 from backend.app.tools.registry import registry
+from backend.app.config import settings
 
 logger = logging.getLogger("AetherAgent.TelegramBridge")
 logger.setLevel(logging.INFO)
@@ -19,6 +20,8 @@ class TelegramBridgeService:
         self._bot_username: Optional[str] = None
         self._last_active: Optional[str] = None
         self._last_error: Optional[str] = None
+        # chat id -> time the "not paired" notice was last sent to it
+        self._unpaired_notified: Dict[str, float] = {}
 
     def get_status(self) -> Dict[str, Any]:
         cfg = db.get_setting("telegram_config") or {}
@@ -53,7 +56,7 @@ class TelegramBridgeService:
                 # 2. If chat_id provided, send a test ping message
                 if chat_id:
                     ping_text = (
-                        "🌟 *Aether AI Studio 4.0 (AetherAgent)*\n\n"
+                        f"🌟 *Aether AI Studio {settings.version} (AetherAgent)*\n\n"
                         "✅ *連線測試成功！*\n"
                         "本地 Agent 橋接服務已就緒，您可以隨時在 Telegram 直接發送指令或問題。"
                     )
@@ -71,7 +74,7 @@ class TelegramBridgeService:
                             f"https://api.telegram.org/bot{token}/sendMessage",
                             json={
                                 "chat_id": chat_id,
-                                "text": "🌟 Aether AI Studio 4.0 (AetherAgent) 連線測試成功！"
+                                "text": f"🌟 Aether AI Studio {settings.version} (AetherAgent) 連線測試成功！"
                             }
                         )
 
@@ -191,8 +194,14 @@ class TelegramBridgeService:
                                 from_user = message.get("from", {})
                                 username = from_user.get("username") or from_user.get("first_name", "User")
 
-                                # Security check: if configured_chat_id is set, only respond to that chat_id
-                                if configured_chat_id and msg_chat_id != configured_chat_id:
+                                # The bot runs an agent that can execute commands on this computer. Without a configured
+                                # Chat ID it used to answer anyone who found it; now it only tells them their Chat ID.
+                                if not configured_chat_id:
+                                    await self._notify_unpaired(client, token, msg_chat_id)
+                                    continue
+
+                                # Only the configured chat may use the bot
+                                if msg_chat_id != configured_chat_id:
                                     logger.warning(f"拒絕未授權的 Telegram 存取 (Chat ID: {msg_chat_id})")
                                     continue
 
@@ -215,11 +224,28 @@ class TelegramBridgeService:
                 logger.error(f"Telegram 輪詢錯誤: {e}")
                 await asyncio.sleep(3)
 
+    async def _notify_unpaired(self, client: httpx.AsyncClient, token: str, chat_id: str):
+        if not chat_id:
+            return
+        now = datetime.now().timestamp()
+        if now - self._unpaired_notified.get(chat_id, 0) < 600:
+            return  # at most one notice per chat every 10 minutes
+        if len(self._unpaired_notified) > 500:
+            self._unpaired_notified.clear()
+        self._unpaired_notified[chat_id] = now
+        logger.warning(f"Telegram Bot 尚未綁定 Chat ID，已拒絕來自 {chat_id} 的訊息")
+        notice = (
+            "🔒 此 Aether AI Studio Bot 尚未綁定使用者，暫不執行任何指令。\n\n"
+            f"你的 Chat ID 是：`{chat_id}`\n"
+            "若這是你自己的 Bot，請在主機電腦開啟「設定 → Telegram 橋接」，把這組 Chat ID 填入「授權存取 Chat ID」後儲存。"
+        )
+        await self._send_telegram_message(client, token, chat_id, notice)
+
     async def _handle_telegram_message(self, client: httpx.AsyncClient, token: str, chat_id: str, text: str, username: str):
         # 1. Built-in Commands
         if text.startswith("/start") or text.startswith("/help"):
             welcome = (
-                "💧 *歡迎使用 Aether AI Studio 4.0 (AetherAgent)* 💧\n"
+                f"💧 *歡迎使用 Aether AI Studio {settings.version} (AetherAgent)* 💧\n"
                 "═══════════════════════\n"
                 "您的 Liquid Glass 本地/雲端雙模智能代理已就緒！\n\n"
                 "👨‍💻 *開發團隊*: `hankyledevteam` (主要由 `Hanson Lee` 開發打造)\n"
@@ -250,7 +276,7 @@ class TelegramBridgeService:
             model_name = active_model.get("model", "llama3:latest")
             provider = active_model.get("provider", "ollama")
             status_text = (
-                "⚡ *Aether AI Studio 4.0 系統狀態* ⚡\n"
+                f"⚡ *Aether AI Studio {settings.version} 系統狀態* ⚡\n"
                 "═══════════════════════\n"
                 f"• *使用中模型*: `{model_name}`\n"
                 f"• *供應商*: `{provider}`\n"

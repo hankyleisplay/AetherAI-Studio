@@ -2141,24 +2141,37 @@ async def tool_network_dns_whois_lookup(
 
     elif action_lower == "http_headers":
         test_url = f"https://{clean_host}" if (port == 443 or port is None) else f"http://{clean_host}:{port}"
+        async def _fetch_headers(verify: bool):
+            async with httpx.AsyncClient(timeout=timeout, verify=verify, follow_redirects=True) as client:
+                r = await client.head(test_url)
+                if r.status_code == 405:
+                    r = await client.get(test_url)
+                return r
+
+        tls_note = ""
         try:
-            async with httpx.AsyncClient(timeout=timeout, verify=False, follow_redirects=True) as client:
-                resp = await client.head(test_url)
-                if resp.status_code == 405:
-                    resp = await client.get(test_url)
-                
-                headers_md = []
-                for k, v in resp.headers.items():
-                    headers_md.append(f"| **`{k}`** | `{v}` |")
-                
-                headers_table = "| 標頭名稱 (Header) | 標頭數值 (Value) |\n| :--- | :--- |\n" + "\n".join(headers_md)
-                return (
-                    f"### 🌐 HTTP 伺服器回應標頭檢視\n"
-                    f"- **請求位址**: `{test_url}`\n"
-                    f"- **狀態碼**: `{resp.status_code} {resp.reason_phrase}`\n"
-                    f"- **HTTP 協定**: `{resp.http_version}`\n\n"
-                    + headers_table
-                )
+            # Verify certificates by default; only on a certificate error look again without verification, and say so
+            try:
+                resp = await _fetch_headers(verify=True)
+            except httpx.ConnectError as tls_err:
+                if "CERTIFICATE" not in str(tls_err).upper() and "SSL" not in str(tls_err).upper():
+                    raise
+                resp = await _fetch_headers(verify=False)
+                tls_note = f"\n> ⚠️ **憑證驗證失敗**（以下為略過驗證後取得的結果，連線可能不安全）：`{tls_err}`\n"
+
+            headers_md = []
+            for k, v in resp.headers.items():
+                headers_md.append(f"| **`{k}`** | `{v}` |")
+
+            headers_table = "| 標頭名稱 (Header) | 標頭數值 (Value) |\n| :--- | :--- |\n" + "\n".join(headers_md)
+            return (
+                f"### 🌐 HTTP 伺服器回應標頭檢視\n"
+                f"- **請求位址**: `{test_url}`\n"
+                f"- **狀態碼**: `{resp.status_code} {resp.reason_phrase}`\n"
+                f"- **HTTP 協定**: `{resp.http_version}`\n"
+                + tls_note + "\n"
+                + headers_table
+            )
         except Exception as e:
             return f"❌ HTTP 標頭檢視失敗: {str(e)}"
     else:
