@@ -296,8 +296,15 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
         print(f"\033[1;33m[*] 檢測到連接埠 {port} 正在使用，已自動切換至可用連接埠: {actual_port} (多開模式支援)\033[0m")
 
     url = f"http://localhost:{actual_port}"
+    query = []
     if low_spec:
-        url += "?eco=1"
+        query.append("eco=1")
+    if desktop:
+        # The desktop page reports back while it is open, so the server can stop when the window closes
+        query.append("desktop=1")
+        os.environ["AETHER_DESKTOP_MODE"] = "1"
+    if query:
+        url += "?" + "&".join(query)
     print("\033[1;32m🚀 Aether AI Studio 4.2.0 (Official Release) 服務就緒！\033[0m")
     if actual_port != port:
         print(f"\033[1;35m✨ 多開實例已啟用 (連接埠: {actual_port})\033[0m")
@@ -333,13 +340,19 @@ def start_prod_mode(port: int, host: str, no_browser: bool, desktop: bool = Fals
 
     import uvicorn
     try:
-        uvicorn.run(
+        server = uvicorn.Server(uvicorn.Config(
             "backend.app.main:app",
             host=host,
             port=actual_port,
             reload=False,
             log_level="info"
-        )
+        ))
+        if desktop:
+            from backend.app.services import desktop_session
+            desktop_session.set_shutdown_handler(lambda: setattr(server, "should_exit", True))
+        server.run()
+        if desktop:
+            print("\n\033[32m[✓] 桌面視窗已關閉，Aether AI Studio 伺服器已自動結束。\033[0m")
     except KeyboardInterrupt:
         print("\n\033[32m[✓] Aether AI Studio 4.2.0 服務已安全結束。\033[0m")
 

@@ -2,6 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -9,6 +10,8 @@ use std::os::windows::process::CommandExt;
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+const RELEASE_API_URL: &str = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
+const RELEASE_DOWNLOAD_PREFIX: &str = "https://github.com/hankyleisplay/AetherAI-Studio/releases/download/";
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct LauncherConfig {
@@ -40,6 +43,25 @@ fn save_launcher_config(cfg: &LauncherConfig) {
     if let Ok(content) = serde_json::to_string_pretty(cfg) {
         let _ = std::fs::write(&path, content);
     }
+}
+
+fn git_output(dir: &Path, args: &[&str]) -> Option<std::process::Output> {
+    let mut cmd = Command::new("git");
+    cmd.args(args).current_dir(dir);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.output().ok()
+}
+
+fn git_ok(dir: &Path, args: &[&str]) -> bool {
+    git_output(dir, args).map(|o| o.status.success()).unwrap_or(false)
+}
+
+fn unix_time() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }
 
 /// Single-quoted PowerShell literal. Backslashes are not escapes inside single quotes; only `'` needs doubling.
@@ -489,6 +511,11 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     }
 
     // 2. Fallback: Download zipball from GitHub
+    extract_zip_into(target_dir)
+}
+
+/// Download the main branch as a zip and unpack it into `target_dir` (which must exist).
+fn extract_zip_into(target_dir: &Path) -> Result<(), String> {
     let zip_url = "https://github.com/hankyleisplay/AetherAI-Studio/archive/refs/heads/main.zip";
     let temp_zip = target_dir.join("aether_install_temp.zip");
 
@@ -548,6 +575,56 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// Copy every file under `src` that does not exist under `dst` (skips .git). Returns how many were copied.
+fn copy_missing_files(src: &Path, dst: &Path) -> std::io::Result<usize> {
+    let mut copied = 0;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name == ".git" {
+            continue;
+        }
+        let from = entry.path();
+        let to = dst.join(&name);
+        if entry.file_type()?.is_dir() {
+            std::fs::create_dir_all(&to)?;
+            copied += copy_missing_files(&from, &to)?;
+        } else if !to.exists() {
+            std::fs::copy(&from, &to)?;
+            copied += 1;
+        }
+    }
+    Ok(copied)
+}
+
+/// "Repair" puts back core files that are missing. It never overwrites a file that exists, so the user's own
+/// changes are safe. Returns how many files were restored.
+fn restore_missing_core_files(project_dir: &Path) -> Result<usize, String> {
+    if project_dir.join(".git").exists() && check_git() {
+        let out = git_output(project_dir, &["ls-files", "--deleted", "-z"])
+            .ok_or_else(|| "無法執行 git 檢查遺失檔案".to_string())?;
+        let listing = String::from_utf8_lossy(&out.stdout).to_string();
+        let deleted: Vec<&str> = listing.split('\0').filter(|f| !f.is_empty()).collect();
+        if deleted.is_empty() {
+            return Ok(0);
+        }
+        let mut args = vec!["checkout", "--"];
+        args.extend(deleted.iter().copied());
+        if !git_ok(project_dir, &args) {
+            return Err("git 無法還原遺失的檔案".to_string());
+        }
+        return Ok(deleted.len());
+    }
+
+    // Not a git checkout: unpack a fresh copy elsewhere and copy over only what is missing
+    let temp = env::temp_dir().join(format!("aether_repair_{}", unix_time()));
+    std::fs::create_dir_all(&temp).map_err(|e| format!("建立暫存資料夾失敗: {}", e))?;
+    let result = extract_zip_into(&temp)
+        .and_then(|_| copy_missing_files(&temp, project_dir).map_err(|e| format!("複製核心檔案失敗: {}", e)));
+    let _ = std::fs::remove_dir_all(&temp);
+    result
+}
+
 #[tauri::command(async)]
 fn install_or_repair_core(target_path: Option<String>) -> Result<String, String> {
     let install_dir = if let Some(p) = target_path {
@@ -563,9 +640,16 @@ fn install_or_repair_core(target_path: Option<String>) -> Result<String, String>
         }
     };
 
-    // 1. Download or extract repository files if start.py doesn't exist
+    // 1. Fresh install, or put back missing core files of an existing one
+    let mut repair_note = String::new();
     if !install_dir.join("start.py").exists() {
         download_and_extract_repo(&install_dir)?;
+    } else {
+        repair_note = match restore_missing_core_files(&install_dir) {
+            Ok(0) => "核心檔案完整，無須修復。\n".to_string(),
+            Ok(n) => format!("已補回 {} 個遺失的核心檔案（未覆蓋任何既有檔案）。\n", n),
+            Err(e) => format!("⚠️ 檢查核心檔案時發生問題：{}\n", e),
+        };
     }
 
     // 2. Install Python dependencies
@@ -576,14 +660,16 @@ fn install_or_repair_core(target_path: Option<String>) -> Result<String, String>
 
     match pip_note {
         None => Ok(format!(
-            "🎉 Aether AI Studio {} 核心檔案與相依套件已安裝完成！\n安裝路徑: {}",
+            "🎉 Aether AI Studio {} 核心檔案與相依套件已安裝完成！\n{}安裝路徑: {}",
             CURRENT_VERSION,
+            repair_note,
             install_dir.display()
         )),
         // The files are in place, so this is not a failure, but the user must know the app may not start yet
         Some(note) => Ok(format!(
-            "⚠️ 核心檔案已就緒，但{}\n安裝路徑: {}",
+            "⚠️ 核心檔案已就緒，但{}\n{}安裝路徑: {}",
             note,
+            repair_note,
             install_dir.display()
         )),
     }
@@ -657,40 +743,42 @@ fn apply_update() -> Result<String, String> {
             }
         }
 
-        // 2. Stash any local working directory modifications so merge never aborts
-        let mut stash_cmd = Command::new("git");
-        stash_cmd.args(["stash", "--include-untracked"]).current_dir(&project_dir);
-        #[cfg(windows)]
-        stash_cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = stash_cmd.output();
+        // 2. Put local changes aside only if there are any, under a name the user can find again
+        let dirty = git_output(&project_dir, &["status", "--porcelain"])
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false);
+        let stash_name = format!("aether-auto-update-{}", unix_time());
+        if dirty && !git_ok(&project_dir, &["stash", "push", "--include-untracked", "-m", &stash_name]) {
+            return Err("無法暫存你的本地修改，為避免覆蓋檔案已取消更新。".to_string());
+        }
 
-        // 3. Fast-forward pull
-        let mut pull_cmd = Command::new("git");
-        pull_cmd.args(["pull", "origin", "main"]).current_dir(&project_dir);
-        #[cfg(windows)]
-        pull_cmd.creation_flags(CREATE_NO_WINDOW);
+        // 3. Fast-forward only. A failed merge used to end in `git reset --hard`, discarding local commits.
+        if !git_ok(&project_dir, &["merge", "--ff-only", "origin/main"]) {
+            if dirty {
+                let _ = git_ok(&project_dir, &["stash", "pop"]);
+            }
+            return Err("你的專案有尚未推送的本地提交，無法自動更新；檔案都沒有被更動。請手動執行 git pull 合併。".to_string());
+        }
 
-        let pull_ok = match pull_cmd.output() {
-            Ok(output) => output.status.success(),
-            Err(_) => false,
-        };
-
-        if !pull_ok {
-            // Safe fallback: Hard reset to origin/main to guarantee clean update
-            let mut reset_cmd = Command::new("git");
-            reset_cmd.args(["reset", "--hard", "origin/main"]).current_dir(&project_dir);
-            #[cfg(windows)]
-            reset_cmd.creation_flags(CREATE_NO_WINDOW);
-            let reset_ok = reset_cmd.output().map(|o| o.status.success()).unwrap_or(false);
-            if !reset_ok {
-                return Err("更新合併失敗，請手動執行 git pull 或備份修改後重試。".to_string());
+        // 4. Bring the local changes back
+        let mut stash_note = String::new();
+        if dirty {
+            if git_ok(&project_dir, &["stash", "apply"]) {
+                let _ = git_ok(&project_dir, &["stash", "drop"]);
+            } else {
+                // Conflicts with the new version: clear the half-applied state, keep the stash for the user
+                let _ = git_ok(&project_dir, &["reset", "--hard", "HEAD"]);
+                stash_note = format!(
+                    "\n⚠️ 你的部分本地修改與新版衝突，已完整保存在 git stash「{}」，可用 git stash list 查看後手動還原。",
+                    stash_name
+                );
             }
         }
 
-        // 4. Update python dependencies in case requirements changed
+        // 5. Update python dependencies in case requirements changed
         let pip_note = install_requirements(&project_dir, true);
 
-        // 5. Purge Chromium profile caches so updated assets and HTML load immediately
+        // 6. Purge Chromium profile caches so updated assets and HTML load immediately
         let home = env::var("USERPROFILE").unwrap_or_default();
         let cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Cache");
         let code_cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Code Cache");
@@ -698,8 +786,8 @@ fn apply_update() -> Result<String, String> {
         let _ = std::fs::remove_dir_all(&code_cache_dir);
 
         match pip_note {
-            None => Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！".to_string()),
-            Some(note) => Ok(format!("✅ 已更新至主分支最新版本。⚠️ {}", note)),
+            None => Ok(format!("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！{}", stash_note)),
+            Some(note) => Ok(format!("✅ 已更新至主分支最新版本。⚠️ {}{}", note, stash_note)),
         }
     } else {
         // Non-git installation: download and update files directly
@@ -713,9 +801,14 @@ fn apply_update() -> Result<String, String> {
     }
 }
 
-fn get_latest_launcher_url() -> Result<String, String> {
-    let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
-    let resp = ureq::get(api_url)
+struct LauncherAsset {
+    url: String,
+    /// "sha256:<hex>" as published by GitHub for the release asset
+    digest: Option<String>,
+}
+
+fn latest_launcher_asset() -> Result<LauncherAsset, String> {
+    let resp = ureq::get(RELEASE_API_URL)
         .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
         .set("Accept", "application/vnd.github.v3+json")
         .timeout(std::time::Duration::from_secs(8))
@@ -723,18 +816,26 @@ fn get_latest_launcher_url() -> Result<String, String> {
         .map_err(|e| format!("GitHub API 連線失敗: {}", e))?;
 
     let json: serde_json::Value = resp.into_json().map_err(|e| format!("解析回應失敗: {}", e))?;
-    if let Some(assets) = json.get("assets").and_then(|a| a.as_array()) {
-        for asset in assets {
-            if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
-                if name == "AetherLauncher.exe" {
-                    if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
-                        return Ok(url.to_string());
-                    }
-                }
-            }
+    let assets = json.get("assets").and_then(|a| a.as_array()).cloned().unwrap_or_default();
+    for asset in assets {
+        if asset.get("name").and_then(|n| n.as_str()) != Some("AetherLauncher.exe") {
+            continue;
+        }
+        if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
+            return Ok(LauncherAsset {
+                url: url.to_string(),
+                digest: asset.get("digest").and_then(|d| d.as_str()).map(|d| d.to_lowercase()),
+            });
         }
     }
     Err("在最新 GitHub Release 中未找到 AetherLauncher.exe 發行資產。".to_string())
+}
+
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = std::fs::File::open(path).map_err(|e| format!("讀取檔案失敗: {}", e))?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).map_err(|e| format!("讀取檔案失敗: {}", e))?;
+    Ok(hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect())
 }
 
 #[tauri::command(async)]
@@ -744,15 +845,19 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
         Err(e) => return Err(format!("無法獲取當前執行檔路徑: {}", e)),
     };
 
-    let target_url = if let Some(url) = download_url {
-        if !url.trim().is_empty() {
-            url
-        } else {
-            get_latest_launcher_url()?
+    // The executable replaces this one, so it must come from this project's releases and match the published
+    // hash. The page may pass a URL, but only one on the release download path is accepted, and the hash is
+    // always looked up from the GitHub API.
+    if let Some(url) = download_url.as_deref() {
+        if !url.trim().is_empty() && !url.starts_with(RELEASE_DOWNLOAD_PREFIX) {
+            return Err("更新來源不是官方 GitHub Release，已拒絕。".to_string());
         }
-    } else {
-        get_latest_launcher_url()?
-    };
+    }
+    let asset = latest_launcher_asset()?;
+    let target_url = asset.url.clone();
+    if !target_url.starts_with(RELEASE_DOWNLOAD_PREFIX) {
+        return Err("更新來源不是官方 GitHub Release，已拒絕。".to_string());
+    }
 
     // 1. Download to temporary file
     let temp_exe = current_exe.with_extension("exe.new");
@@ -778,6 +883,19 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
     if metadata.len() < 1_000_000 {
         let _ = std::fs::remove_file(&temp_exe);
         return Err("下載之檔案大小異常，已取消更新。".to_string());
+    }
+
+    let mut verify_note = "（已通過 SHA-256 驗證）";
+    match asset.digest.as_deref() {
+        Some(digest) if digest.starts_with("sha256:") => {
+            let actual = sha256_file(&temp_exe)?;
+            if actual != digest["sha256:".len()..] {
+                let _ = std::fs::remove_file(&temp_exe);
+                return Err("下載的啟動器與官方發佈的 SHA-256 不符，可能已損毀或遭竄改，已取消更新。".to_string());
+            }
+        }
+        // Releases published before GitHub added asset digests have none to compare with
+        _ => verify_note = "（此 Release 未提供雜湊值，僅檢查檔案大小）",
     }
 
     // 2. Generate unique timestamped backup name to prevent collision
@@ -815,7 +933,7 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
         std::process::exit(0);
     });
 
-    Ok("✅ 啟動器已成功更新至最新版，正在為您自動重新啟動...".to_string())
+    Ok(format!("✅ 啟動器已成功更新至最新版{}，正在為您自動重新啟動...", verify_note))
 }
 
 #[tauri::command(async)]
