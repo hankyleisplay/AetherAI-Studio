@@ -41,6 +41,8 @@ interface ChatViewProps {
   onSendMessage: (text: string, images?: string[]) => void;
   onStopGeneration: () => void;
   isStreaming: boolean;
+  /** Message the running stream writes to; absent means "the last assistant message". */
+  streamingMessageId?: string | null;
   onBookmarkToggle?: (messageId: string) => void;
   onEditPrompt?: (messageId: string, newContent: string) => void;
   temperature?: number;
@@ -61,6 +63,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onSendMessage,
   onStopGeneration,
   isStreaming,
+  streamingMessageId,
   onBookmarkToggle,
   onEditPrompt,
   temperature = 0.7,
@@ -205,9 +208,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
       if (res.ok) {
         const data = await res.json();
         setUploadedFile({ name: data.filename, path: data.path });
-        if (!inputText.trim()) {
-          setInputText(t('prompt_analyze_uploaded', '請幫我分析工作區檔案 {path} 的內容與重點摘要。', { path: data.path }));
-        }
+        // Functional update: this runs after an await (and from a listener bound once), so `inputText` here can
+        // be stale and would overwrite whatever the user typed meanwhile.
+        const suggestion = t('prompt_analyze_uploaded', '請幫我分析工作區檔案 {path} 的內容與重點摘要。', { path: data.path });
+        setInputText(prev => (prev.trim() ? prev : suggestion));
       }
     } catch (e) {
       console.error('File upload error:', e);
@@ -437,6 +441,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    // Enter that confirms an IME candidate (注音, 拼音, かな) must not send the message
+    if (e.nativeEvent.isComposing || (e as any).keyCode === 229) return;
     // Support Tab indentation for structured prompts
     if (e.key === 'Tab') {
       e.preventDefault();
@@ -619,7 +625,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
             <MessageItem
               key={m.id || idx}
               message={m}
-              isStreaming={isStreaming && idx === messages.length - 1 && m.role === 'assistant'}
+              isStreaming={isStreaming && (streamingMessageId ? m.id === streamingMessageId : idx === messages.length - 1 && m.role === 'assistant')}
               onBookmarkToggle={onBookmarkToggle}
               onEditPrompt={onEditPrompt}
               onLoadToInput={(content) => {
@@ -629,7 +635,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 }
               }}
               persona={personas.find(p => p.id === m.persona_id) || activePersona}
-              agentState={isStreaming && idx === messages.length - 1 ? agentState : undefined}
+              agentState={isStreaming && (streamingMessageId ? m.id === streamingMessageId : idx === messages.length - 1) ? agentState : undefined}
             />
           ))
         )}

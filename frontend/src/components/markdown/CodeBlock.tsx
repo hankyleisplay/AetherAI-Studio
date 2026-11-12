@@ -14,6 +14,7 @@ import {
 import { highlightLine, normalizeLanguage } from './syntaxHighlighter';
 import { MermaidRenderer } from './MermaidRenderer';
 import { CanvasPreviewModal } from '../CanvasPreviewModal';
+import { copyText } from '../../utils/clipboard';
 
 interface CodeBlockProps {
   lang: string;
@@ -54,7 +55,7 @@ export const CodeBlock: React.FC<CodeBlockProps> = ({ lang, code, isStreaming = 
   }, [normLang, code]);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(code);
+    copyText(code);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

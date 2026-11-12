@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { LiquidBackground } from './components/LiquidBackground';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -98,10 +98,12 @@ export const App: React.FC = () => {
   }, []);
 
   // Hardware-saving Eco Mode state (can be triggered by URL ?eco=1 or localStorage)
+  const ecoForcedByUrlRef = useRef<boolean>(false);
   const [isEcoMode, setIsEcoMode] = useState<boolean>(() => {
     try {
       const params = new URLSearchParams(window.location.search);
       if (params.get('eco') === '1' || params.get('low_spec') === '1') {
+        ecoForcedByUrlRef.current = true;
         return true;
       }
       return localStorage.getItem('aether_eco_mode') === 'true';
@@ -112,14 +114,12 @@ export const App: React.FC = () => {
 
   useEffect(() => {
     try {
-      if (isEcoMode) {
-        document.documentElement.classList.add('eco-mode');
-        document.documentElement.classList.add('low-spec');
-        localStorage.setItem('aether_eco_mode', 'true');
-      } else {
-        document.documentElement.classList.remove('eco-mode');
-        document.documentElement.classList.remove('low-spec');
-        localStorage.setItem('aether_eco_mode', 'false');
+      document.documentElement.classList.toggle('eco-mode', isEcoMode);
+      document.documentElement.classList.toggle('low-spec', isEcoMode);
+      // Launching once with the launcher's low-spec switch (?eco=1) is for that run only; it used to be saved
+      // and kept every later launch in eco mode until the user found the header toggle.
+      if (!ecoForcedByUrlRef.current) {
+        localStorage.setItem('aether_eco_mode', isEcoMode ? 'true' : 'false');
       }
     } catch (e) {
       console.error('Failed to sync eco mode:', e);
@@ -127,6 +127,7 @@ export const App: React.FC = () => {
   }, [isEcoMode]);
 
   const handleToggleEcoMode = () => {
+    ecoForcedByUrlRef.current = false;
     setIsEcoMode(prev => !prev);
   };
 
@@ -149,7 +150,15 @@ export const App: React.FC = () => {
 
   const abortControllerRef = useRef<AbortController | null>(null);
   const isStreamingRef = useRef<boolean>(false);
+  // Session id the running stream just assigned to a brand-new chat: adopting it must not reload messages
   const streamingSessionIdRef = useRef<string | null>(null);
+  // Each send gets a number so a finished or aborted stream can't reset the state of the one that replaced it
+  const streamRunRef = useRef<number>(0);
+  // The session the running stream writes to, the session on screen, and what the stream has produced so far
+  const streamSessionRef = useRef<string | null>(null);
+  const viewSessionRef = useRef<string | null>(null);
+  const streamLiveRef = useRef<{ assistantId: string; content: string; thought: string; personaId: string; detached: boolean } | null>(null);
+  const [streamingMessageId, setStreamingMessageId] = useState<string | null>(null);
   const tokenBufferRef = useRef<{ [msgId: string]: string }>({});
   const tokenRafRef = useRef<number | null>(null);
   const thoughtBufferRef = useRef<{ [msgId: string]: string }>({});
@@ -234,19 +243,25 @@ export const App: React.FC = () => {
 
   // Fetch session messages when activeSessionId changes
   useEffect(() => {
+    viewSessionRef.current = activeSessionId;
     if (activeSessionId) {
       if (streamingSessionIdRef.current === activeSessionId) {
         // Session ID was assigned by the active stream, do not wipe live streaming messages
         streamingSessionIdRef.current = null;
         return;
       }
-      if (isStreamingRef.current) {
-        // Never wipe messages while streaming is actively running
-        return;
+      // Switching chats while a reply is streaming used to do nothing, leaving the other chat's messages on
+      // screen. Load the chosen chat; the stream keeps running and is re-attached when its chat is reopened.
+      if (isStreamingRef.current && streamLiveRef.current && streamSessionRef.current !== activeSessionId) {
+        streamLiveRef.current.detached = true;
       }
       fetchSessionMessages(activeSessionId);
     } else {
       if (!isStreamingRef.current) {
+        setMessages([]);
+      } else if (streamSessionRef.current) {
+        // "New chat" pressed while another chat is still streaming
+        if (streamLiveRef.current) streamLiveRef.current.detached = true;
         setMessages([]);
       }
     }
@@ -361,7 +376,26 @@ export const App: React.FC = () => {
       const res = await fetch(`/api/sessions/${id}`);
       if (res.ok) {
         const data = await res.json();
-        setMessages(data.messages || []);
+        // The user may have picked another chat while this one was loading
+        if (viewSessionRef.current !== id) return;
+        let loaded: Message[] = data.messages || [];
+        const live = streamLiveRef.current;
+        if (isStreamingRef.current && live && streamSessionRef.current === id) {
+          // Back on the chat that is still streaming: the reply isn't saved yet, so show what arrived so far
+          loaded = [
+            ...loaded.filter(m => m.id !== live.assistantId),
+            {
+              id: live.assistantId,
+              role: 'assistant',
+              content: live.content,
+              thought: live.thought,
+              tool_calls: [],
+              persona_id: live.personaId,
+              created_at: new Date().toISOString()
+            }
+          ];
+        }
+        setMessages(loaded);
         if (data.session?.persona_id) {
           setSelectedPersonaId(data.session.persona_id);
         }
@@ -547,7 +581,8 @@ export const App: React.FC = () => {
   const handleDeleteSession = async (id: string, e: React.MouseEvent) => {
     e.stopPropagation();
     try {
-      await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      const res = await fetch(`/api/sessions/${id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setSessions(prev => prev.filter(s => s.id !== id));
       if (activeSessionId === id) {
         const remaining = sessions.filter(s => s.id !== id);
@@ -559,7 +594,7 @@ export const App: React.FC = () => {
   };
 
   const handleStopGeneration = () => {
-    const sessionId = streamingSessionIdRef.current || activeSessionId;
+    const sessionId = streamSessionRef.current || activeSessionId;
     if (mode === 'code' && sessionId && abortControllerRef.current) {
       const controller = abortControllerRef.current;
       fetch(`/api/code/stop/${sessionId}`, { method: 'POST' }).catch(() => {});
@@ -584,9 +619,17 @@ export const App: React.FC = () => {
   const handleEditPrompt = async (messageId: string, newContent: string) => {
     if (!newContent.trim()) return;
 
-    // If currently streaming, stop active generation cleanly first
+    // If currently streaming, stop it and wait until it has really ended. Code mode stops gracefully (up to a
+    // few seconds); sending before that was silently dropped after the old messages had already been deleted.
     if (isStreamingRef.current) {
       handleStopGeneration();
+      const deadline = performance.now() + 6000;
+      while (isStreamingRef.current && performance.now() < deadline) {
+        await new Promise(r => setTimeout(r, 50));
+      }
+      if (isStreamingRef.current) return;
+      // Give the server a moment to save the interrupted reply so the cleanup below removes it too
+      await new Promise(r => setTimeout(r, 400));
     }
 
     const msgIdx = messages.findIndex(m => m.id === messageId);
@@ -615,7 +658,10 @@ export const App: React.FC = () => {
     }
 
     // Slice local messages state
-    setMessages(prev => prev.slice(0, msgIdx));
+    setMessages(prev => {
+      const at = prev.findIndex(m => m.id === messageId);
+      return at === -1 ? prev : prev.slice(0, at);
+    });
 
     // Re-send revised prompt
     await handleSendMessage(newContent, originalImages);
@@ -674,6 +720,11 @@ export const App: React.FC = () => {
     };
 
     setMessages(prev => [...prev, userMsg, assistantMsg]);
+    const runId = ++streamRunRef.current;
+    let hadError = false;
+    streamSessionRef.current = activeSessionId;
+    streamLiveRef.current = { assistantId: assistantMsgId, content: '', thought: '', personaId: selectedPersonaId, detached: false };
+    setStreamingMessageId(assistantMsgId);
     isStreamingRef.current = true;
     setIsStreaming(true);
     setAgentState('thinking');
@@ -738,8 +789,12 @@ export const App: React.FC = () => {
 
               if (currentEvent === 'session_info' || data.type === 'session_info') {
                 if (data.session_id && data.session_id !== activeSessionId) {
-                  streamingSessionIdRef.current = data.session_id;
-                  setActiveSessionId(data.session_id);
+                  streamSessionRef.current = data.session_id;
+                  // Only move the view to the new chat if the user is still where they started it
+                  if (viewSessionRef.current === activeSessionId) {
+                    streamingSessionIdRef.current = data.session_id;
+                    setActiveSessionId(data.session_id);
+                  }
                   fetchSessions();
                 }
                 if (data.user_message_id) {
@@ -759,6 +814,7 @@ export const App: React.FC = () => {
                 setAgentState('thinking');
                 // Thought tokens arrive as fast as content tokens; batch them the same way
                 thoughtBufferRef.current[assistantMsgId] = (thoughtBufferRef.current[assistantMsgId] || '') + (data.content || '');
+                if (streamLiveRef.current) streamLiveRef.current.thought += (data.content || '');
                 scheduleFlush();
               } else if (currentEvent === 'tool_start' || data.type === 'tool_start') {
                 setAgentState('calling_tool');
@@ -832,6 +888,7 @@ export const App: React.FC = () => {
                 const chunk = data.content || '';
                 streamTokenCountRef.current += Math.max(1, Math.ceil(chunk.length / 2.8));
                 tokenBufferRef.current[assistantMsgId] = (tokenBufferRef.current[assistantMsgId] || '') + chunk;
+                if (streamLiveRef.current) streamLiveRef.current.content += chunk;
                 scheduleFlush();
               } else if (currentEvent === 'done' || data.type === 'done') {
                 cancelScheduledFlush();
@@ -839,6 +896,18 @@ export const App: React.FC = () => {
                 isStreamingRef.current = false;
                 setAgentState('idle');
                 setIsStreaming(false);
+                setStreamingMessageId(null);
+
+                const viewingStream = viewSessionRef.current === streamSessionRef.current;
+                if (streamLiveRef.current?.detached) {
+                  // The chat was left and maybe reopened mid-stream, so local state missed tool calls and status
+                  // updates; the saved copy is complete now.
+                  streamLiveRef.current = null;
+                  if (viewingStream && streamSessionRef.current) fetchSessionMessages(streamSessionRef.current);
+                  fetchSessions();
+                  continue;
+                }
+                streamLiveRef.current = null;
 
                 const finalElapsed = Math.max(0.01, (performance.now() - streamStartTimeRef.current) / 1000);
                 const finalTps = streamTokenCountRef.current / finalElapsed;
@@ -854,6 +923,7 @@ export const App: React.FC = () => {
 
                 setMessages(prev => {
                   const exists = prev.some(m => m.id === assistantMsgId);
+                  if (!exists && !viewingStream) return prev;
                   if (!exists && (data.content || data.thought)) {
                     return [
                       ...prev,
@@ -888,6 +958,7 @@ export const App: React.FC = () => {
                 cancelScheduledFlush();
                 flushTokenBuffer();
                 isStreamingRef.current = false;
+                hadError = true;
                 setAgentState('error');
                 setMessages(prev => {
                   return prev.map(m => {
@@ -908,6 +979,7 @@ export const App: React.FC = () => {
 
     } catch (err: any) {
       if (err.name !== 'AbortError') {
+        hadError = true;
         setAgentState('error');
         setMessages(prev => {
           return prev.map(m => {
@@ -919,14 +991,36 @@ export const App: React.FC = () => {
         });
       }
     } finally {
-      cancelScheduledFlush();
-      flushTokenBuffer();
-      isStreamingRef.current = false;
-      setIsStreaming(false);
-      setAgentState('idle');
-      abortControllerRef.current = null;
+      // A newer send may already be running (edit-and-resend aborts this one first); its state is not ours to reset
+      if (streamRunRef.current === runId) {
+        cancelScheduledFlush();
+        flushTokenBuffer();
+        isStreamingRef.current = false;
+        setIsStreaming(false);
+        setStreamingMessageId(null);
+        streamLiveRef.current = null;
+        abortControllerRef.current = null;
+        setMessages(prev => prev.map(m => (m.id === assistantMsgId && m.status_text ? { ...m, status_text: undefined } : m)));
+        if (hadError) {
+          // Keep the error state visible for a moment; it used to be replaced by "idle" in the same tick
+          window.setTimeout(() => {
+            if (streamRunRef.current === runId && !isStreamingRef.current) setAgentState('idle');
+          }, 4000);
+        } else {
+          setAgentState('idle');
+        }
+      }
     }
   };
+
+  // MessageItem is memoised and skips re-rendering old messages, so it keeps whichever callbacks it was first
+  // given. Route them through a ref so an old message always runs the current handler (with current messages,
+  // session and model) instead of a stale closure.
+  const latestHandlersRef = useRef({ handleSendMessage, handleEditPrompt, handleBookmarkToggle });
+  latestHandlersRef.current = { handleSendMessage, handleEditPrompt, handleBookmarkToggle };
+  const stableSendMessage = useCallback((text: string, images?: string[]) => latestHandlersRef.current.handleSendMessage(text, images), []);
+  const stableEditPrompt = useCallback((id: string, content: string) => latestHandlersRef.current.handleEditPrompt(id, content), []);
+  const stableBookmarkToggle = useCallback((id: string) => latestHandlersRef.current.handleBookmarkToggle(id), []);
 
   const activePersona = personas.find(p => p.id === selectedPersonaId);
 
@@ -1050,11 +1144,12 @@ export const App: React.FC = () => {
         <ChatView
           messages={messages}
           agentState={agentState}
-          onSendMessage={handleSendMessage}
+          onSendMessage={stableSendMessage}
           onStopGeneration={handleStopGeneration}
           isStreaming={isStreaming}
-          onBookmarkToggle={handleBookmarkToggle}
-          onEditPrompt={handleEditPrompt}
+          streamingMessageId={streamingMessageId}
+          onBookmarkToggle={stableBookmarkToggle}
+          onEditPrompt={stableEditPrompt}
           temperature={modelConfig.temperature}
           onTemperatureChange={handleTemperatureChange}
           personas={personas}

@@ -583,9 +583,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
                             onClick={async (e) => {
                               e.stopPropagation();
                               try {
-                                await fetch(`/api/messages/${bm.id}/bookmark`, { method: 'POST' });
-                                fetchBookmarks();
-                                if (onBookmarkToggle) onBookmarkToggle(bm.id);
+                                // The parent handler performs the toggle and bumps bookmarkVersion, which reloads
+                                // this list. Toggling here as well switched the bookmark straight back on.
+                                if (onBookmarkToggle) {
+                                  await onBookmarkToggle(bm.id);
+                                } else {
+                                  await fetch(`/api/messages/${bm.id}/bookmark`, { method: 'POST' });
+                                  fetchBookmarks();
+                                }
                               } catch (err) {
                                 console.error('Failed to unbookmark:', err);
                               }

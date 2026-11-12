@@ -30,6 +30,7 @@ import { ChartWidget, ChartData } from './ChartWidget';
 import { MediaWidget } from './MediaWidget';
 import { MarkdownRenderer } from './markdown/MarkdownRenderer';
 import { useI18n } from '../i18n/I18nContext';
+import { copyText } from '../utils/clipboard';
 
 interface MessageItemProps {
   message: Message;
@@ -91,13 +92,13 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
   }, [isStreaming, message.thought, message.content]);
 
   const handleCopyAnswer = () => {
-    navigator.clipboard.writeText(message.content);
+    copyText(message.content);
     setCopiedAnswer(true);
     setTimeout(() => setCopiedAnswer(false), 2000);
   };
 
   const handleCopyMarkdown = () => {
-    navigator.clipboard.writeText(message.content);
+    copyText(message.content);
     setCopiedMarkdown(true);
     setTimeout(() => setCopiedMarkdown(false), 2000);
   };
@@ -592,7 +593,7 @@ const MessageItemComponent: React.FC<MessageItemProps> = ({
                     className={`p-1.5 rounded-lg glass-button flex items-center gap-1 text-[11px] transition-colors whitespace-nowrap ${
                       isSpeaking ? 'text-cyan-300' : 'text-slate-400 hover:text-cyan-300'
                     }`}
-                    title={isSpeaking ? t('stop_generation', '停止朗讀') : t('speak_answer', '語音朗讀此回答')}
+                    title={isSpeaking ? t('stop_speaking', '停止朗讀') : t('speak_answer', '語音朗讀此回答')}
                   >
                     {isSpeaking ? <VolumeX className="w-3.5 h-3.5 animate-pulse text-cyan-400" /> : <Volume2 className="w-3.5 h-3.5" />}
                     <span className="hidden sm:inline">{isSpeaking ? t('speaking', '朗讀中') : t('speak_answer', '朗讀')}</span>

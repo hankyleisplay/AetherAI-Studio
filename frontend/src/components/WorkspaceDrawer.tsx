@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { WorkspaceFile } from '../types';
 import { useI18n } from '../i18n/I18nContext';
+import { copyText } from '../utils/clipboard';
 
 interface WorkspaceDrawerProps {
   isOpen: boolean;
@@ -222,7 +223,7 @@ export const WorkspaceDrawer: React.FC<WorkspaceDrawerProps> = ({
 
   const handleCopyPreview = () => {
     if (previewContent) {
-      navigator.clipboard.writeText(previewContent);
+      copyText(previewContent);
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     }

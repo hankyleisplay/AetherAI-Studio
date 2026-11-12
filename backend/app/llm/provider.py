@@ -24,6 +24,31 @@ PROBE_TTL_FAIL = 3.0
 _PROBE_CACHE: Dict[tuple, tuple] = {}
 _PROBE_INFLIGHT: Dict[tuple, "asyncio.Future"] = {}
 
+_IMAGE_SIGNATURES = (
+    ("iVBORw0KGgo", "image/png"),
+    ("/9j/", "image/jpeg"),
+    ("R0lGOD", "image/gif"),
+    ("UklGR", "image/webp"),
+    ("Qk", "image/bmp"),
+)
+
+def split_image_payload(img: Any) -> tuple:
+    """Return (media_type, base64_data) for an attached image.
+
+    Images arrive either as data URLs or as bare base64. Declaring every one as image/jpeg made Anthropic
+    reject PNG screenshots outright, so read the type from the data URL or from the base64 signature.
+    """
+    text = str(img).strip()
+    media_type = ""
+    m = re.match(r"^data:(image/[a-zA-Z0-9+.\-]+);base64,", text)
+    if m:
+        media_type = m.group(1).lower()
+        text = text[m.end():].strip()
+    if not media_type:
+        media_type = next((mt for sig, mt in _IMAGE_SIGNATURES if text.startswith(sig)), "image/jpeg")
+    return media_type, text
+
+
 class LLMResponseChunk(BaseModel):
     type: str  # "token", "thought", "tool_call", "done", "error"
     content: Optional[str] = None
@@ -283,10 +308,10 @@ class UnifiedLLMClient:
             if m.get("images") and m.get("role") == "user":
                 parts = [{"type": "text", "text": m.get("content", "")}]
                 for img in m["images"]:
-                    clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                    media_type, clean_b64 = split_image_payload(img)
                     parts.append({
                         "type": "image_url",
-                        "image_url": {"url": f"data:image/jpeg;base64,{clean_b64}"}
+                        "image_url": {"url": f"data:{media_type};base64,{clean_b64}"}
                     })
                 m_copy["content"] = parts
                 m_copy.pop("images", None)
@@ -696,10 +721,10 @@ class UnifiedLLMClient:
             else:
                 blocks = []
                 for img in m.get("images") or []:
-                    clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                    media_type, clean_b64 = split_image_payload(img)
                     blocks.append({
                         "type": "image",
-                        "source": {"type": "base64", "media_type": "image/jpeg", "data": clean_b64}
+                        "source": {"type": "base64", "media_type": media_type, "data": clean_b64}
                     })
                 blocks.append({"type": "text", "text": text or " "})
                 _append("user", blocks)
@@ -854,10 +879,10 @@ class UnifiedLLMClient:
                 user_parts = [{"text": text}]
                 if m.get("images"):
                     for img in m["images"]:
-                        clean_b64 = re.sub(r"^data:image\/[a-zA-Z0-9\+\-\.]+;base64,", "", str(img)).strip()
+                        media_type, clean_b64 = split_image_payload(img)
                         user_parts.append({
                             "inline_data": {
-                                "mime_type": "image/jpeg",
+                                "mime_type": media_type,
                                 "data": clean_b64
                             }
                         })

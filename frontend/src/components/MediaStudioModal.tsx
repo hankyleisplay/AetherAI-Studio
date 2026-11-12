@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MediaConfig, MediaItem } from '../types';
 import { useI18n } from '../i18n/I18nContext';
+import { copyText } from '../utils/clipboard';
 
 interface MediaStudioModalProps {
   isOpen: boolean;
@@ -178,7 +179,7 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({ isOpen, onCl
       <div className="px-2 py-1.5 flex items-center justify-between gap-1">
         <span className="text-[10px] text-slate-300 truncate" title={item.prompt}>{item.prompt}</span>
         <div className="flex items-center gap-0.5 shrink-0">
-          <button type="button" onClick={() => navigator.clipboard?.writeText(item.prompt)} title={t('copy_content', '複製內容')} className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white">
+          <button type="button" onClick={() => copyText(item.prompt)} title={t('copy_content', '複製內容')} className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white">
             <Copy className="w-3 h-3" />
           </button>
           {item.url && (

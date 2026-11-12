@@ -6,6 +6,7 @@ import {
 import { Persona, SwarmTurn, ModelConfig } from '../types';
 import { useI18n } from '../i18n/I18nContext';
 import { MarkdownRenderer } from './markdown/MarkdownRenderer';
+import { copyText } from '../utils/clipboard';
 
 interface SwarmModalProps {
   isOpen: boolean;
@@ -273,7 +274,7 @@ export const SwarmModal: React.FC<SwarmModalProps> = ({
     if (consensusSummary) {
       full += `## 🌟 ${t('swarm_consensus_title', 'Aether 智庫綜合共識與實施藍圖')}\n${consensusSummary}\n`;
     }
-    navigator.clipboard.writeText(full);
+    copyText(full);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };
