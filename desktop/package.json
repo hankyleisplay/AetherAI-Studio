@@ -1,6 +1,6 @@
 {
   "name": "@hankyleisplay/aetherai-studio-desktop",
-  "version": "4.1.3",
+  "version": "4.2.0",
   "description": "Aether AI Studio - Native Cross-Platform Desktop Client (Official Release)",
   "main": "main.js",
   "scripts": {
