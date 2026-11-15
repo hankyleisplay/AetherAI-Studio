@@ -371,8 +371,9 @@ class AgentOrchestrator:
         # 1. Probe local Ollama for an installed vision model
         try:
             import httpx
+            from backend.app.llm.provider import direct_connection_kwargs
             base_url = getattr(self.config, "base_url", "http://localhost:11434")
-            async with httpx.AsyncClient(timeout=10.0) as client:
+            async with httpx.AsyncClient(timeout=10.0, **direct_connection_kwargs(base_url)) as client:
                 tags_resp = await client.get(f"{base_url.rstrip('/')}/api/tags")
                 if tags_resp.status_code == 200:
                     tags_data = tags_resp.json()

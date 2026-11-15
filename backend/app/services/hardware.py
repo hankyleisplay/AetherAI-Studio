@@ -114,7 +114,8 @@ async def _ollama_model_details(base_url: str, model: str) -> Dict[str, Any]:
     """Architecture + file size for an installed Ollama model, plus what is currently loaded."""
     base = base_url.rstrip("/")
     out: Dict[str, Any] = {"show": None, "size_bytes": None, "loaded": None}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(6.0, connect=2.0)) as client:
+    from backend.app.llm.provider import direct_connection_kwargs
+    async with httpx.AsyncClient(timeout=httpx.Timeout(6.0, connect=2.0), **direct_connection_kwargs(base)) as client:
         try:
             tags = await client.get(f"{base}/api/tags")
             if tags.status_code == 200:
