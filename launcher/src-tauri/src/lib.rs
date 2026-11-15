@@ -940,6 +940,15 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
 fn close_all_instances(port: u16) -> Result<u32, String> {
     let port_str = port.to_string();
 
+    // The server is force-stopped here, so it cannot shut down the Ollama it started itself; that Ollama's PID is
+    // in backend/data/ollama_autostart.pid. An Ollama the user started is not listed there and is left alone.
+    let ollama_pid_file = find_project_root().map(|p| p.join("backend").join("data").join("ollama_autostart.pid"));
+    let ollama_pid: u32 = ollama_pid_file
+        .as_ref()
+        .and_then(|f| std::fs::read_to_string(f).ok())
+        .and_then(|t| t.trim().parse().ok())
+        .unwrap_or(0);
+
     // Only processes that are recognisably Aether: its own start script with a --port argument, the health check,
     // an app-mode browser window on this port, and whatever listens on the port *if* it is our server. Matching any
     // command line containing "start.py", or any process on the port, killed unrelated programs.
@@ -959,8 +968,17 @@ foreach ($id in ($ids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_
         $killed++
     }} catch {{}}
 }}
+$opid = {ollama_pid}
+if ($opid -gt 0) {{
+    $op = Get-Process -Id $opid -ErrorAction SilentlyContinue
+    if ($op -and $op.ProcessName -like '*ollama*') {{
+        taskkill /PID $opid /T /F | Out-Null
+        if ($LASTEXITCODE -eq 0) {{ $killed++ }}
+    }}
+}}
 Write-Output $killed"#,
-        port = port_str
+        port = port_str,
+        ollama_pid = ollama_pid
     );
 
     // Also close CMD windows with title starting with Aether AI Studio
@@ -975,7 +993,11 @@ Write-Output $killed"#,
     #[cfg(windows)]
     ps_cmd.creation_flags(CREATE_NO_WINDOW);
 
-    match ps_cmd.output() {
+    let result = ps_cmd.output();
+    if let Some(f) = ollama_pid_file {
+        let _ = std::fs::remove_file(f);
+    }
+    match result {
         Ok(output) => {
             let killed_str = String::from_utf8_lossy(&output.stdout).trim().to_string();
             let count: u32 = killed_str.parse().unwrap_or(0);

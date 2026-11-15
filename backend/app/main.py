@@ -24,7 +24,7 @@ from backend.app.llm.provider import UnifiedLLMClient, ModelConfig
 from backend.app.agent.core import AgentOrchestrator
 from backend.app.coding.agent import CodingAgent, resolve_approval, request_stop
 from backend.app.services.telegram_bridge import telegram_bridge
-from backend.app.services import access, desktop_session
+from backend.app.services import access, desktop_session, ollama_manager
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -44,8 +44,24 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         print(f"[Media] Startup warning: {e}")
     desktop_watch = asyncio.create_task(desktop_session.watch())
+    # Using a local Ollama model should not require starting Ollama by hand: bring it up in the background
+    ollama_start = None
+    try:
+        saved_cfg = db.get_setting("active_model_config") or {}
+        if (saved_cfg.get("provider") or "ollama") == "ollama":
+            ollama_start = asyncio.create_task(
+                ollama_manager.ensure_running(saved_cfg.get("base_url") or "http://127.0.0.1:11434"))
+    except Exception as e:
+        print(f"[Ollama] Startup warning: {e}")
     yield
     desktop_watch.cancel()
+    if ollama_start and not ollama_start.done():
+        ollama_start.cancel()
+    # Stop the Ollama this app started (never one the user started); frees GPU memory when Aether closes
+    try:
+        await asyncio.to_thread(ollama_manager.stop_started)
+    except Exception as e:
+        print(f"[Ollama] Shutdown warning: {e}")
     # Shutdown
     try:
         await telegram_bridge.stop()
@@ -320,9 +336,78 @@ async def save_active_model_config(config: ModelConfig):
 # Model Testing & Discovery
 @app.post("/api/models/test")
 async def test_model_connection(config: ModelConfig):
+    if config.provider == "ollama":
+        # Start Ollama if it is installed but not running, instead of reporting "no models"
+        await ollama_manager.ensure_running(config.base_url)
     client = UnifiedLLMClient(config)
     result = await client.test_connection()
     return result
+
+# ================= Local Ollama: start, status and model downloads =================
+
+class OllamaPullPayload(BaseModel):
+    model: str
+    base_url: Optional[str] = None
+
+def _active_ollama_base(override: Optional[str] = None) -> str:
+    saved = db.get_setting("active_model_config") or {}
+    return override or saved.get("base_url") or "http://127.0.0.1:11434"
+
+@app.get("/api/ollama/status")
+async def ollama_status(base_url: Optional[str] = None):
+    """Start Ollama if needed and report what the first-run setup card needs: installed, running, models."""
+    from backend.app.services.hardware import get_hardware_info
+    base = _active_ollama_base(base_url)
+    state = await ollama_manager.ensure_running(base)
+    models: List[str] = []
+    if state["status"] in ("running", "started"):
+        try:
+            models = await ollama_manager.installed_models(state["base_url"])
+        except Exception as e:
+            state = {**state, "status": "failed", "error": f"讀取模型清單失敗：{e}"}
+    hardware = await asyncio.to_thread(get_hardware_info)
+    return {
+        **state,
+        "models": models,
+        "recommended": ollama_manager.recommend_model(hardware),
+        "choices": ollama_manager.MODEL_CHOICES,
+    }
+
+@app.post("/api/ollama/pull")
+async def ollama_pull(payload: OllamaPullPayload):
+    import re
+    name = (payload.model or "").strip()
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._\-/]*(:[A-Za-z0-9._\-]+)?", name):
+        raise HTTPException(status_code=400, detail="模型名稱格式不正確")
+    state = await ollama_manager.ensure_running(_active_ollama_base(payload.base_url))
+    if state["status"] not in ("running", "started"):
+        raise HTTPException(status_code=409, detail=state.get("error") or f"Ollama 無法使用（{state['status']}）")
+    base = state["base_url"]
+
+    async def progress():
+        ok = False
+        try:
+            async for ev in ollama_manager.pull_model(base, name):
+                if ev.get("status") == "error":
+                    yield {"event": "error", "data": json.dumps(ev, ensure_ascii=False)}
+                    return
+                ok = ok or ev.get("status") == "success"
+                yield {"event": "progress", "data": json.dumps(ev, ensure_ascii=False)}
+        except Exception as e:
+            yield {"event": "error", "data": json.dumps({"error": f"下載中斷：{e}"}, ensure_ascii=False)}
+            return
+        models = await ollama_manager.installed_models(base)
+        # The short-lived model-list cache still says "no models"; reading the config next would clear the choice
+        from backend.app.llm.provider import clear_probe_cache
+        clear_probe_cache()
+        # First model on this computer: make it the active one so chatting works right away
+        saved = db.get_setting("active_model_config") or {}
+        if (saved.get("provider") or "ollama") == "ollama" and (not saved.get("model") or saved.get("model") not in models):
+            cfg = ModelConfig(**{**saved, "provider": "ollama", "base_url": saved.get("base_url") or base, "model": name})
+            db.set_setting("active_model_config", cfg.model_dump())
+        yield {"event": "done", "data": json.dumps({"model": name, "models": models, "success": ok}, ensure_ascii=False)}
+
+    return EventSourceResponse(progress())
 
 # Hardware capability check for max_tokens / context_window settings
 @app.post("/api/models/hardware-check")
@@ -414,6 +499,10 @@ async def chat_stream(request: ChatRequest):
                 model="",
                 max_tokens=8192
             )
+
+    if active_config.provider == "ollama":
+        # Bring up a local Ollama that is installed but not running (no-op when it already answers)
+        await ollama_manager.ensure_running(active_config.base_url)
 
     # Validate that an active model is configured
     if not active_config.model or not active_config.model.strip():

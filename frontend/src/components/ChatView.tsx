@@ -55,6 +55,8 @@ interface ChatViewProps {
   onOpenNewProject?: () => void;
   isTerminalOpen?: boolean;
   onToggleTerminal?: () => void;
+  /** Shown above the input, e.g. the local Ollama setup card */
+  topNotice?: React.ReactNode;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -75,7 +77,8 @@ export const ChatView: React.FC<ChatViewProps> = ({
   codeExecutionMode = 'auto',
   onOpenNewProject,
   isTerminalOpen = false,
-  onToggleTerminal
+  onToggleTerminal,
+  topNotice
 }) => {
   const { t, currentLang } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -665,6 +668,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
 
       {/* Reasoning Tuning Capsule & Chat Input Dock */}
       <div className="p-3 md:p-5 max-w-4xl w-full mx-auto space-y-2">
+        {topNotice}
         
         {/* Code Mode Active Banner & Controls */}
         {mode === 'code' && (
