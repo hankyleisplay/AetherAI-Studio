@@ -11,6 +11,7 @@ import { InteractiveTerminal } from './components/InteractiveTerminal';
 import { ProjectModal } from './components/ProjectModal';
 import { PinLockModal } from './components/PinLockModal';
 import { MediaStudioModal } from './components/MediaStudioModal';
+import { OllamaSetupCard, OllamaSetupState, OllamaPullState } from './components/OllamaSetupCard';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall, CodeExecutionMode } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -178,6 +179,9 @@ export const App: React.FC = () => {
   });
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
+  // Local Ollama first-run state: shown when Ollama is missing, could not start, or has no model yet
+  const [ollamaSetup, setOllamaSetup] = useState<OllamaSetupState | null>(null);
+  const [ollamaPull, setOllamaPull] = useState<OllamaPullState | null>(null);
   const [bookmarkVersion, setBookmarkVersion] = useState<number>(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -299,8 +303,76 @@ export const App: React.FC = () => {
     }
   }, [activeSessionId]);
 
+  const fetchOllamaStatus = async () => {
+    setOllamaSetup(prev => (prev && prev.status !== 'checking' ? prev : { status: 'checking' }));
+    try {
+      const res = await fetch('/api/ollama/status');
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data: OllamaSetupState = await res.json();
+      if ((data.status === 'running' || data.status === 'started') && (data.models || []).length > 0) {
+        setOllamaSetup(null);
+      } else {
+        setOllamaSetup(data);
+      }
+    } catch (e: any) {
+      setOllamaSetup({ status: 'failed', error: e.message });
+    }
+  };
+
+  const handlePullOllamaModel = async (model: string) => {
+    setOllamaPull({ model, percent: null, status: '' });
+    try {
+      const res = await fetch('/api/ollama/pull', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model })
+      });
+      if (!res.ok || !res.body) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder('utf-8');
+      let buffer = '';
+      let event = 'message';
+      let finished = false;
+      while (!finished) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split('\n');
+        buffer = lines.pop() || '';
+        for (const raw of lines) {
+          const line = raw.trim();
+          if (!line) { event = 'message'; continue; }
+          if (line.startsWith('event:')) { event = line.slice(6).trim(); continue; }
+          if (!line.startsWith('data:')) continue;
+          const data = JSON.parse(line.slice(5).trim());
+          if (event === 'progress') {
+            setOllamaPull({ model, percent: typeof data.percent === 'number' ? data.percent : null, status: data.status || '' });
+          } else if (event === 'error') {
+            throw new Error(data.error || 'download failed');
+          } else if (event === 'done') {
+            finished = true;
+          }
+        }
+      }
+      if (!finished) throw new Error(t('ollama_pull_interrupted', '連線中斷'));
+      setOllamaPull(null);
+      setOllamaSetup(null);
+      // The server made the new model the active one; reload the config and model list
+      fetchActiveModel();
+    } catch (e: any) {
+      setOllamaPull({ model, percent: null, status: '', error: e.message });
+    }
+  };
+
   const probeAvailableModels = async (configToProbe: ModelConfig) => {
     setIsProbingModels(true);
+    if (configToProbe.provider === 'ollama' && availableModels.length === 0) {
+      // Starting Ollama can take a few seconds; say so instead of showing an empty model list
+      setOllamaSetup(prev => prev ?? { status: 'checking' });
+    }
     try {
       const res = await fetch('/api/models/test', {
         method: 'POST',
@@ -311,6 +383,11 @@ export const App: React.FC = () => {
         const data = await res.json();
         const detected: string[] = Array.isArray(data.models) ? data.models : [];
         setAvailableModels(detected);
+        if (configToProbe.provider === 'ollama' && (detected.length === 0 || !data.success)) {
+          fetchOllamaStatus();
+        } else {
+          setOllamaSetup(null);
+        }
         if (detected.length > 0) {
           // If the endpoint is live and current model is not in detected list, auto-select the first available model
           if (data.success && (!configToProbe.model || !detected.includes(configToProbe.model))) {
@@ -336,10 +413,12 @@ export const App: React.FC = () => {
         }
       } else {
         setAvailableModels([]);
+        if (configToProbe.provider === 'ollama') fetchOllamaStatus();
       }
     } catch (e) {
       console.error('Failed to auto-probe models:', e);
       setAvailableModels([]);
+      if (configToProbe.provider === 'ollama') fetchOllamaStatus();
     } finally {
       setIsProbingModels(false);
     }
@@ -1192,6 +1271,14 @@ export const App: React.FC = () => {
           onOpenNewProject={() => setIsNewProjectModalOpen(true)}
           isTerminalOpen={isTerminalOpen}
           onToggleTerminal={() => setIsTerminalOpen(prev => !prev)}
+          topNotice={modelConfig.provider === 'ollama' && ollamaSetup ? (
+            <OllamaSetupCard
+              setup={ollamaSetup}
+              pull={ollamaPull}
+              onRecheck={fetchOllamaStatus}
+              onPull={handlePullOllamaModel}
+            />
+          ) : null}
         />
       </div>
 

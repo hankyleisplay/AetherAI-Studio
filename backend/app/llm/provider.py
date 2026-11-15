@@ -128,6 +128,11 @@ def ollama_unreachable_message(configured: str, detail: str = "") -> str:
     return "\n".join(lines)
 
 
+def clear_probe_cache() -> None:
+    """Forget cached model lists, e.g. after a model was downloaded (the cache would still say "no models")."""
+    _PROBE_CACHE.clear()
+
+
 class LLMResponseChunk(BaseModel):
     type: str  # "token", "thought", "tool_call", "done", "error"
     content: Optional[str] = None
