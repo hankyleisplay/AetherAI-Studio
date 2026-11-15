@@ -1,6 +1,7 @@
 import os
+import sys
 from pathlib import Path
-from typing import Optional
+from typing import Dict, Optional
 from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -35,6 +36,42 @@ def get_effective_workspace_dir(project_name: Optional[str] = None) -> Path:
     except Exception:
         pass
     return WORKSPACE_DIR.resolve()
+
+
+def child_process_env(**extra: str) -> Dict[str, str]:
+    """Environment for commands the app runs for the user (terminal, agent tools).
+
+    `python` and `pip` must mean the interpreter running Aether. On Windows PATH often has no Python at all, or only
+    the Microsoft Store placeholder (the launcher then starts Aether with a full path), so `python main.py` in the
+    built-in terminal failed with "not recognized". Put this interpreter's folder (and its Scripts folder) first.
+    """
+    env = dict(os.environ)
+    env["PYTHONIOENCODING"] = "utf-8"
+    env["PYTHONUTF8"] = "1"
+    interpreter_dir = os.path.dirname(os.path.abspath(sys.executable))
+    extra_dirs = [interpreter_dir]
+    if os.name == "nt":
+        extra_dirs.append(os.path.join(interpreter_dir, "Scripts"))
+    current = env.get("PATH") or env.get("Path") or ""
+    prefix = [d for d in extra_dirs if os.path.isdir(d)]
+    prefix_keys = {os.path.normcase(os.path.normpath(d)) for d in prefix}
+    # Keep it first even when it is already somewhere later in PATH, so it wins over other Pythons
+    rest = [p for p in current.split(os.pathsep) if p and os.path.normcase(os.path.normpath(p)) not in prefix_keys]
+    env.pop("Path", None)
+    env["PATH"] = os.pathsep.join(prefix + rest)
+    env.update(extra)
+    return env
+
+
+def shell_command_in(command: str, cwd: str) -> str:
+    r"""A `shell=True` command line that really runs inside `cwd`.
+
+    cmd.exe cannot use a UNC path (\\server\share\...) as its working directory; it silently falls back to
+    C:\Windows. That is what a project on a mapped network drive resolves to. `pushd` maps a temporary drive letter.
+    """
+    if os.name == "nt" and str(cwd).startswith("\\\\"):
+        return f'pushd "{cwd}" && {command}'
+    return command
 
 
 class Settings(BaseModel):

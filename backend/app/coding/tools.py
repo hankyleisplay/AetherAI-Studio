@@ -24,6 +24,8 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional
 
+from backend.app.config import child_process_env
+
 IGNORED_DIRS = {
     ".git", "node_modules", "__pycache__", ".venv", "venv", "env", ".env", "dist", "build", ".next",
     ".nuxt", "target", ".idea", ".vscode", ".cache", "coverage", ".mypy_cache", ".pytest_cache",
@@ -454,8 +456,7 @@ class CodingToolset:
         def run_command(command: str, timeout: int = 120, cwd: str = ".") -> ToolResult:
             workdir = self._resolve(cwd)
             timeout = max(5, min(int(timeout or 120), 600))
-            env = dict(os.environ, PYTHONIOENCODING="utf-8", PYTHONUTF8="1", CI="1", GIT_PAGER="cat", PAGER="cat",
-                       NO_COLOR="1", FORCE_COLOR="0")
+            env = child_process_env(CI="1", GIT_PAGER="cat", PAGER="cat", NO_COLOR="1", FORCE_COLOR="0")
             start = time.time()
             proc = subprocess.Popen(_shell_command(command), cwd=str(workdir), stdout=subprocess.PIPE,
                                     stderr=subprocess.PIPE, stdin=subprocess.DEVNULL, env=env,

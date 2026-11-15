@@ -526,8 +526,10 @@ async def run_tests():
             term_res = await client.post("/api/terminal/exec", json={"command": "python main.py", "project": "test_app"})
             assert term_res.status_code == 200
             term_data = term_res.json()
-            assert term_data["exit_code"] == 0
-            assert "Hello from Aether Code Agent" in term_data["stdout"]
+            term_detail = (f"exit={term_data.get('exit_code')} cwd={term_data.get('cwd')}\n"
+                           f"stderr={term_data.get('stderr')}\nstdout={term_data.get('stdout')}")
+            assert term_data["exit_code"] == 0, term_detail
+            assert "Hello from Aether Code Agent" in term_data["stdout"], term_detail
             print("13. Terminal exec verified! Output:", term_data["stdout"], "Exit code:", term_data["exit_code"])
 
             # 14. Verify the Code mode coding agent: prompt, toolset, read-before-edit and sandboxing

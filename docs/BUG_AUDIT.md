@@ -33,6 +33,7 @@ Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop
 | 🟠 | `lib.rs` 所有指令 | 指令都是同步函式、跑在主執行緒，檢查更新、安裝、下載時整個視窗「沒有回應」。 | 耗時指令改為 `#[tauri::command(async)]`。 |
 | 🟠 | `lib.rs` `close_all_instances` | 「一鍵關閉」會終止任何命令列含 `start.py` 的程序，以及佔用該埠的任何程式（不一定是 Aether），失敗也照樣計數。 | 只比對 Aether 特徵（`start.py … --port`、`test_backend.py`、該埠的 app 視窗；佔用埠的程序須是 Aether 伺服器），只計成功終止的。 |
 | 🟠 | `backend/app/main.py` `create_project` | 使用未匯入的 `time`；以中文資料夾名稱建立專案時一律 500。 | 補上匯入；實測 `我的專案` 可建立。 |
+| 🟠 | `backend/app/config.py` `child_process_env`、`shell_command_in` | Windows 上 `python` 不在 PATH（或只有市集的假捷徑）時，內建終端機、Agent 的指令工具執行 `python …` 都會失敗；`test_backend.py` 第 13 項因此失敗。專案在網路磁碟機時，cmd.exe 也無法以 UNC 路徑當工作目錄。 | 子程序的 PATH 最前面加上執行 Aether 的那個 Python（Windows 另加 Scripts）；UNC 工作目錄改用 `pushd`。測試失敗時會印出 stdout／stderr。已在 PATH 沒有 python 的環境重現並確認修正。 |
 | 🟠 | `main.py` 終端與 git 端點 | 在 async 函式裡呼叫阻塞的 `subprocess.run`（最長 30–60 秒），期間所有聊天串流與 API 全部停住。 | 改用 `asyncio.to_thread`。 |
 | 🟠 | `main.py` git 端點 | 專案不在 metadata 時退回工作區根目錄，可能把 commit 做到錯的倉庫；`git add` 失敗直接拋 500。 | 與終端共用 `get_effective_workspace_dir`；補上非 git 目錄、逾時、未安裝 git 的處理。 |
 | 🟠 | `main.py` `/api/git/ai-commit-msg` | 呼叫不存在的 `client.generate()`，永遠回傳固定訊息。 | 改用 `stream_chat` 收集回覆（`test_backend.py` 第 18 項現在拿到的是模型輸出）。 |

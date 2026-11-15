@@ -1,4 +1,3 @@
-import os
 import sys
 import json
 import time
@@ -14,7 +13,7 @@ from datetime import datetime, timezone as dt_timezone
 from pathlib import Path
 from typing import Dict, Any, List, Callable, Optional
 from pydantic import BaseModel
-from backend.app.config import settings
+from backend.app.config import settings, child_process_env, shell_command_in
 
 
 def _decode_subprocess_bytes(data: Optional[bytes]) -> str:
@@ -336,9 +335,7 @@ def web_search(query: str = "", max_results: int = 5, **kwargs) -> str:
 )
 def python_eval(code: str) -> str:
     try:
-        env = os.environ.copy()
-        env["PYTHONIOENCODING"] = "utf-8"
-        env["PYTHONUTF8"] = "1"
+        env = child_process_env()
         res = subprocess.run(
             [sys.executable, "-c", code],
             capture_output=True,
@@ -376,12 +373,14 @@ def bash_executor(command: str) -> str:
         if d in command:
             return f"Command rejected: contains dangerous pattern '{d}'."
     try:
+        cwd = str(settings.workspace_dir)
         res = subprocess.run(
-            command,
+            shell_command_in(command, cwd),
             shell=True,
             capture_output=True,
             timeout=30,
-            cwd=str(settings.workspace_dir)
+            cwd=cwd,
+            env=child_process_env()
         )
         out = _decode_subprocess_bytes(res.stdout).strip()
         err = _decode_subprocess_bytes(res.stderr).strip()

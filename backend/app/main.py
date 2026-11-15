@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse, JSONResponse
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
-from backend.app.config import settings, BASE_DIR, get_effective_workspace_dir
+from backend.app.config import settings, BASE_DIR, get_effective_workspace_dir, child_process_env, shell_command_in
 from backend.app.storage.database import db
 from backend.app.tools.registry import registry
 from backend.app.llm.provider import UnifiedLLMClient, ModelConfig
@@ -1370,12 +1370,10 @@ async def execute_terminal_command(payload: TerminalExecPayload):
     project_name = payload.project or db.get_setting('active_project')
     target_cwd = _project_dir(project_name)
     start_time = time.time()
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-    env['PYTHONUTF8'] = '1'
+    env = child_process_env()
     try:
         res = await _run(
-            cmd,
+            shell_command_in(cmd, str(target_cwd)),
             shell=True,
             capture_output=True,
             timeout=30,
@@ -1570,9 +1568,7 @@ async def stream_terminal_command(payload: TerminalExecPayload):
     project_name = payload.project or db.get_setting('active_project')
     target_cwd = _project_dir(project_name)
 
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-    env['PYTHONUTF8'] = '1'
+    env = child_process_env()
 
     proc_id = str(uuid.uuid4())
 
@@ -1585,7 +1581,7 @@ async def stream_terminal_command(payload: TerminalExecPayload):
         }
         try:
             proc = subprocess.Popen(
-                cmd,
+                shell_command_in(cmd, str(target_cwd)),
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
