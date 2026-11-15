@@ -1,10 +1,13 @@
+import os
 import re
 import json
+import ipaddress
 import time
 import uuid
 import asyncio
 import httpx
 from typing import Dict, Any, List, Optional, AsyncGenerator
+from urllib.parse import urlsplit
 from pydantic import BaseModel
 
 class ModelConfig(BaseModel):
@@ -47,6 +50,82 @@ def split_image_payload(img: Any) -> tuple:
     if not media_type:
         media_type = next((mt for sig, mt in _IMAGE_SIGNATURES if text.startswith(sig)), "image/jpeg")
     return media_type, text
+
+
+def direct_connection_kwargs(url: str) -> Dict[str, Any]:
+    """httpx options for reaching a model server.
+
+    httpx follows proxy settings, and on Windows that includes the system proxy that VPN / proxy tools (Clash and
+    the like) switch on. Requests to Ollama or LM Studio on this computer were then sent to the proxy; with the
+    proxy app closed but the setting left on, every call failed with "All connection attempts failed". Servers on
+    this machine or the local network are always reached directly.
+    """
+    text = (url or "").strip()
+    host = (urlsplit(text if "://" in text else f"http://{text}").hostname or "").lower()
+    local = host in ("localhost", "") or host.endswith(".local") or host.endswith(".localhost")
+    if not local:
+        try:
+            ip = ipaddress.ip_address(host)
+            local = ip.is_loopback or ip.is_private or ip.is_link_local or ip.is_unspecified
+        except ValueError:
+            local = False
+    return {"trust_env": False} if local else {}
+
+
+OLLAMA_DEFAULT_PORT = 11434
+
+
+def _normalize_ollama_base(url: str) -> str:
+    """http://host:port[/path] with a host this machine can connect to.
+
+    "localhost" is pinned to 127.0.0.1 (it tries IPv6 first while Ollama listens on IPv4 only), and 0.0.0.0 / ::
+    (what people put in OLLAMA_HOST to share Ollama on the network) are listen addresses, not something a client
+    can connect to on Windows.
+    """
+    text = (url or "").strip().rstrip("/")
+    if not text:
+        return ""
+    if "://" not in text:
+        text = f"http://{text}"
+    parts = urlsplit(text)
+    host = (parts.hostname or "127.0.0.1").lower()
+    if host in ("localhost", "0.0.0.0", "::"):
+        host = "127.0.0.1"
+    try:
+        port = parts.port or OLLAMA_DEFAULT_PORT
+    except ValueError:
+        port = OLLAMA_DEFAULT_PORT
+    host_part = f"[{host}]" if ":" in host else host
+    return f"{parts.scheme or 'http'}://{host_part}:{port}{parts.path.rstrip('/')}"
+
+
+def ollama_base_candidates(configured: str) -> List[str]:
+    """Addresses to try for Ollama: the configured one, then OLLAMA_HOST (Ollama's own setting) if it differs."""
+    candidates = [_normalize_ollama_base(configured), _normalize_ollama_base(os.environ.get("OLLAMA_HOST", ""))]
+    raw = (configured or "").strip().rstrip("/")
+    if raw:
+        candidates.append(raw)
+    seen: List[str] = []
+    for c in candidates:
+        if c and c not in seen:
+            seen.append(c)
+    return seen or [f"http://127.0.0.1:{OLLAMA_DEFAULT_PORT}"]
+
+
+def ollama_unreachable_message(configured: str, detail: str = "") -> str:
+    tried = "、".join(ollama_base_candidates(configured))
+    lines = [
+        f"❌ 無法連線到 Ollama（嘗試過：{tried}）。",
+        "請依序確認：",
+        "1. Ollama 已經在執行（Windows 工作列右下角有 Ollama 圖示，或在終端機執行 `ollama serve`）。",
+        "2. 右上角「設定」裡的端點位址與連接埠正確（預設為 http://127.0.0.1:11434）。",
+    ]
+    env_host = os.environ.get("OLLAMA_HOST")
+    if env_host:
+        lines.append(f"3. 偵測到環境變數 OLLAMA_HOST={env_host}，請確認它和設定中的位址一致。")
+    if detail:
+        lines.append(f"\n原始錯誤：{detail}")
+    return "\n".join(lines)
 
 
 class LLMResponseChunk(BaseModel):
@@ -106,15 +185,13 @@ class UnifiedLLMClient:
         provider = self.config.provider
         fallback_models = self.DEFAULT_PROVIDER_MODELS.get(provider, [self.config.model] if self.config.model else [])
 
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        # Anthropic and Gemini use fixed public endpoints and keep the user's proxy; the others go to base_url
+        uses_base_url = provider not in ("anthropic", "gemini")
+        client_opts = direct_connection_kwargs(self.config.base_url) if uses_base_url else {}
+        async with httpx.AsyncClient(timeout=timeout, **client_opts) as client:
             try:
                 if provider == "ollama":
-                    base = self.config.base_url.rstrip("/")
-                    # "localhost" tries IPv6 first and, with Ollama listening on IPv4 only, costs an extra
-                    # connect timeout every call; go straight to 127.0.0.1 and keep the original as a fallback.
-                    urls_to_try = [f"{base}/api/tags"]
-                    if "localhost" in base:
-                        urls_to_try.insert(0, f"{base.replace('localhost', '127.0.0.1')}/api/tags")
+                    urls_to_try = [f"{b}/api/tags" for b in ollama_base_candidates(self.config.base_url)]
 
                     last_err = ""
                     for url in urls_to_try:
@@ -155,12 +232,15 @@ class UnifiedLLMClient:
                                 if parts:
                                     cli_models.append(parts[0])
                             if cli_models:
+                                # The models exist, but chat goes over HTTP to the address above, which failed.
+                                # Reporting success here made the model list look fine while every message failed.
                                 latency = round((time.time() - start) * 1000, 1)
                                 return {
-                                    "success": True,
+                                    "success": False,
                                     "latency_ms": latency,
                                     "models": cli_models,
                                     "installed_count": len(cli_models),
+                                    "error": ollama_unreachable_message(self.config.base_url, last_err),
                                     "provider": "ollama"
                                 }
                     except Exception:
@@ -168,7 +248,7 @@ class UnifiedLLMClient:
 
                     return {
                         "success": False,
-                        "error": f"無法連線至本機 Ollama 服務 ({last_err or '未啟動'})",
+                        "error": ollama_unreachable_message(self.config.base_url, last_err),
                         "models": [],
                         "provider": "ollama"
                     }
@@ -339,7 +419,7 @@ class UnifiedLLMClient:
         thought_buffer = ""
 
         timeout = httpx.Timeout(120.0, connect=10.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, **direct_connection_kwargs(self.config.base_url)) as client:
             try:
                 async with client.stream("POST", url, headers=headers, json=payload) as response:
                     if response.status_code != 200:
@@ -452,8 +532,6 @@ class UnifiedLLMClient:
         messages: List[Dict[str, Any]],
         tools: Optional[List[Dict[str, Any]]] = None
     ) -> AsyncGenerator[LLMResponseChunk, None]:
-        url = f"{self.config.base_url.rstrip('/')}/api/chat"
-
         # Sanitize messages for Ollama: Ollama requires function.arguments to be an object (dict), not a JSON string
         sanitized_messages = []
         for m in messages:
@@ -517,7 +595,21 @@ class UnifiedLLMClient:
             payload["tools"] = tools
 
         timeout = httpx.Timeout(180.0, connect=10.0)
-        async with httpx.AsyncClient(timeout=timeout) as client:
+        async with httpx.AsyncClient(timeout=timeout, **direct_connection_kwargs(self.config.base_url)) as client:
+            # Find the address Ollama answers on (configured one first, then OLLAMA_HOST); a quick check costs
+            # about a millisecond locally and gives a clear message instead of a bare connection error
+            url = ""
+            last_err = ""
+            for base in ollama_base_candidates(self.config.base_url):
+                try:
+                    await client.get(f"{base}/api/version", timeout=httpx.Timeout(5.0, connect=3.0))
+                    url = f"{base}/api/chat"
+                    break
+                except httpx.TransportError as e:
+                    last_err = str(e) or type(e).__name__
+            if not url:
+                yield LLMResponseChunk(type="error", content=ollama_unreachable_message(self.config.base_url, last_err))
+                return
             try:
                 # Helper to process an Ollama stream response
                 async def _consume_stream(resp):
