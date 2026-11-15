@@ -75,8 +75,8 @@ def shell_command_in(command: str, cwd: str) -> str:
 
 
 class Settings(BaseModel):
-    app_name: str = "Aether AI Studio 4.2.0 (AetherAgent)"
-    version: str = "4.2.0"
+    app_name: str = "Aether AI Studio 4.2.1 (AetherAgent)"
+    version: str = "4.2.1"
     host: str = "0.0.0.0"
     port: int = 8000
     base_workspace_dir: Path = WORKSPACE_DIR
