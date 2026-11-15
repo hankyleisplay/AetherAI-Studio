@@ -1,12 +1,30 @@
 import { useI18n } from '../../i18n/I18nContext';
 import React, { useState } from 'react';
 import { Copy, Check } from 'lucide-react';
+import { copyText } from '../../utils/clipboard';
 
 interface MathBlockProps {
   latex: string;
 }
 
+const escapeHtml = (text: string): string =>
+  text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
+/**
+ * Turn a LaTeX formula into HTML. The result is injected with dangerouslySetInnerHTML, so the input (model
+ * output, which can quote web pages and files) is escaped first; without that `$<img onerror=...>$` ran script.
+ */
 export const renderMathFormula = (mathStr: string): string => {
+  if (!mathStr) return '';
+  return renderEscapedMath(escapeHtml(mathStr));
+};
+
+const renderEscapedMath = (mathStr: string): string => {
   if (!mathStr) return '';
   let rendered = mathStr;
 
@@ -15,7 +33,8 @@ export const renderMathFormula = (mathStr: string): string => {
   rendered = rendered.replace(matrixRegex, (_, type, body) => {
     const rows = body.trim().split('\\\\');
     const tableRows = rows.map((r: string) => {
-      const cells = r.split('&').map((c: string) => `<td class="math-matrix-cell">${renderMathFormula(c.trim())}</td>`);
+      // Column separators were escaped along with everything else
+      const cells = r.split('&amp;').map((c: string) => `<td class="math-matrix-cell">${renderEscapedMath(c.trim())}</td>`);
       return `<tr>${cells.join('')}</tr>`;
     }).join('');
 
@@ -182,7 +201,7 @@ export const MathBlock: React.FC<MathBlockProps> = ({ latex }) => {
   const [copied, setCopied] = useState(false);
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(latex);
+    copyText(latex);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
   };

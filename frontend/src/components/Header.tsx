@@ -224,7 +224,7 @@ export const Header: React.FC<HeaderProps> = ({
     : t('default_agent_name', 'Aether 核心架構系統');
 
   return (
-    <header ref={headerRef} className="h-16 glass-panel border-b border-white/10 px-3 sm:px-4 flex items-center justify-between gap-2 relative z-30 shrink-0">
+    <header ref={headerRef} className="h-14 mx-2 sm:mx-3 mt-2 sm:mt-3 rounded-2xl glass-panel px-2.5 sm:px-3 flex items-center justify-between gap-2 relative z-30 shrink-0">
       {/* Left: Sidebar Toggle & Persona Title (clipped rather than overlapping the right group) */}
       <div ref={leftGroupRef} className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1 overflow-hidden">
         {!isSidebarOpen && (
@@ -357,7 +357,7 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
 
           {isLangOpen && (
-            <div className="absolute right-0 top-full mt-2 w-44 glass-modal rounded-2xl border border-white/15 py-1.5 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl bg-[#0b101e]/95">
+            <div className="absolute right-0 top-full mt-2 w-44 glass-modal rounded-2xl p-1.5 z-50 animate-in fade-in zoom-in-95 duration-150">
               {availableLanguages.map((lang) => {
                 const isSelected = currentLang === lang.code;
                 return (
@@ -367,7 +367,7 @@ export const Header: React.FC<HeaderProps> = ({
                       setLanguage(lang.code);
                       setIsLangOpen(false);
                     }}
-                    className={`w-full px-3 py-2 text-left text-xs flex items-center justify-between transition-colors whitespace-nowrap ${
+                    className={`w-full px-3 py-2 rounded-xl text-left text-xs flex items-center justify-between transition-colors whitespace-nowrap ${
                       isSelected 
                         ? 'text-cyan-300 font-semibold bg-cyan-500/15' 
                         : 'text-slate-300 hover:bg-white/10 hover:text-white'
@@ -422,7 +422,7 @@ export const Header: React.FC<HeaderProps> = ({
           </div>
 
           {isModelMenuOpen && (
-            <div className="absolute right-0 top-full mt-2 w-64 glass-modal rounded-2xl border border-white/15 py-2 shadow-2xl z-50 animate-in fade-in zoom-in-95 duration-150 backdrop-blur-xl bg-[#0b101e]/95">
+            <div className="absolute right-0 top-full mt-2 w-64 glass-modal rounded-2xl py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
               <div className="px-3 py-1.5 border-b border-white/10 flex items-center justify-between">
                 <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                   <Cpu className="w-3.5 h-3.5 text-cyan-400" />

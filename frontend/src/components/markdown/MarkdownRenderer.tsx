@@ -6,6 +6,7 @@ import { CodeBlock } from './CodeBlock';
 import { TableRenderer } from './TableRenderer';
 import { AlertRenderer } from './AlertRenderer';
 import { MathBlock, renderMathFormula } from './MathRenderer';
+import { safeHref } from '../../utils/clipboard';
 
 interface MarkdownRendererProps {
   content: string;
@@ -166,7 +167,7 @@ export const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, isS
           return (
             <a
               key={idx}
-              href={m[2]}
+              href={safeHref(m[2])}
               target="_blank"
               rel="noopener noreferrer"
               className="text-cyan-400 hover:text-cyan-300 underline decoration-cyan-400/50 hover:decoration-cyan-300 inline-flex items-center gap-0.5 mx-0.5"

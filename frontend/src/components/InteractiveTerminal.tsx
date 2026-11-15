@@ -180,7 +180,7 @@ export const InteractiveTerminal: React.FC<InteractiveTerminalProps> = ({
 
   return (
     <div 
-      className={`fixed top-0 right-0 bottom-0 z-50 flex flex-col bg-[#070b14]/98 backdrop-blur-2xl border-l border-cyan-500/30 shadow-[-15px_0_40px_rgba(0,0,0,0.85)] transition-all duration-300 ease-in-out ${
+      className={`fixed top-0 right-0 bottom-0 sm:top-3 sm:right-3 sm:bottom-3 z-50 flex flex-col glass-modal bg-[#04061a]/55 rounded-l-3xl sm:rounded-3xl overflow-hidden transition-[width] duration-300 ease-in-out ${
         isExpanded ? 'w-[75vw] md:w-[60vw]' : 'w-[420px] sm:w-[480px] md:w-[520px] max-w-[95vw]'
       }`}
     >

@@ -59,7 +59,7 @@ async def run_tests():
     sess = None
     try:
 
-        async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        async with httpx.AsyncClient(transport=transport, base_url="http://127.0.0.1") as client:
 
             # 1. Health check
 
@@ -69,9 +69,9 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.1.3 (AetherAgent)" in res.json()["app"]
+            assert "Aether AI Studio 4.2.0 (AetherAgent)" in res.json()["app"]
 
-            assert res.json()["version"] == "4.1.3"
+            assert res.json()["version"] == "4.2.0"
 
 
 
@@ -453,7 +453,7 @@ async def run_tests():
 
             assert res.status_code == 200
 
-            assert "Aether AI Studio 4.1.3" in res.text
+            assert "Aether AI Studio 4.2.0" in res.text
 
 
 
@@ -526,8 +526,10 @@ async def run_tests():
             term_res = await client.post("/api/terminal/exec", json={"command": "python main.py", "project": "test_app"})
             assert term_res.status_code == 200
             term_data = term_res.json()
-            assert term_data["exit_code"] == 0
-            assert "Hello from Aether Code Agent" in term_data["stdout"]
+            term_detail = (f"exit={term_data.get('exit_code')} cwd={term_data.get('cwd')}\n"
+                           f"stderr={term_data.get('stderr')}\nstdout={term_data.get('stdout')}")
+            assert term_data["exit_code"] == 0, term_detail
+            assert "Hello from Aether Code Agent" in term_data["stdout"], term_detail
             print("13. Terminal exec verified! Output:", term_data["stdout"], "Exit code:", term_data["exit_code"])
 
             # 14. Verify the Code mode coding agent: prompt, toolset, read-before-edit and sandboxing
@@ -692,7 +694,7 @@ async def run_tests():
 
 
 
-    print("\n🎉 所有 Aether AI Studio 4.1.3 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
+    print("\n🎉 所有 Aether AI Studio 4.2.0 (AetherAgent) 後端、前端、22 大工具與 Telegram 橋接測試全部通過！")
 
 
 

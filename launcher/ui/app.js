@@ -1,4 +1,4 @@
-// Aether AI Studio - Tauri Launcher Logic with Custom Controls, Hardware-Saving Mode, Launcher Self-Update & Full i18n
+// Aether AI Studio - Tauri launcher logic: custom controls, eco mode, self-update and i18n
 
 const I18N = {
   "zh-TW": {
@@ -76,7 +76,11 @@ const I18N = {
     btn_closing_clients: "正在終止客戶端與伺服器進程...",
     close_all_success: "🛑 已成功終止 {count} 個相關客戶端與背景進程！",
     close_all_none: "✅ 目前沒有檢測到正在運行的相關客戶端或背景進程。",
-    close_all_fail: "終止進程失敗: "
+    close_all_fail: "終止進程失敗: ",
+    btn_confirm: "確定",
+    btn_cancel: "取消",
+    update_launcher_step_failed: "專案已更新完成，但啟動器更新失敗: ",
+    toast_dismiss: "關閉"
   },
   "zh-CN": {
     app_subtitle: "次世代独立原生桌面代理系统 • 官方正式版 (Tauri + Rust)",
@@ -153,7 +157,11 @@ const I18N = {
     btn_closing_clients: "正在终止客户端与服务器进程...",
     close_all_success: "🛑 已成功终止 {count} 个相关客户端与后台进程！",
     close_all_none: "✅ 目前没有检测到正在运行的相关客户端或后台进程。",
-    close_all_fail: "终止进程失败: "
+    close_all_fail: "终止进程失败: ",
+    btn_confirm: "确定",
+    btn_cancel: "取消",
+    update_launcher_step_failed: "项目已更新完成，但启动器更新失败: ",
+    toast_dismiss: "关闭"
   },
   "en": {
     app_subtitle: "Next-Gen Autonomous Desktop AI Agent • Official Release (Tauri + Rust)",
@@ -230,7 +238,11 @@ const I18N = {
     btn_closing_clients: "Terminating client & server processes...",
     close_all_success: "🛑 Successfully terminated {count} client & background processes!",
     close_all_none: "✅ No active client or background processes detected.",
-    close_all_fail: "Failed to terminate processes: "
+    close_all_fail: "Failed to terminate processes: ",
+    btn_confirm: "OK",
+    btn_cancel: "Cancel",
+    update_launcher_step_failed: "The project was updated, but the launcher update failed: ",
+    toast_dismiss: "Dismiss"
   },
   "ja": {
     app_subtitle: "次世代自律型デスクトップAIエージェント • 公式正式版 (Tauri + Rust)",
@@ -307,7 +319,11 @@ const I18N = {
     btn_closing_clients: "クライアントとサーバープロセスを終了中...",
     close_all_success: "🛑 {count} 個の関連クライアントおよびバックグラウンドプロセスを終了しました！",
     close_all_none: "✅ 実行中のクライアントまたはバックグラウンドプロセスは検出されませんでした。",
-    close_all_fail: "プロセスの終了に失敗しました: "
+    close_all_fail: "プロセスの終了に失敗しました: ",
+    btn_confirm: "OK",
+    btn_cancel: "キャンセル",
+    update_launcher_step_failed: "プロジェクトは更新されましたが、起動ツールの更新に失敗しました: ",
+    toast_dismiss: "閉じる"
   }
 };
 
@@ -318,10 +334,19 @@ const LANG_META = {
   "ja": { flag: "🇯🇵", label: "日本語" }
 };
 
+const PORT_MIN = 1024;
+const PORT_MAX = 65535;
+const PORT_DEFAULT = 8000;
+
 let currentLang = "zh-TW";
 
 function getSavedLang() {
-  const saved = localStorage.getItem("aether_language");
+  let saved = null;
+  try {
+    saved = localStorage.getItem("aether_language");
+  } catch {
+    // storage unavailable: fall back to the browser language
+  }
   if (saved && I18N[saved]) return saved;
 
   const nav = (navigator.language || "").toLowerCase();
@@ -331,56 +356,21 @@ function getSavedLang() {
   return "zh-TW";
 }
 
+function savePref(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    // preferences are a convenience; the launcher works without them
+  }
+}
+
 function t(key, vars = {}) {
   const dict = I18N[currentLang] || I18N["zh-TW"];
   let str = dict[key] || I18N["zh-TW"][key] || key;
   for (const [k, v] of Object.entries(vars)) {
-    str = str.replace(new RegExp(`\\{${k}\\}`, "g"), v);
+    str = str.split(`{${k}}`).join(String(v));
   }
   return str;
-}
-
-function applyLanguage(lang) {
-  if (!I18N[lang]) lang = "zh-TW";
-  currentLang = lang;
-  localStorage.setItem("aether_language", lang);
-  document.documentElement.lang = lang;
-
-  // Update Custom Dropdown trigger label and flag
-  const meta = LANG_META[lang] || LANG_META["zh-TW"];
-  document.getElementById("dropdown-current-flag").textContent = meta.flag;
-  document.getElementById("dropdown-current-label").textContent = meta.label;
-
-  // Update active state in custom dropdown list
-  document.querySelectorAll(".dropdown-item").forEach(item => {
-    if (item.getAttribute("data-lang") === lang) {
-      item.classList.add("active");
-    } else {
-      item.classList.remove("active");
-    }
-  });
-
-  // Update all DOM elements with data-i18n
-  document.querySelectorAll("[data-i18n]").forEach(el => {
-    const key = el.getAttribute("data-i18n");
-    if (key) {
-      el.textContent = t(key);
-    }
-  });
-
-  // Update titles
-  const btnUp = document.getElementById("btn-port-up");
-  const btnDown = document.getElementById("btn-port-down");
-  if (btnUp) btnUp.title = t("stepper_up_title");
-  if (btnDown) btnDown.title = t("stepper_down_title");
-
-  // Refresh dynamic states if loaded
-  if (lastSystemInfo) {
-    updateSystemDisplay(lastSystemInfo);
-  }
-  if (lastUpdateResult) {
-    renderUpdateResult(lastUpdateResult);
-  }
 }
 
 // -------------------------------------------------------------
@@ -422,6 +412,7 @@ const invoke = async (cmd, args = {}) => {
 // -------------------------------------------------------------
 let lastSystemInfo = null;
 let lastUpdateResult = null;
+let lastUpdateError = null;
 let isSystemReady = false;
 
 const launcherContainer = document.getElementById("launcher-container");
@@ -453,32 +444,261 @@ const installBanner = document.getElementById("install-banner");
 const btnInstallCore = document.getElementById("btn-install-core");
 const installBtnText = document.getElementById("install-btn-text");
 
+const TONE_CLASSES = ["tone-ok", "tone-warn", "tone-err", "tone-info"];
+
+function setTone(el, tone) {
+  if (!el) return;
+  el.classList.remove(...TONE_CLASSES);
+  if (tone) el.classList.add(`tone-${tone}`);
+}
+
+function knownVersion() {
+  return lastSystemInfo?.current_version || lastUpdateResult?.current_version || "";
+}
+
+// -------------------------------------------------------------
+// Footer status line
+// -------------------------------------------------------------
+// The status is kept as { key, vars } when it comes from the dictionary so a language switch can re-render it;
+// messages returned by the Rust side are plain text. Every call sets the tone, so one error no longer leaves the
+// line red for every later message.
+let footerStatus = { key: "footer_status_standby", vars: null, text: null, tone: null };
+
+function renderFooterStatus() {
+  if (!footerStatusBar) return;
+  let text = footerStatus.text;
+  if (footerStatus.key) {
+    const vars = { version: knownVersion(), ...(footerStatus.vars || {}) };
+    text = t(footerStatus.key, vars);
+    // Before the version is known, drop the empty "v" instead of showing the raw placeholder
+    if (!vars.version) text = text.replace(/\s*v(?=\s)/, "");
+  }
+  footerStatusBar.textContent = text || "";
+  footerStatusBar.title = text || "";
+  setTone(footerStatusBar, footerStatus.tone);
+}
+
+function setStatusKey(key, vars = null, tone = null) {
+  footerStatus = { key, vars, text: null, tone };
+  renderFooterStatus();
+}
+
+function setStatusText(text, tone = null) {
+  footerStatus = { key: null, vars: null, text: String(text), tone };
+  renderFooterStatus();
+}
+
+// -------------------------------------------------------------
+// Glass toasts and confirm dialog (replace the native alert / confirm boxes)
+// -------------------------------------------------------------
+const TOAST_ICONS = { ok: "✅", warn: "⚠️", err: "⛔", info: "💡" };
+let toastStack = null;
+
+function showToast(message, tone = "info", durationMs = 0) {
+  if (!toastStack) {
+    toastStack = document.createElement("div");
+    toastStack.className = "toast-stack";
+    toastStack.setAttribute("role", "status");
+    toastStack.setAttribute("aria-live", "polite");
+    document.body.appendChild(toastStack);
+  }
+  const toast = document.createElement("div");
+  toast.className = `toast lg-surface-thick tone-${tone}-border`;
+
+  const icon = document.createElement("span");
+  icon.className = "toast-icon";
+  // Many backend messages already start with their own emoji; don't put a second one in front
+  const startsWithEmoji = /^\s*\p{Extended_Pictographic}/u.test(String(message));
+  icon.textContent = startsWithEmoji ? "" : (TOAST_ICONS[tone] || TOAST_ICONS.info);
+  icon.hidden = startsWithEmoji;
+
+  const text = document.createElement("div");
+  text.className = "toast-text";
+  text.textContent = String(message);
+
+  const close = document.createElement("button");
+  close.type = "button";
+  close.className = "toast-close";
+  close.textContent = "✕";
+  close.title = t("toast_dismiss");
+  close.setAttribute("aria-label", t("toast_dismiss"));
+
+  let removed = false;
+  const dismiss = () => {
+    if (removed) return;
+    removed = true;
+    toast.classList.add("leaving");
+    setTimeout(() => toast.remove(), 260);
+  };
+  close.addEventListener("click", dismiss);
+
+  toast.append(icon, text, close);
+  toastStack.appendChild(toast);
+  while (toastStack.children.length > 3) toastStack.firstElementChild.remove();
+
+  // Errors stay until dismissed; everything else leaves on its own
+  const ttl = durationMs || (tone === "err" ? 0 : 5200);
+  if (ttl > 0) setTimeout(dismiss, ttl);
+  return dismiss;
+}
+
+function confirmDialog(message) {
+  return new Promise(resolve => {
+    const scrim = document.createElement("div");
+    scrim.className = "dialog-scrim lg-scrim";
+
+    const dialog = document.createElement("div");
+    dialog.className = "dialog lg-surface-thick";
+    dialog.setAttribute("role", "alertdialog");
+    dialog.setAttribute("aria-modal", "true");
+
+    const text = document.createElement("div");
+    text.className = "dialog-message";
+    text.textContent = String(message);
+
+    const actions = document.createElement("div");
+    actions.className = "dialog-actions";
+
+    const cancel = document.createElement("button");
+    cancel.type = "button";
+    cancel.className = "lg-control";
+    cancel.textContent = t("btn_cancel");
+
+    const ok = document.createElement("button");
+    ok.type = "button";
+    ok.className = "lg-control-primary";
+    ok.textContent = t("btn_confirm");
+
+    const previousFocus = document.activeElement;
+    const finish = (value) => {
+      document.removeEventListener("keydown", onKey, true);
+      scrim.remove();
+      if (previousFocus && typeof previousFocus.focus === "function") previousFocus.focus();
+      resolve(value);
+    };
+    const onKey = (e) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        finish(false);
+      } else if (e.key === "Tab") {
+        // Two buttons: keep focus inside the dialog
+        e.preventDefault();
+        (document.activeElement === ok ? cancel : ok).focus();
+      }
+    };
+
+    cancel.addEventListener("click", () => finish(false));
+    ok.addEventListener("click", () => finish(true));
+    scrim.addEventListener("mousedown", (e) => {
+      if (e.target === scrim) finish(false);
+    });
+    document.addEventListener("keydown", onKey, true);
+
+    actions.append(cancel, ok);
+    dialog.append(text, actions);
+    scrim.appendChild(dialog);
+    document.body.appendChild(scrim);
+    ok.focus();
+  });
+}
+
+// -------------------------------------------------------------
+// Language
+// -------------------------------------------------------------
+function applyLanguage(lang) {
+  if (!I18N[lang]) lang = "zh-TW";
+  currentLang = lang;
+  savePref("aether_language", lang);
+  document.documentElement.lang = lang;
+
+  // Update Custom Dropdown trigger label and flag
+  const meta = LANG_META[lang] || LANG_META["zh-TW"];
+  document.getElementById("dropdown-current-flag").textContent = meta.flag;
+  document.getElementById("dropdown-current-label").textContent = meta.label;
+
+  // Update active state in custom dropdown list
+  document.querySelectorAll(".dropdown-item").forEach(item => {
+    const active = item.getAttribute("data-lang") === lang;
+    item.classList.toggle("active", active);
+    item.setAttribute("aria-selected", String(active));
+  });
+
+  // Update all DOM elements with data-i18n
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const key = el.getAttribute("data-i18n");
+    if (key) {
+      el.textContent = t(key);
+    }
+  });
+
+  // Update titles
+  const btnUp = document.getElementById("btn-port-up");
+  const btnDown = document.getElementById("btn-port-down");
+  if (btnUp) btnUp.title = t("stepper_up_title");
+  if (btnDown) btnDown.title = t("stepper_down_title");
+  if (btnCloseAll) btnCloseAll.title = t("btn_close_all_clients");
+
+  // Refresh dynamic states if loaded
+  if (lastSystemInfo) {
+    updateSystemDisplay(lastSystemInfo);
+  }
+  if (lastUpdateError) {
+    renderUpdateError(lastUpdateError);
+  } else if (lastUpdateResult) {
+    renderUpdateResult(lastUpdateResult);
+  }
+  renderFooterStatus();
+}
+
 // -------------------------------------------------------------
 // Logic: Custom Dropdown Menu for Language
 // -------------------------------------------------------------
 const langDropdown = document.getElementById("lang-dropdown");
 const langDropdownTrigger = document.getElementById("lang-dropdown-trigger");
+const langItems = Array.from(document.querySelectorAll(".dropdown-item"));
+
+function setLangMenuOpen(open) {
+  langDropdown.classList.toggle("open", open);
+  langDropdownTrigger.setAttribute("aria-expanded", String(open));
+  if (open) {
+    (langItems.find(i => i.classList.contains("active")) || langItems[0])?.focus();
+  }
+}
 
 langDropdownTrigger.addEventListener("click", (e) => {
   e.stopPropagation();
-  langDropdown.classList.toggle("open");
-  const isOpen = langDropdown.classList.contains("open");
-  langDropdownTrigger.setAttribute("aria-expanded", String(isOpen));
+  setLangMenuOpen(!langDropdown.classList.contains("open"));
 });
 
-document.querySelectorAll(".dropdown-item").forEach(item => {
-  item.addEventListener("click", () => {
-    const selectedLang = item.getAttribute("data-lang");
-    applyLanguage(selectedLang);
-    langDropdown.classList.remove("open");
-    langDropdownTrigger.setAttribute("aria-expanded", "false");
+langItems.forEach((item, index) => {
+  const choose = () => {
+    applyLanguage(item.getAttribute("data-lang"));
+    setLangMenuOpen(false);
+    langDropdownTrigger.focus();
+  };
+  item.addEventListener("click", choose);
+  item.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      choose();
+    } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+      e.preventDefault();
+      const step = e.key === "ArrowDown" ? 1 : -1;
+      langItems[(index + step + langItems.length) % langItems.length].focus();
+    }
   });
 });
 
 document.addEventListener("click", (e) => {
   if (!langDropdown.contains(e.target)) {
-    langDropdown.classList.remove("open");
-    langDropdownTrigger.setAttribute("aria-expanded", "false");
+    setLangMenuOpen(false);
+  }
+});
+
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && langDropdown.classList.contains("open")) {
+    setLangMenuOpen(false);
+    langDropdownTrigger.focus();
   }
 });
 
@@ -488,77 +708,102 @@ document.addEventListener("click", (e) => {
 const btnPortUp = document.getElementById("btn-port-up");
 const btnPortDown = document.getElementById("btn-port-down");
 
-function adjustPort(delta) {
-  let val = parseInt(serverPortInput.value, 10) || 8000;
-  val = Math.max(1024, Math.min(65535, val + delta));
-  serverPortInput.value = val;
+function clampPort(value) {
+  const n = parseInt(value, 10);
+  if (!Number.isFinite(n)) return PORT_DEFAULT;
+  return Math.max(PORT_MIN, Math.min(PORT_MAX, n));
 }
 
-btnPortUp.addEventListener("click", () => adjustPort(1));
-btnPortDown.addEventListener("click", () => adjustPort(-1));
+// The value the launcher will really use; also writes the corrected number back into the field
+function readPort() {
+  const port = clampPort(serverPortInput.value);
+  if (String(port) !== serverPortInput.value) serverPortInput.value = port;
+  return port;
+}
 
-function setupStepperHolding(btn, delta) {
+function adjustPort(delta) {
+  serverPortInput.value = clampPort(clampPort(serverPortInput.value) + delta);
+}
+
+// Typing 99999 used to reach the backend, where it does not fit the port type and the launch failed
+serverPortInput.addEventListener("change", readPort);
+serverPortInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter") serverPortInput.blur();
+});
+
+// One press = one step. Pointer presses are handled on pointerdown (so holding repeats); the click that follows
+// a pointer press is ignored. Before, both mousedown and click stepped, so every click moved the port by 2.
+function setupStepper(btn, delta) {
   let timer = null;
   let interval = null;
-
-  const start = () => {
-    adjustPort(delta);
-    timer = setTimeout(() => {
-      interval = setInterval(() => adjustPort(delta), 80);
-    }, 350);
-  };
 
   const stop = () => {
     clearTimeout(timer);
     clearInterval(interval);
+    timer = interval = null;
   };
 
-  btn.addEventListener("mousedown", start);
-  btn.addEventListener("mouseup", stop);
-  btn.addEventListener("mouseleave", stop);
+  btn.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    stop();
+    adjustPort(delta);
+    timer = setTimeout(() => {
+      interval = setInterval(() => adjustPort(delta), 80);
+    }, 350);
+  });
+  ["pointerup", "pointerleave", "pointercancel", "blur"].forEach(type => btn.addEventListener(type, stop));
+
+  // Keyboard activation (Enter / Space) produces a click with detail 0 and no pointer events
+  btn.addEventListener("click", (e) => {
+    if (e.detail === 0) adjustPort(delta);
+  });
 }
 
-setupStepperHolding(btnPortUp, 1);
-setupStepperHolding(btnPortDown, -1);
+setupStepper(btnPortUp, 1);
+setupStepper(btnPortDown, -1);
 
 // -------------------------------------------------------------
 // Logic: One-Click Core Installation & Dependency Setup
 // -------------------------------------------------------------
-if (btnInstallCore) {
-  btnInstallCore.addEventListener("click", async () => {
-    btnInstallCore.disabled = true;
-    if (installBtnText) installBtnText.textContent = t("btn_installing");
-    footerStatusBar.textContent = t("btn_installing");
-    footerStatusBar.style.color = "#00f2fe";
+let isInstalling = false;
 
-    try {
-      const msg = await invoke("install_or_repair_core");
-      footerStatusBar.textContent = t("install_success");
-      footerStatusBar.style.color = "#10b981";
-      alert(msg || t("install_success"));
-      await loadSystemInfo();
-      await doCheckUpdate();
-    } catch (err) {
-      alert(t("install_failed") + err);
-      footerStatusBar.textContent = t("install_failed") + err;
-      footerStatusBar.style.color = "#f43f5e";
-    } finally {
-      btnInstallCore.disabled = false;
-      if (installBtnText) installBtnText.textContent = t("btn_install_now");
-    }
-  });
+async function runInstall() {
+  if (isInstalling) return;
+  isInstalling = true;
+  if (btnInstallCore) btnInstallCore.disabled = true;
+  if (btnReinstallCore) btnReinstallCore.disabled = true;
+  if (installBtnText) installBtnText.textContent = t("btn_installing");
+  setStatusKey("btn_installing", null, "info");
+
+  try {
+    const msg = await invoke("install_or_repair_core");
+    setStatusKey("install_success", null, "ok");
+    showToast(msg || t("install_success"), "ok");
+    await loadSystemInfo();
+    await doCheckUpdate();
+  } catch (err) {
+    setStatusText(t("install_failed") + err, "err");
+    showToast(t("install_failed") + err, "err");
+  } finally {
+    isInstalling = false;
+    if (btnInstallCore) btnInstallCore.disabled = false;
+    if (btnReinstallCore) btnReinstallCore.disabled = false;
+    if (installBtnText) installBtnText.textContent = t("btn_install_now");
+  }
+}
+
+if (btnInstallCore) {
+  btnInstallCore.addEventListener("click", runInstall);
 }
 
 // -------------------------------------------------------------
 // Logic: Hardware-Saving Low-Resource Mode
 // -------------------------------------------------------------
 function setEcoMode(enabled) {
-  if (enabled) {
-    launcherContainer.classList.add("eco-mode");
-  } else {
-    launcherContainer.classList.remove("eco-mode");
-  }
-  localStorage.setItem("aether_eco_mode", enabled ? "1" : "0");
+  launcherContainer.classList.toggle("eco-mode", enabled);
+  // Toasts and dialogs live outside the container
+  document.documentElement.classList.toggle("eco-mode", enabled);
+  savePref("aether_eco_mode", enabled ? "1" : "0");
 }
 
 ecoModeToggle.addEventListener("change", (e) => {
@@ -573,41 +818,34 @@ function updateSystemDisplay(info) {
     if (installBanner) installBanner.style.display = "none";
     projectPathEl.textContent = info.project_path;
     projectPathEl.title = info.project_path;
-    projectPathEl.style.color = "#f8fafc";
+    setTone(projectPathEl, null);
   } else {
     if (installBanner) installBanner.style.display = "block";
     projectPathEl.textContent = t("env_project_not_found");
-    projectPathEl.style.color = "#f43f5e";
+    projectPathEl.title = "";
+    setTone(projectPathEl, "err");
   }
 
   if (info.python_path) {
     pythonStatusEl.textContent = t("env_python_ready");
     pythonStatusEl.title = info.python_path;
-    pythonStatusEl.style.color = "#10b981";
+    setTone(pythonStatusEl, "ok");
   } else {
     pythonStatusEl.textContent = t("env_python_not_found");
-    pythonStatusEl.style.color = "#f43f5e";
+    pythonStatusEl.title = "";
+    setTone(pythonStatusEl, "err");
   }
 
   isSystemReady = info.is_ready;
-  if (isSystemReady) {
-    systemReadyDot.className = "dot green";
-    systemReadyText.textContent = t("env_core_ready");
-    systemReadyText.style.color = "#10b981";
-  } else {
-    systemReadyDot.className = "dot red";
-    systemReadyText.textContent = t("env_core_missing");
-    systemReadyText.style.color = "#f43f5e";
-  }
-
-  if (info.current_version && footerStatusBar) {
-    footerStatusBar.textContent = t("footer_status_standby", { version: info.current_version });
-  }
+  systemReadyDot.className = isSystemReady ? "dot green" : "dot red";
+  systemReadyText.textContent = t(isSystemReady ? "env_core_ready" : "env_core_missing");
+  setTone(systemReadyText, isSystemReady ? "ok" : "err");
 
   const versionBadge = document.getElementById("app-version-badge");
   if (versionBadge && info.current_version) {
     versionBadge.textContent = `v${info.current_version}`;
   }
+  renderFooterStatus();
 }
 
 async function loadSystemInfo() {
@@ -618,29 +856,38 @@ async function loadSystemInfo() {
   } catch (err) {
     console.error("Failed to load system info:", err);
     projectPathEl.textContent = t("env_project_not_found");
+    setTone(projectPathEl, "err");
+    pythonStatusEl.textContent = t("env_python_not_found");
+    setTone(pythonStatusEl, "err");
+    systemReadyDot.className = "dot red";
+    systemReadyText.textContent = t("env_core_missing");
+    setTone(systemReadyText, "err");
   }
 }
 
 // -------------------------------------------------------------
 // Logic: Launcher Self-Update
 // -------------------------------------------------------------
+let isSelfUpdating = false;
+
 async function doSelfUpdateLauncher(url = null) {
-  const originalText = btnSelfUpdateLauncher.innerHTML;
+  if (isSelfUpdating) return;
+  isSelfUpdating = true;
+  const label = btnSelfUpdateLauncher.querySelector("span");
   btnSelfUpdateLauncher.disabled = true;
-  btnSelfUpdateLauncher.innerHTML = `<span>⏳ ${t("btn_updating_launcher")}</span>`;
-  footerStatusBar.textContent = t("btn_updating_launcher");
-  footerStatusBar.style.color = "#f59e0b";
+  if (label) label.textContent = `⏳ ${t("btn_updating_launcher")}`;
+  setStatusKey("btn_updating_launcher", null, "warn");
 
   try {
     const msg = await invoke("self_update_launcher", { downloadUrl: url });
-    footerStatusBar.textContent = msg || t("launcher_update_success");
-    footerStatusBar.style.color = "#10b981";
+    // On success the launcher restarts itself, so the button stays disabled
+    setStatusText(msg || t("launcher_update_success"), "ok");
   } catch (err) {
-    alert(t("launcher_update_fail") + err);
-    footerStatusBar.textContent = t("launcher_update_fail") + err;
-    footerStatusBar.style.color = "#f43f5e";
+    showToast(t("launcher_update_fail") + err, "err");
+    setStatusText(t("launcher_update_fail") + err, "err");
     btnSelfUpdateLauncher.disabled = false;
-    btnSelfUpdateLauncher.innerHTML = originalText;
+    if (label) label.textContent = t("footer_update_launcher");
+    isSelfUpdating = false;
   }
 }
 
@@ -651,98 +898,129 @@ btnSelfUpdateLauncher.addEventListener("click", () => {
 // -------------------------------------------------------------
 // Logic: Update Check & Apply
 // -------------------------------------------------------------
+const BANNER_STATES = ["state-checking", "state-latest", "state-update-available", "state-error"];
+
+function setBannerState(state) {
+  updateBanner.classList.remove(...BANNER_STATES);
+  updateBanner.classList.add(state);
+}
+
+function makeBannerButton(className, text, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = className;
+  btn.textContent = text;
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+function renderUpdateError(message) {
+  setBannerState("state-error");
+  updateIcon.textContent = "⚠️";
+  updateTitle.textContent = t("update_error_title");
+  updateDesc.textContent = String(message);
+  updateDesc.title = String(message);
+  updateAction.replaceChildren(makeBannerButton("btn-ghost lg-control", t("btn_retry"), doCheckUpdate));
+}
+
 function renderUpdateResult(res) {
-  updateAction.innerHTML = "";
+  updateAction.replaceChildren();
+  updateDesc.title = "";
 
   if (res && res.has_update) {
-    updateBanner.className = "update-banner state-update-available";
+    setBannerState("state-update-available");
     updateIcon.textContent = "🎉";
     updateTitle.textContent = t("update_available_title", { version: res.latest_version });
     updateDesc.textContent = res.release_name || res.published_at || "";
 
-    // 1. One-Click Full Update (Project + Launcher) Button
-    const btnUpdateProject = document.createElement("button");
-    btnUpdateProject.className = "btn-update-now";
-    btnUpdateProject.textContent = res.launcher_download_url ? t("btn_update_full") : t("btn_update_now");
-    btnUpdateProject.onclick = async () => {
+    // 1. One-click update: project first, then the launcher binary when a newer one was published
+    const fullLabel = () => (res.launcher_download_url ? t("btn_update_full") : t("btn_update_now"));
+    const btnUpdateProject = makeBannerButton("btn-update-now", fullLabel(), async () => {
       btnUpdateProject.disabled = true;
       btnUpdateProject.textContent = t("btn_updating");
+      let pullMsg;
       try {
-        const pullMsg = await invoke("apply_update");
-        // CRITICAL FIX: Reset has_update state so switching language never pops up update alert again!
-        res.has_update = false;
-        lastUpdateResult = {
-          ...res,
-          has_update: false,
-          current_version: res.latest_version || res.current_version
-        };
-        if (res.launcher_download_url) {
-          btnUpdateProject.textContent = t("btn_updating_launcher");
-          await invoke("self_update_launcher", { downloadUrl: res.launcher_download_url });
+        pullMsg = await invoke("apply_update");
+      } catch (e) {
+        showToast(t("update_failed") + e, "err");
+        btnUpdateProject.disabled = false;
+        btnUpdateProject.textContent = fullLabel();
+        return;
+      }
+
+      // The project is up to date from here on, whatever happens to the launcher step
+      const launcherUrl = res.launcher_download_url;
+      lastUpdateResult = { ...res, has_update: false, current_version: res.latest_version || res.current_version };
+      await loadSystemInfo();
+
+      if (launcherUrl) {
+        btnUpdateProject.textContent = t("btn_updating_launcher");
+        try {
+          await invoke("self_update_launcher", { downloadUrl: launcherUrl });
+          return; // the launcher restarts itself
+        } catch (e) {
+          // Keep offering the launcher update; the project part must not be reported as failed
+          lastUpdateResult = { ...lastUpdateResult, has_update: true };
+          showToast(t("update_launcher_step_failed") + e, "warn");
+          renderUpdateResult(lastUpdateResult);
           return;
         }
-        updateBanner.className = "update-banner state-latest";
-        updateIcon.textContent = "✅";
-        updateTitle.textContent = t("update_success_title");
-        updateDesc.textContent = pullMsg;
-        btnUpdateProject.remove();
-        await loadSystemInfo();
-      } catch (e) {
-        alert(t("update_failed") + e);
-        btnUpdateProject.disabled = false;
-        btnUpdateProject.textContent = res.launcher_download_url ? t("btn_update_full") : t("btn_update_now");
       }
-    };
+
+      setBannerState("state-latest");
+      updateIcon.textContent = "✅";
+      updateTitle.textContent = t("update_success_title");
+      updateDesc.textContent = pullMsg;
+      btnUpdateProject.remove();
+    });
     updateAction.appendChild(btnUpdateProject);
 
-    // 2. Optional standalone Launcher Binary Update Button if user specifically wants launcher-only
+    // 2. Launcher-only update for people who just want the new binary
     if (res.launcher_download_url) {
-      const btnUpdateLauncher = document.createElement("button");
-      btnUpdateLauncher.className = "btn-ghost";
-      btnUpdateLauncher.style.borderColor = "#00f2fe";
-      btnUpdateLauncher.style.color = "#00f2fe";
-      btnUpdateLauncher.textContent = t("btn_update_launcher");
-      btnUpdateLauncher.onclick = () => doSelfUpdateLauncher(res.launcher_download_url);
-      updateAction.appendChild(btnUpdateLauncher);
+      updateAction.appendChild(
+        makeBannerButton("btn-ghost lg-control accent", t("btn_update_launcher"), () => doSelfUpdateLauncher(res.launcher_download_url))
+      );
     }
   } else {
-    updateBanner.className = "update-banner state-latest";
+    setBannerState("state-latest");
     updateIcon.textContent = "✅";
-    const curVer = res?.current_version || "4.1.3";
+    const curVer = res?.current_version || knownVersion();
     updateTitle.textContent = t("update_latest_title", { version: curVer });
     updateDesc.textContent = t("update_latest_desc");
-
-    const btnRecheck = document.createElement("button");
-    btnRecheck.className = "btn-ghost";
-    btnRecheck.textContent = t("btn_recheck");
-    btnRecheck.onclick = doCheckUpdate;
-    updateAction.appendChild(btnRecheck);
+    updateAction.appendChild(makeBannerButton("btn-ghost lg-control", t("btn_recheck"), doCheckUpdate));
   }
 }
 
+let isCheckingUpdate = false;
+
 async function doCheckUpdate() {
-  updateBanner.className = "update-banner state-checking";
+  if (isCheckingUpdate) return;
+  isCheckingUpdate = true;
+  setBannerState("state-checking");
   updateIcon.textContent = "⏳";
   updateTitle.textContent = t("update_checking_title");
   updateDesc.textContent = t("update_checking_desc");
-  updateAction.innerHTML = "";
+  updateDesc.title = "";
+  updateAction.replaceChildren();
 
   try {
     const res = await invoke("check_update");
     lastUpdateResult = res;
-    renderUpdateResult(res);
+    // The backend reports a failed GitHub query in `error` instead of throwing. Showing "up to date" for that
+    // told offline users they had the newest version.
+    if (res && res.error && !res.has_update) {
+      lastUpdateError = res.error;
+      renderUpdateError(res.error);
+    } else {
+      lastUpdateError = null;
+      renderUpdateResult(res);
+    }
   } catch (err) {
     console.error("Check update failed:", err);
-    updateBanner.className = "update-banner state-error";
-    updateIcon.textContent = "⚠️";
-    updateTitle.textContent = t("update_error_title");
-    updateDesc.textContent = String(err);
-
-    const btnRetry = document.createElement("button");
-    btnRetry.className = "btn-ghost";
-    btnRetry.textContent = t("btn_retry");
-    btnRetry.onclick = doCheckUpdate;
-    updateAction.appendChild(btnRetry);
+    lastUpdateError = String(err);
+    renderUpdateError(lastUpdateError);
+  } finally {
+    isCheckingUpdate = false;
   }
 }
 
@@ -750,51 +1028,45 @@ async function doCheckUpdate() {
 // Logic: Launch Modes
 // -------------------------------------------------------------
 let isLaunching = false;
+
 async function launch(mode, btn) {
   if (isLaunching) return;
-  isLaunching = true;
-  const originalText = btn.innerHTML;
 
   if (!lastSystemInfo || !lastSystemInfo.is_installed) {
-    const doInstall = confirm(t("confirm_install"));
-    if (doInstall && btnInstallCore) {
-      btnInstallCore.click();
+    if (await confirmDialog(t("confirm_install"))) {
+      runInstall();
     }
-    isLaunching = false;
     return;
   }
 
+  isLaunching = true;
+  const label = btn.querySelector("span[data-i18n]");
+  const arrow = btn.querySelector(".arrow");
   btn.disabled = true;
-  btn.innerHTML = `<span>${t("btn_launching")}</span> <span class="arrow">⏳</span>`;
+  if (label) label.textContent = t("btn_launching");
+  if (arrow) arrow.textContent = "⏳";
 
-  const port = parseInt(serverPortInput.value, 10) || 8000;
+  const port = readPort();
   const lowSpec = ecoModeToggle.checked;
-  
-  if (mode === "desktop") {
-    footerStatusBar.textContent = t("desktop_launching");
-  } else if (mode === "cli") {
-    footerStatusBar.textContent = t("cli_launching");
-  } else {
-    footerStatusBar.textContent = t("browser_launching");
-  }
+  setStatusKey(mode === "desktop" ? "desktop_launching" : mode === "cli" ? "cli_launching" : "browser_launching", null, "info");
 
   try {
     const msg = await invoke("launch_mode", { mode, port, lowSpec });
-    footerStatusBar.textContent = msg;
-    footerStatusBar.style.color = "#00f2fe";
-    const match = msg.match(/(?:切換至連接埠|切換至埠號|Port)\s*(\d+)/i);
+    setStatusText(msg, "info");
+    // The backend moves to the next free port when the chosen one is busy; show the one actually in use
+    const match = String(msg).match(/(?:切換至連接埠|切換至埠號|Port)\s*(\d+)/i);
     if (match && match[1]) {
-      serverPortInput.value = match[1];
+      serverPortInput.value = clampPort(match[1]);
     }
   } catch (err) {
-    alert(t("launch_error") + err);
-    footerStatusBar.textContent = t("launch_error") + err;
-    footerStatusBar.style.color = "#f43f5e";
+    showToast(t("launch_error") + err, "err");
+    setStatusText(t("launch_error") + err, "err");
   } finally {
     setTimeout(() => {
       isLaunching = false;
       btn.disabled = false;
-      btn.innerHTML = originalText;
+      if (label) label.textContent = t(label.getAttribute("data-i18n"));
+      if (arrow) arrow.textContent = "➔";
     }, 2000);
   }
 }
@@ -809,18 +1081,16 @@ btnLaunchBrowser.addEventListener("click", () => launch("browser", btnLaunchBrow
 btnCreateShortcut.addEventListener("click", async () => {
   try {
     const msg = await invoke("create_desktop_shortcut");
-    alert(msg || t("shortcut_success"));
+    showToast(msg || t("shortcut_success"), "ok");
   } catch (err) {
-    alert(t("shortcut_fail") + err);
+    showToast(t("shortcut_fail") + err, "err");
   }
 });
 
 if (btnReinstallCore) {
-  btnReinstallCore.addEventListener("click", () => {
-    if (confirm(t("confirm_reinstall"))) {
-      if (btnInstallCore) {
-        btnInstallCore.click();
-      }
+  btnReinstallCore.addEventListener("click", async () => {
+    if (await confirmDialog(t("confirm_reinstall"))) {
+      runInstall();
     }
   });
 }
@@ -829,7 +1099,7 @@ btnOpenFolder.addEventListener("click", async () => {
   try {
     await invoke("open_project_folder");
   } catch (err) {
-    alert(t("open_folder_fail") + err);
+    showToast(t("open_folder_fail") + err, "err");
   }
 });
 
@@ -837,52 +1107,72 @@ btnHealthCheck.addEventListener("click", async () => {
   try {
     await invoke("run_health_check");
   } catch (err) {
-    alert(t("health_check_fail") + err);
+    showToast(t("health_check_fail") + err, "err");
   }
 });
 
 if (btnCloseAll) {
   btnCloseAll.addEventListener("click", async () => {
-    const originalText = btnCloseAll.innerHTML;
+    const label = btnCloseAll.querySelector("span[data-i18n]");
+    const icon = btnCloseAll.querySelector(".close-all-icon");
     btnCloseAll.disabled = true;
-    btnCloseAll.innerHTML = `<span class="close-all-icon">⏳</span> <span>${t("btn_closing_clients")}</span>`;
-    footerStatusBar.textContent = t("btn_closing_clients");
-
-    const port = parseInt(serverPortInput.value, 10) || 8000;
+    if (label) label.textContent = t("btn_closing_clients");
+    if (icon) icon.textContent = "⏳";
+    setStatusKey("btn_closing_clients", null, "warn");
 
     try {
-      const count = await invoke("close_all_instances", { port });
+      const count = await invoke("close_all_instances", { port: readPort() });
       if (count > 0) {
-        const msg = t("close_all_success", { count });
-        alert(msg);
-        footerStatusBar.textContent = msg;
-        footerStatusBar.style.color = "#fda4af";
+        setStatusKey("close_all_success", { count }, "warn");
+        showToast(t("close_all_success", { count }), "ok");
       } else {
-        const msg = t("close_all_none");
-        alert(msg);
-        footerStatusBar.textContent = msg;
-        footerStatusBar.style.color = "#34d399";
+        setStatusKey("close_all_none", null, "ok");
+        showToast(t("close_all_none"), "info");
       }
       loadSystemInfo();
     } catch (err) {
-      alert(t("close_all_fail") + err);
-      footerStatusBar.textContent = t("close_all_fail") + err;
-      footerStatusBar.style.color = "#f43f5e";
+      showToast(t("close_all_fail") + err, "err");
+      setStatusText(t("close_all_fail") + err, "err");
     } finally {
       btnCloseAll.disabled = false;
-      btnCloseAll.innerHTML = originalText;
+      if (label) label.textContent = t("btn_close_all_clients");
+      if (icon) icon.textContent = "🛑";
     }
   });
 }
 
+// -------------------------------------------------------------
+// Liquid Glass: light that follows the pointer across a surface
+// -------------------------------------------------------------
+const GLOW_SELECTOR = ".lg-surface, .lg-surface-thick";
+let glowFrame = 0;
+let glowEvent = null;
+
+document.addEventListener("pointermove", (e) => {
+  glowEvent = e;
+  if (glowFrame) return;
+  glowFrame = requestAnimationFrame(() => {
+    glowFrame = 0;
+    const el = glowEvent.target instanceof Element ? glowEvent.target.closest(GLOW_SELECTOR) : null;
+    if (!el) return;
+    const rect = el.getBoundingClientRect();
+    el.style.setProperty("--lg-mx", `${glowEvent.clientX - rect.left}px`);
+    el.style.setProperty("--lg-my", `${glowEvent.clientY - rect.top}px`);
+  });
+}, { passive: true });
+
 // Auto-run on startup
 window.addEventListener("DOMContentLoaded", async () => {
   // Load Language Preference
-  const initialLang = getSavedLang();
-  applyLanguage(initialLang);
+  applyLanguage(getSavedLang());
 
   // Load Eco Mode Preference
-  const savedEco = localStorage.getItem("aether_eco_mode") === "1";
+  let savedEco = false;
+  try {
+    savedEco = localStorage.getItem("aether_eco_mode") === "1";
+  } catch {
+    // defaults apply
+  }
   ecoModeToggle.checked = savedEco;
   setEcoMode(savedEco);
 

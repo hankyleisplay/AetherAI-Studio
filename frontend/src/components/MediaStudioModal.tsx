@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { MediaConfig, MediaItem } from '../types';
 import { useI18n } from '../i18n/I18nContext';
+import { copyText } from '../utils/clipboard';
 
 interface MediaStudioModalProps {
   isOpen: boolean;
@@ -178,7 +179,7 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({ isOpen, onCl
       <div className="px-2 py-1.5 flex items-center justify-between gap-1">
         <span className="text-[10px] text-slate-300 truncate" title={item.prompt}>{item.prompt}</span>
         <div className="flex items-center gap-0.5 shrink-0">
-          <button type="button" onClick={() => navigator.clipboard?.writeText(item.prompt)} title={t('copy_content', '複製內容')} className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white">
+          <button type="button" onClick={() => copyText(item.prompt)} title={t('copy_content', '複製內容')} className="p-1 rounded hover:bg-white/10 text-slate-400 hover:text-white">
             <Copy className="w-3 h-3" />
           </button>
           {item.url && (
@@ -210,8 +211,8 @@ export const MediaStudioModal: React.FC<MediaStudioModalProps> = ({ isOpen, onCl
   const input = 'w-full px-3 py-2 rounded-xl glass-input text-xs text-slate-100 placeholder:text-slate-500';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-md">
-      <div className="w-full max-w-3xl glass-panel rounded-3xl border border-white/15 shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg-scrim animate-fade-in">
+      <div className="w-full max-w-3xl glass-modal rounded-3xl overflow-hidden animate-in fade-in zoom-in-95 duration-200 flex flex-col max-h-[90vh]">
         <div className="px-6 py-4 border-b border-white/10 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-2.5">
             <div className="w-8 h-8 rounded-xl bg-fuchsia-500/20 border border-fuchsia-400/40 flex items-center justify-center text-fuchsia-300">

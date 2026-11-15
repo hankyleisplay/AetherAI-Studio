@@ -430,6 +430,41 @@ class AgentOrchestrator:
         assistant_message_id: Optional[str] = None,
         images: Optional[List[str]] = None
     ) -> AsyncGenerator[Dict[str, Any], None]:
+        """Run the agent loop; if the client stops or disconnects mid-answer, keep what was generated.
+
+        Without this the user message was saved but the partial reply was not, so a stopped answer vanished on
+        reload and the next turn saw two user messages in a row.
+        """
+        self._stream_state = None
+        try:
+            async for event in self._run_stream_impl(session_id, user_prompt, user_message_id,
+                                                     assistant_message_id, images):
+                yield event
+        finally:
+            state = self._stream_state
+            if state and not state["saved"] and (
+                state["content"].strip() or state["thought"].strip() or state["tools"]
+            ):
+                try:
+                    db.add_message(
+                        session_id=session_id,
+                        role="assistant",
+                        content=state["content"],
+                        thought=state["thought"],
+                        tool_calls=state["tools"],
+                        msg_id=assistant_message_id
+                    )
+                except Exception as e:
+                    print(f"[AgentOrchestrator] Could not save interrupted reply: {e}")
+
+    async def _run_stream_impl(
+        self,
+        session_id: str,
+        user_prompt: str,
+        user_message_id: Optional[str] = None,
+        assistant_message_id: Optional[str] = None,
+        images: Optional[List[str]] = None
+    ) -> AsyncGenerator[Dict[str, Any], None]:
         """
         Execute agent reasoning loop with SSE events and Dual-Track Vision Perception.
         """
@@ -528,6 +563,8 @@ class AgentOrchestrator:
         full_thought = ""
         full_content = ""
         executed_tool_calls = []
+        # Shared with run_stream so an interrupted reply can still be saved
+        state = self._stream_state = {"content": "", "thought": "", "tools": executed_tool_calls, "saved": False}
 
         iteration = 0
         has_emitted_generating = False
@@ -543,6 +580,7 @@ class AgentOrchestrator:
                 if chunk.type == "thought" and chunk.content:
                     current_turn_thought += chunk.content
                     full_thought += chunk.content
+                    state["thought"] = full_thought
                     yield {"type": "thought", "content": chunk.content}
 
                 elif chunk.type == "token" and chunk.content:
@@ -551,6 +589,7 @@ class AgentOrchestrator:
                         yield {"type": "status", "stage": "generating", "text": "正在組織並生成最佳解答...", "key": "status_composing_answer"}
                     current_turn_content += chunk.content
                     full_content += chunk.content
+                    state["content"] = full_content
                     yield {"type": "token", "content": chunk.content}
 
                 elif chunk.type == "tool_call":
@@ -567,6 +606,7 @@ class AgentOrchestrator:
                 elif chunk.type == "error":
                     yield {"type": "error", "error": chunk.content}
                     # Save error message to DB so conversation state is preserved
+                    state["saved"] = True
                     db.add_message(
                         session_id=session_id,
                         role="assistant",
@@ -718,6 +758,7 @@ class AgentOrchestrator:
                 full_content = self._msg("empty_response")
 
         # Save assistant response to DB
+        state["saved"] = True
         saved_msg = db.add_message(
             session_id=session_id,
             role="assistant",

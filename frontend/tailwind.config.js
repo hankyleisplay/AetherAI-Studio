@@ -7,6 +7,9 @@ export default {
   darkMode: 'class',
   theme: {
     extend: {
+      zIndex: {
+        60: '60',
+      },
       colors: {
         liquid: {
           cyan: '#00f2fe',

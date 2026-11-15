@@ -261,8 +261,8 @@ export const ProjectModal: React.FC<ProjectModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="w-full max-w-2xl glass-modal rounded-3xl border border-cyan-500/30 shadow-[0_0_60px_rgba(6,182,212,0.2)] overflow-hidden flex flex-col max-h-[92vh]">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 lg-scrim animate-fade-in">
+      <div className="w-full max-w-2xl glass-modal rounded-3xl overflow-hidden flex flex-col max-h-[92vh] animate-in fade-in zoom-in-95">
         {/* Header */}
         <div className="p-5 border-b border-white/10 flex items-center justify-between shrink-0 bg-black/30">
           <div className="flex items-center gap-3">

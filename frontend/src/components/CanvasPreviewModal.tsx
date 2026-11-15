@@ -23,6 +23,10 @@ interface CanvasPreviewModalProps {
   lang: string;
 }
 
+// No allow-same-origin: together with allow-scripts it cancels the sandbox, giving model-written code this app's
+// origin (saved access token, terminal and file APIs).
+const SANDBOX_FLAGS = 'allow-scripts allow-modals allow-forms allow-popups';
+
 export const CanvasPreviewModal: React.FC<CanvasPreviewModalProps> = ({
   isOpen,
   onClose,
@@ -117,9 +121,16 @@ export const CanvasPreviewModal: React.FC<CanvasPreviewModalProps> = ({
   if (!isOpen) return null;
 
   const handleOpenNewTab = () => {
-    const blob = new Blob([processedSrcDoc], { type: 'text/html;charset=utf-8' });
+    // A blob: page opened from here runs with this app's origin, so the generated code would be able to call the
+    // local API. Open a tiny wrapper instead and keep the code inside a sandboxed frame, as in the modal.
+    const escaped = processedSrcDoc.replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+    const wrapper = `<!DOCTYPE html><html><head><meta charset="utf-8"><title>Aether Live Canvas</title>
+<style>html,body{margin:0;height:100%;background:#0b0f19}iframe{border:0;width:100%;height:100%;display:block}</style></head>
+<body><iframe sandbox="${SANDBOX_FLAGS}" srcdoc="${escaped}"></iframe></body></html>`;
+    const blob = new Blob([wrapper], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     window.open(url, '_blank');
+    window.setTimeout(() => URL.revokeObjectURL(url), 60000);
   };
 
   const handleDownload = () => {
@@ -158,9 +169,9 @@ export const CanvasPreviewModal: React.FC<CanvasPreviewModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/80 backdrop-blur-xl animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 lg-scrim animate-fade-in">
       <div 
-        className={`glass-panel border border-white/20 rounded-2xl flex flex-col shadow-[0_0_50px_rgba(0,242,254,0.25)] overflow-hidden transition-all duration-300 ${
+        className={`glass-modal rounded-3xl flex flex-col overflow-hidden transition-all duration-300 animate-in fade-in zoom-in-95 ${
           isFullscreen ? 'w-full h-full rounded-none' : 'w-full max-w-6xl h-[92vh]'
         }`}
       >
@@ -301,7 +312,7 @@ export const CanvasPreviewModal: React.FC<CanvasPreviewModalProps> = ({
               key={refreshKey}
               srcDoc={processedSrcDoc}
               title="Aether Live Sandbox"
-              sandbox="allow-scripts allow-modals allow-forms allow-same-origin"
+              sandbox={SANDBOX_FLAGS}
               className="w-full h-full border-0 bg-transparent block"
             />
           </div>

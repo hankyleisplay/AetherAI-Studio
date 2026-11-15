@@ -7,11 +7,9 @@ Aether AI Studio 4.1 - 官方專屬統一啟動器 (Official Standalone Launcher
 
 import os
 import sys
-import time
 import argparse
 import subprocess
 import threading
-import webbrowser
 from pathlib import Path
 
 # Configure Windows console for UTF-8
@@ -47,7 +45,7 @@ if not (PROJECT_ROOT / "start.py").exists():
             PROJECT_ROOT = c
             break
 
-VERSION = "4.1.3"
+VERSION = "4.2.0"
 
 
 def print_banner():
@@ -136,12 +134,12 @@ def check_for_updates(auto_pull: bool = True) -> tuple[bool, str]:
             if remote_hash and local_hash != remote_hash:
                 if auto_pull:
                     print("\033[1;33m[*] 檢測到新版本程式碼更新，正在自動為您拉取更新...\033[0m")
-                    pull_res = subprocess.run(["git", "pull"], capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=15)
+                    pull_res = subprocess.run(["git", "pull", "--ff-only"], capture_output=True, text=True, cwd=str(PROJECT_ROOT), timeout=60)
                     if pull_res.returncode == 0:
                         print("\033[1;32m[✓] 已順利更新至最新版本！\033[0m")
                         return True, "已自動更新至最新版本"
                     else:
-                        return False, "拉取更新失敗，請檢查網路連線"
+                        return False, "拉取更新失敗（網路問題，或本地有未推送的提交需手動合併）"
                 else:
                     return True, "發現新版本可用"
             else:
@@ -178,7 +176,7 @@ def start_gui():
     """Launch Modern Dark-Theme Liquid Glass GUI Launcher."""
     try:
         import tkinter as tk
-        from tkinter import ttk, messagebox
+        from tkinter import messagebox
     except ImportError:
         print("[!] 系統未安裝 Tkinter，退回使用互動命令列啟動選單。")
         start_cli_menu()
@@ -202,7 +200,7 @@ def start_gui():
 
     title_label = tk.Label(
         header_frame,
-        text="AETHER AI STUDIO 3.5",
+        text=f"AETHER AI STUDIO {VERSION}",
         font=("Segoe UI", 16, "bold"),
         fg="#00f2fe",
         bg="#0f172a"
@@ -230,16 +228,32 @@ def start_gui():
     )
     status_bar.pack(fill="x", pady=(0, 15))
 
-    def async_update_check():
-        has_update, msg = check_for_updates(auto_pull=True)
-        if has_update:
-            status_var.set("🎉 已為您自動更新至最新版本！")
+    def show_update_result(has_update: bool, msg: str, notify: bool = False, pulled: bool = False):
+        if has_update and pulled:
+            status_var.set("🎉 已更新至最新版本！")
             status_bar.configure(fg="#34d399")
+        elif has_update:
+            status_var.set("🎉 發現新版本！點下方「🔄 檢查更新」即可更新")
+            status_bar.configure(fg="#fbbf24")
         else:
             status_var.set(f"✅ {msg}")
             status_bar.configure(fg="#38bdf8")
+        if notify:
+            messagebox.showinfo("版本檢查結果", msg)
 
-    threading.Thread(target=async_update_check, daemon=True).start()
+    def run_update_check(notify: bool = False, pull: bool = False):
+        # Tk widgets may only be touched from the thread running mainloop; hand the result back with after()
+        def worker():
+            has_update, msg = check_for_updates(auto_pull=pull)
+            try:
+                root.after(0, lambda: show_update_result(has_update, msg, notify, pulled=pull))
+            except Exception:
+                pass  # the window was closed while the check was running
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    # Opening the launcher only checks; updating changes the user's files, so it waits for the button
+    run_update_check()
 
     # Content Frame
     body_frame = tk.Frame(root, bg="#0b0f19", padx=28)
@@ -323,10 +337,9 @@ def start_gui():
         run_aether("check")
 
     def on_force_update():
+        # Runs in the background: a slow network used to freeze the window until git gave up
         status_var.set("🔄 正在向 GitHub 檢查並拉取最新版本...")
-        has_update, msg = check_for_updates(auto_pull=True)
-        messagebox.showinfo("版本檢查結果", msg)
-        status_var.set(f"✅ {msg}")
+        run_update_check(notify=True, pull=True)
 
     def on_create_shortcut():
         ok = create_desktop_shortcut()
@@ -387,10 +400,10 @@ def start_cli_menu():
     """Interactive command-line selector."""
     print_banner()
 
-    print("\033[1;33m[*] 正在自動檢查版本更新...\033[0m")
-    has_update, msg = check_for_updates(auto_pull=True)
+    print("\033[1;33m[*] 正在檢查版本更新...\033[0m")
+    has_update, msg = check_for_updates(auto_pull=False)
     if has_update:
-        print("\033[1;32m[✓] 專案已同步更新至最新版本！\033[0m")
+        print("\033[1;32m[!] 發現新版本，可選擇選單 [5] 更新。\033[0m")
     else:
         print(f"\033[1;36m[i] {msg}\033[0m")
 
@@ -443,13 +456,18 @@ def main():
     parser.add_argument("--host", type=str, default="0.0.0.0", help="監聽 IP (預設: 0.0.0.0)")
     args = parser.parse_args()
 
+    def notify_update():
+        has_update, _ = check_for_updates(auto_pull=False)
+        if has_update:
+            print("\033[1;33m[!] 發現新版本，可執行 python launcher.py --cli 選擇 [5] 更新。\033[0m")
+
     if args.desktop:
-        check_for_updates(auto_pull=True)
+        notify_update()
         run_aether("desktop", port=args.port, host=args.host)
         return
 
     if args.server:
-        check_for_updates(auto_pull=True)
+        notify_update()
         run_aether("cli", port=args.port, host=args.host)
         return
 

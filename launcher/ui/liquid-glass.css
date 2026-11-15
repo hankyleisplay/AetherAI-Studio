@@ -1,0 +1,357 @@
+/* Aether Liquid Glass — the one design system shared by the launcher and the main app.
+ *
+ * The launcher links this file directly; the main app imports it from frontend/src/styles/glass.css. Keep colours,
+ * radii and materials here so the two can never drift apart again.
+ *
+ * Glass only reads as glass with colour behind it: both apps paint a slow aurora first, and every surface blurs and
+ * saturates that light, then adds a specular rim (bright top edge, faint bottom edge) and a soft drop shadow.
+ * The legacy .glass-* names used throughout the main app are aliases of the lg-* materials below.
+ */
+
+@property --lg-glow {
+  syntax: "<number>";
+  inherits: false;
+  initial-value: 0;
+}
+
+:root {
+  /* Palette */
+  --lg-bg: #070b1c;
+  --lg-cyan: #5ee7ff;
+  --lg-blue: #4f9cff;
+  --lg-violet: #a78bfa;
+  --lg-pink: #ff7ab8;
+  --lg-emerald: #34d399;
+  --lg-amber: #fbbf24;
+  --lg-rose: #fb7185;
+
+  --lg-text: #f8fbff;
+  --lg-text-muted: rgba(226, 236, 255, 0.72);
+  --lg-text-dim: rgba(205, 220, 250, 0.52);
+
+  /* Shape */
+  --lg-r-xl: 24px;
+  --lg-r-lg: 20px;
+  --lg-r-md: 14px;
+  --lg-r-sm: 10px;
+  --lg-r-pill: 999px;
+
+  /* Motion */
+  --lg-ease: cubic-bezier(0.16, 1, 0.3, 1);
+  --lg-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+
+  /* Material. --lg-shade darkens the glass under text; the launcher keeps it clear, the main app (long reading
+     surfaces, small grey labels) raises it. */
+  --lg-shade-rgb: 10, 14, 40;
+  --lg-shade: 0;
+  --lg-fill: linear-gradient(145deg, rgba(255, 255, 255, 0.17), rgba(255, 255, 255, 0.05));
+  --lg-fill-thin: linear-gradient(145deg, rgba(255, 255, 255, 0.10), rgba(255, 255, 255, 0.035));
+  --lg-fill-thick: linear-gradient(160deg, rgba(46, 56, 112, 0.82), rgba(18, 22, 56, 0.80));
+  --lg-sheen: radial-gradient(120% 90% at 6% 0%, rgba(255, 255, 255, 0.30), rgba(255, 255, 255, 0) 55%);
+  --lg-sheen-soft: radial-gradient(120% 80% at 8% 0%, rgba(255, 255, 255, 0.16), rgba(255, 255, 255, 0) 55%);
+  --lg-border: rgba(255, 255, 255, 0.26);
+  --lg-border-soft: rgba(255, 255, 255, 0.18);
+  --lg-blur: blur(26px) saturate(190%) brightness(1.08);
+  --lg-blur-thick: blur(32px) saturate(170%);
+  --lg-rim:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.62),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.10),
+    inset 1px 0 0 rgba(255, 255, 255, 0.14),
+    inset -1px 0 0 rgba(255, 255, 255, 0.06);
+  --lg-rim-soft:
+    inset 0 1px 0 rgba(255, 255, 255, 0.34),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.06);
+  --lg-drop: 0 14px 34px rgba(0, 0, 14, 0.40), 0 2px 6px rgba(0, 0, 14, 0.28);
+  --lg-drop-deep: 0 28px 70px rgba(0, 0, 14, 0.55), 0 4px 14px rgba(0, 0, 14, 0.35);
+
+  /* Light that follows the pointer across a surface; --lg-mx/--lg-my are set per element by a pointermove handler */
+  --lg-glow-layer: radial-gradient(
+    260px circle at var(--lg-mx, 50%) var(--lg-my, -300px),
+    rgba(255, 255, 255, var(--lg-glow)),
+    rgba(255, 255, 255, 0) 72%
+  );
+  --lg-shade-layer: linear-gradient(
+    rgba(var(--lg-shade-rgb), var(--lg-shade)),
+    rgba(var(--lg-shade-rgb), var(--lg-shade))
+  );
+}
+
+/* ---------- Aurora backdrop ---------- */
+.lg-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(90% 60% at 50% 0%, rgba(40, 70, 170, 0.55), transparent 70%),
+    linear-gradient(180deg, #0a1030 0%, #0b0a24 55%, #09091c 100%);
+}
+
+.lg-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(46px);
+  opacity: 0.85;
+  will-change: transform;
+}
+
+@keyframes lg-drift-a { 0%, 100% { transform: translate(0, 0) scale(1); }   50% { transform: translate(70px, 50px) scale(1.15); } }
+@keyframes lg-drift-b { 0%, 100% { transform: translate(0, 0) scale(1.1); } 50% { transform: translate(-80px, 40px) scale(0.95); } }
+@keyframes lg-drift-c { 0%, 100% { transform: translate(0, 0) scale(1); }   50% { transform: translate(60px, -60px) scale(1.2); } }
+
+/* ---------- Regular glass: bars, sheets, docks ---------- */
+.lg-surface,
+.glass-panel,
+.glass-hud-card {
+  background: var(--lg-glow-layer), var(--lg-sheen), var(--lg-fill), var(--lg-shade-layer);
+  border: 1px solid var(--lg-border);
+  box-shadow: var(--lg-rim), var(--lg-drop);
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+  transition: --lg-glow 0.35s ease, border-color 0.3s ease, box-shadow 0.3s ease;
+}
+
+/* ---------- Thick glass: dialogs, menus, long reading surfaces ---------- */
+.lg-surface-thick,
+.glass-modal {
+  background: var(--lg-glow-layer), var(--lg-sheen-soft), var(--lg-fill-thick);
+  border: 1px solid var(--lg-border-soft);
+  box-shadow: var(--lg-rim-soft), var(--lg-drop-deep);
+  -webkit-backdrop-filter: var(--lg-blur-thick);
+  backdrop-filter: var(--lg-blur-thick);
+  transition: --lg-glow 0.35s ease, border-color 0.3s ease;
+}
+
+/* ---------- Thin glass: cards that already sit on glass (no second blur) ---------- */
+.lg-surface-thin,
+.glass-card {
+  background: var(--lg-fill-thin);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+  transition: background-color 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease, transform 0.25s var(--lg-ease);
+}
+
+.glass-card:hover,
+.lg-surface-thin.lg-hover:hover {
+  background-color: rgba(255, 255, 255, 0.05);
+  border-color: rgba(255, 255, 255, 0.3);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 8px 22px rgba(0, 0, 14, 0.28);
+}
+
+.glass-hud-card:hover {
+  border-color: rgba(255, 255, 255, 0.45);
+}
+
+/* The pointer light only switches on while the pointer is over the surface */
+.lg-surface:hover,
+.lg-surface-thick:hover,
+.glass-panel:hover,
+.glass-hud-card:hover,
+.glass-modal:hover {
+  --lg-glow: 0.07;
+}
+
+/* ---------- Controls ---------- */
+.lg-control,
+.glass-button {
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.20), rgba(255, 255, 255, 0.06));
+  border: 1px solid rgba(255, 255, 255, 0.24);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 2px 8px rgba(0, 0, 14, 0.25);
+  transition: transform 0.18s var(--lg-ease), filter 0.18s ease, border-color 0.18s ease, background-color 0.18s ease, box-shadow 0.18s ease, color 0.18s ease;
+}
+
+.lg-control:hover:not(:disabled),
+.glass-button:hover:not(:disabled) {
+  filter: brightness(1.22);
+  border-color: rgba(255, 255, 255, 0.5);
+  transform: translateY(-1px);
+}
+
+.lg-control:active:not(:disabled),
+.glass-button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+  filter: brightness(1.05);
+}
+
+.lg-control:disabled,
+.glass-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Glossy tinted primary action */
+.lg-control-primary,
+.glass-button-primary {
+  color: #fff;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.50), rgba(255, 255, 255, 0) 52%),
+    linear-gradient(135deg, #2f9bff, #2459e6 80%);
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  text-shadow: 0 1px 3px rgba(0, 40, 120, 0.55);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.75),
+    inset 0 -8px 14px rgba(8, 24, 120, 0.35),
+    0 8px 22px rgba(47, 155, 255, 0.45);
+  transition: transform 0.18s var(--lg-ease), filter 0.18s ease, box-shadow 0.18s ease;
+}
+
+.lg-control-primary:hover:not(:disabled),
+.glass-button-primary:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.12);
+  border-color: rgba(255, 255, 255, 0.75);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.85),
+    inset 0 -8px 14px rgba(8, 24, 120, 0.3),
+    0 12px 28px rgba(47, 155, 255, 0.6);
+}
+
+.lg-control-primary:active:not(:disabled),
+.glass-button-primary:active:not(:disabled) {
+  transform: translateY(1px) scale(0.98);
+}
+
+.lg-control-primary:disabled,
+.glass-button-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Rose-tinted glass for destructive actions */
+.lg-control-danger {
+  color: #ffe4ea;
+  border-color: rgba(251, 113, 133, 0.6);
+  background: var(--lg-sheen), linear-gradient(145deg, rgba(251, 113, 133, 0.34), rgba(251, 113, 133, 0.12));
+}
+
+/* Recessed well for text fields */
+.lg-input,
+.glass-input {
+  background: rgba(6, 10, 32, 0.46);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 20, 0.38), inset 0 -1px 0 rgba(255, 255, 255, 0.08);
+  transition: border-color 0.2s ease, box-shadow 0.2s ease, background-color 0.2s ease;
+}
+
+.lg-input:focus,
+.lg-input:focus-within,
+.glass-input:focus {
+  border-color: rgba(94, 231, 255, 0.7);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 20, 0.3), 0 0 0 3px rgba(94, 231, 255, 0.16), 0 0 18px rgba(94, 231, 255, 0.28);
+  outline: none;
+}
+
+/* Dimmed, lightly blurred layer behind a dialog; the aurora stays visible through it */
+.lg-scrim {
+  background: rgba(4, 6, 22, 0.52);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(10px) saturate(140%);
+}
+
+/* Adds the backdrop blur to a control that sits straight on the aurora instead of on glass */
+.lg-blur {
+  -webkit-backdrop-filter: var(--lg-blur);
+  backdrop-filter: var(--lg-blur);
+}
+
+/* Liquid highlight that glides across a card on hover (the card needs position + overflow: hidden) */
+.lg-sweep::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.22) 48%, transparent 66%);
+  transform: translateX(-120%);
+  transition: transform 0.9s var(--lg-ease);
+  pointer-events: none;
+}
+
+.lg-sweep:hover::after {
+  transform: translateX(120%);
+}
+
+/* ---------- Entrances ---------- */
+@keyframes lg-enter {
+  from { opacity: 0; scale: 0.97; translate: 0 6px; }
+}
+
+@keyframes lg-fade {
+  from { opacity: 0; }
+}
+
+@keyframes lg-slide-left {
+  from { opacity: 0; translate: 28px 0; }
+}
+
+.lg-enter { animation: lg-enter 0.24s var(--lg-ease) backwards; }
+.lg-fade { animation: lg-fade 0.25s ease backwards; }
+
+/* ---------- Eco mode: no blur, no motion, solid panels ---------- */
+.eco-mode .lg-surface,
+.eco-mode .lg-surface-thick,
+.eco-mode .glass-panel,
+.eco-mode .glass-hud-card,
+.eco-mode .glass-modal,
+.eco-mode.lg-surface {
+  background: rgba(26, 34, 66, 0.97) !important;
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4) !important;
+}
+
+.eco-mode .lg-surface-thin,
+.eco-mode .glass-card {
+  background: rgba(34, 44, 80, 0.95) !important;
+  box-shadow: none !important;
+}
+
+.eco-mode .lg-input,
+.eco-mode .glass-input {
+  background: rgba(10, 15, 34, 0.96) !important;
+}
+
+.eco-mode .lg-control,
+.eco-mode .glass-button {
+  background: rgba(52, 64, 108, 0.95);
+  box-shadow: none;
+}
+
+.eco-mode .lg-scrim,
+.eco-mode .lg-blur {
+  -webkit-backdrop-filter: none !important;
+  backdrop-filter: none !important;
+}
+
+.eco-mode .lg-scrim {
+  background: rgba(4, 6, 22, 0.8);
+}
+
+.eco-mode .lg-blob {
+  display: none;
+}
+
+.eco-mode .lg-sweep::after {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lg-blob,
+  .lg-enter,
+  .lg-fade {
+    animation: none !important;
+  }
+  .lg-sweep::after {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .lg-surface,
+  .lg-surface-thick,
+  .glass-panel,
+  .glass-hud-card,
+  .glass-modal {
+    background: rgba(26, 34, 66, 0.97);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+}

@@ -2,6 +2,7 @@ use std::env;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use serde::{Deserialize, Serialize};
+use sha2::{Digest, Sha256};
 
 #[cfg(windows)]
 use std::os::windows::process::CommandExt;
@@ -9,6 +10,8 @@ use std::os::windows::process::CommandExt;
 const CURRENT_VERSION: &str = env!("CARGO_PKG_VERSION");
 const CREATE_NO_WINDOW: u32 = 0x08000000;
 const CREATE_NEW_CONSOLE: u32 = 0x00000010;
+const RELEASE_API_URL: &str = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
+const RELEASE_DOWNLOAD_PREFIX: &str = "https://github.com/hankyleisplay/AetherAI-Studio/releases/download/";
 
 #[derive(Serialize, Deserialize, Debug, Default, Clone)]
 pub struct LauncherConfig {
@@ -39,6 +42,96 @@ fn save_launcher_config(cfg: &LauncherConfig) {
     }
     if let Ok(content) = serde_json::to_string_pretty(cfg) {
         let _ = std::fs::write(&path, content);
+    }
+}
+
+fn git_output(dir: &Path, args: &[&str]) -> Option<std::process::Output> {
+    let mut cmd = Command::new("git");
+    cmd.args(args).current_dir(dir);
+    #[cfg(windows)]
+    cmd.creation_flags(CREATE_NO_WINDOW);
+    cmd.output().ok()
+}
+
+fn git_ok(dir: &Path, args: &[&str]) -> bool {
+    git_output(dir, args).map(|o| o.status.success()).unwrap_or(false)
+}
+
+fn unix_time() -> u64 {
+    std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
+}
+
+/// Single-quoted PowerShell literal. Backslashes are not escapes inside single quotes; only `'` needs doubling.
+fn ps_quote(value: &str) -> String {
+    format!("'{}'", value.replace('\'', "''"))
+}
+
+/// `find_python` returns either a program path or the two-word launcher form "py -3".
+fn python_command(python_bin: &str) -> Command {
+    if python_bin == "py -3" {
+        let mut c = Command::new("py");
+        c.arg("-3");
+        c
+    } else {
+        Command::new(python_bin)
+    }
+}
+
+/// The same interpreter as text for a `cmd.exe` command line (quoted when the path has spaces).
+fn python_for_shell(python_bin: &str) -> String {
+    if python_bin != "py -3" && python_bin.contains(' ') && !python_bin.starts_with('"') {
+        format!("\"{}\"", python_bin)
+    } else {
+        python_bin.to_string()
+    }
+}
+
+/// `cmd.exe <switch> "<command line>"`. The command line is passed verbatim: Rust's normal argument escaping
+/// turns inner quotes into `\"`, which cmd.exe does not understand, so a quoted Python path never worked.
+fn cmd_shell(switch: &str, command_line: &str) -> Command {
+    let mut cmd = Command::new("cmd.exe");
+    #[cfg(windows)]
+    {
+        cmd.raw_arg(switch);
+        cmd.raw_arg(format!("\"{}\"", command_line));
+    }
+    #[cfg(not(windows))]
+    {
+        cmd.args([switch, command_line]);
+    }
+    cmd
+}
+
+/// Run `pip install -r requirements.txt` for the project. Returns a note for the user when it did not succeed.
+fn install_requirements(project_dir: &Path, quiet: bool) -> Option<String> {
+    let req_file = project_dir.join("backend").join("requirements.txt");
+    if !req_file.exists() {
+        return None;
+    }
+    let python_bin = match find_python() {
+        Some(p) => p,
+        None => return Some("未偵測到 Python，已略過相依套件安裝。請安裝 Python 3.10+ 後再執行一次。".to_string()),
+    };
+    let mut pip_cmd = python_command(&python_bin);
+    pip_cmd.args(["-m", "pip", "install", "-r"]).arg(&req_file);
+    if quiet {
+        pip_cmd.arg("--quiet");
+    }
+    pip_cmd.current_dir(project_dir);
+    #[cfg(windows)]
+    pip_cmd.creation_flags(CREATE_NO_WINDOW);
+
+    match pip_cmd.output() {
+        Ok(out) if out.status.success() => None,
+        Ok(out) => {
+            let stderr = String::from_utf8_lossy(&out.stderr);
+            let last_line = stderr.lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim().to_string();
+            Some(format!("相依套件安裝未完成 (pip 結束代碼 {})：{}", out.status.code().unwrap_or(-1), last_line))
+        }
+        Err(e) => Some(format!("無法執行 pip：{}", e)),
     }
 }
 
@@ -94,11 +187,19 @@ pub struct UpdateResult {
 
 fn cleanup_old_launcher() {
     if let Ok(exe_path) = env::current_exe() {
+        // Only this launcher's own leftovers: the exe may live in Downloads next to unrelated files
+        let own_stem = exe_path.file_stem().and_then(|n| n.to_str()).unwrap_or("").to_string();
+        if own_stem.is_empty() {
+            return;
+        }
         if let Some(parent) = exe_path.parent() {
             if let Ok(entries) = std::fs::read_dir(parent) {
                 for entry in entries.flatten() {
                     let path = entry.path();
                     if let Some(name) = path.file_name().and_then(|n| n.to_str()) {
+                        if !name.starts_with(&own_stem) {
+                            continue;
+                        }
                         if name.ends_with(".exe.bak") || name.contains(".exe.old.") || name.ends_with(".exe.new") {
                             let _ = std::fs::remove_file(&path);
                         }
@@ -240,7 +341,6 @@ fn find_python() -> Option<String> {
         format!(r"{}\AppData\Local\Programs\Python\Python313\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python312\python.exe", home),
         format!(r"{}\AppData\Local\Programs\Python\Python311\python.exe", home),
-        r"C:\Users\李秉翰\AppData\Local\Programs\Python\Python314\python.exe".to_string(),
         r"C:\Python314\python.exe".to_string(),
         r"C:\Python313\python.exe".to_string(),
         r"C:\Python312\python.exe".to_string(),
@@ -268,7 +368,7 @@ fn check_git() -> bool {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn get_system_info() -> SystemInfo {
     let args: Vec<String> = env::args().collect();
     let force_install = args.iter().any(|a| a == "--install" || a == "--fresh");
@@ -300,7 +400,7 @@ fn get_system_info() -> SystemInfo {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn check_update() -> UpdateResult {
     let project_root = find_project_root();
     let project_ver = project_root
@@ -328,7 +428,7 @@ fn check_update() -> UpdateResult {
 
     let mut remote_launcher_url = None;
 
-    // 1. Query GitHub Releases API
+    // Query GitHub Releases API
     let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
     let resp = ureq::get(api_url)
         .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
@@ -386,39 +486,6 @@ fn check_update() -> UpdateResult {
         }
     }
 
-    // 2. Local Git repository check (if git clone was used)
-    if let Some(ref project_path) = project_root {
-        let git_dir = project_path.join(".git");
-        if git_dir.exists() {
-            let mut fetch_cmd = Command::new("git");
-            fetch_cmd.args(["fetch", "origin", "main"]).current_dir(project_path);
-            #[cfg(windows)]
-            fetch_cmd.creation_flags(CREATE_NO_WINDOW);
-
-            if let Ok(fetch_out) = fetch_cmd.output() {
-                if fetch_out.status.success() {
-                    let mut rev_cmd = Command::new("git");
-                    rev_cmd.args(["rev-list", "--count", "HEAD..origin/main"]).current_dir(project_path);
-                    #[cfg(windows)]
-                    rev_cmd.creation_flags(CREATE_NO_WINDOW);
-
-                    if let Ok(rev_out) = rev_cmd.output() {
-                        let count_str = String::from_utf8_lossy(&rev_out.stdout).trim().to_string();
-                        if let Ok(count) = count_str.parse::<u32>() {
-                            if count > 0 {
-                                // Only trigger has_update = true if remote version is strictly newer than local!
-                                if is_newer_version(&result.latest_version, CURRENT_VERSION)
-                                    || is_newer_version(&result.latest_version, &project_ver) {
-                                    result.has_update = true;
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-
     result
 }
 
@@ -444,6 +511,11 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     }
 
     // 2. Fallback: Download zipball from GitHub
+    extract_zip_into(target_dir)
+}
+
+/// Download the main branch as a zip and unpack it into `target_dir` (which must exist).
+fn extract_zip_into(target_dir: &Path) -> Result<(), String> {
     let zip_url = "https://github.com/hankyleisplay/AetherAI-Studio/archive/refs/heads/main.zip";
     let temp_zip = target_dir.join("aether_install_temp.zip");
 
@@ -481,9 +553,9 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     if !tar_ok {
         // Fallback: PowerShell Expand-Archive
         let ps_script = format!(
-            r#"$tempZip = '{}'; $target = '{}'; Expand-Archive -Path $tempZip -DestinationPath "$target\_temp_extract" -Force; Copy-Item "$target\_temp_extract\AetherAI-Studio-main\*" "$target" -Recurse -Force; Remove-Item "$target\_temp_extract" -Recurse -Force;"#,
-            temp_zip.to_string_lossy().replace('\\', "\\\\"),
-            target_dir.to_string_lossy().replace('\\', "\\\\")
+            r#"$tempZip = {}; $target = {}; Expand-Archive -LiteralPath $tempZip -DestinationPath "$target\_temp_extract" -Force; Copy-Item "$target\_temp_extract\AetherAI-Studio-main\*" "$target" -Recurse -Force; Remove-Item "$target\_temp_extract" -Recurse -Force;"#,
+            ps_quote(&temp_zip.to_string_lossy()),
+            ps_quote(&target_dir.to_string_lossy())
         );
         let mut ps_cmd = Command::new("powershell");
         ps_cmd.args(["-NoProfile", "-Command", &ps_script]);
@@ -503,7 +575,57 @@ fn download_and_extract_repo(target_dir: &Path) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+/// Copy every file under `src` that does not exist under `dst` (skips .git). Returns how many were copied.
+fn copy_missing_files(src: &Path, dst: &Path) -> std::io::Result<usize> {
+    let mut copied = 0;
+    for entry in std::fs::read_dir(src)? {
+        let entry = entry?;
+        let name = entry.file_name();
+        if name == ".git" {
+            continue;
+        }
+        let from = entry.path();
+        let to = dst.join(&name);
+        if entry.file_type()?.is_dir() {
+            std::fs::create_dir_all(&to)?;
+            copied += copy_missing_files(&from, &to)?;
+        } else if !to.exists() {
+            std::fs::copy(&from, &to)?;
+            copied += 1;
+        }
+    }
+    Ok(copied)
+}
+
+/// "Repair" puts back core files that are missing. It never overwrites a file that exists, so the user's own
+/// changes are safe. Returns how many files were restored.
+fn restore_missing_core_files(project_dir: &Path) -> Result<usize, String> {
+    if project_dir.join(".git").exists() && check_git() {
+        let out = git_output(project_dir, &["ls-files", "--deleted", "-z"])
+            .ok_or_else(|| "無法執行 git 檢查遺失檔案".to_string())?;
+        let listing = String::from_utf8_lossy(&out.stdout).to_string();
+        let deleted: Vec<&str> = listing.split('\0').filter(|f| !f.is_empty()).collect();
+        if deleted.is_empty() {
+            return Ok(0);
+        }
+        let mut args = vec!["checkout", "--"];
+        args.extend(deleted.iter().copied());
+        if !git_ok(project_dir, &args) {
+            return Err("git 無法還原遺失的檔案".to_string());
+        }
+        return Ok(deleted.len());
+    }
+
+    // Not a git checkout: unpack a fresh copy elsewhere and copy over only what is missing
+    let temp = env::temp_dir().join(format!("aether_repair_{}", unix_time()));
+    std::fs::create_dir_all(&temp).map_err(|e| format!("建立暫存資料夾失敗: {}", e))?;
+    let result = extract_zip_into(&temp)
+        .and_then(|_| copy_missing_files(&temp, project_dir).map_err(|e| format!("複製核心檔案失敗: {}", e)));
+    let _ = std::fs::remove_dir_all(&temp);
+    result
+}
+
+#[tauri::command(async)]
 fn install_or_repair_core(target_path: Option<String>) -> Result<String, String> {
     let install_dir = if let Some(p) = target_path {
         if !p.trim().is_empty() {
@@ -518,38 +640,42 @@ fn install_or_repair_core(target_path: Option<String>) -> Result<String, String>
         }
     };
 
-    // 1. Download or extract repository files if start.py doesn't exist
+    // 1. Fresh install, or put back missing core files of an existing one
+    let mut repair_note = String::new();
     if !install_dir.join("start.py").exists() {
         download_and_extract_repo(&install_dir)?;
+    } else {
+        repair_note = match restore_missing_core_files(&install_dir) {
+            Ok(0) => "核心檔案完整，無須修復。\n".to_string(),
+            Ok(n) => format!("已補回 {} 個遺失的核心檔案（未覆蓋任何既有檔案）。\n", n),
+            Err(e) => format!("⚠️ 檢查核心檔案時發生問題：{}\n", e),
+        };
     }
 
     // 2. Install Python dependencies
-    if let Some(python_bin) = find_python() {
-        let req_file = install_dir.join("backend").join("requirements.txt");
-        if req_file.exists() {
-            let mut pip_cmd = if python_bin.contains(" ") {
-                let parts: Vec<&str> = python_bin.split_whitespace().collect();
-                let mut c = Command::new(parts[0]);
-                c.args(&parts[1..]);
-                c
-            } else {
-                Command::new(&python_bin)
-            };
-            pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy()]);
-            pip_cmd.current_dir(&install_dir);
-            #[cfg(windows)]
-            pip_cmd.creation_flags(CREATE_NO_WINDOW);
-            let _ = pip_cmd.output();
-        }
-    }
+    let pip_note = install_requirements(&install_dir, false);
 
     // 3. Create desktop shortcut
     let _ = create_desktop_shortcut();
 
-    Ok(format!("🎉 Aether AI Studio 4.0 核心檔案與相依套件已成功安裝並配置完成！\n安裝路徑: {}", install_dir.display()))
+    match pip_note {
+        None => Ok(format!(
+            "🎉 Aether AI Studio {} 核心檔案與相依套件已安裝完成！\n{}安裝路徑: {}",
+            CURRENT_VERSION,
+            repair_note,
+            install_dir.display()
+        )),
+        // The files are in place, so this is not a failure, but the user must know the app may not start yet
+        Some(note) => Ok(format!(
+            "⚠️ 核心檔案已就緒，但{}\n{}安裝路徑: {}",
+            note,
+            repair_note,
+            install_dir.display()
+        )),
+    }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn install_python() -> Result<String, String> {
     // 1. Try winget install
     let mut winget = Command::new("winget");
@@ -587,7 +713,7 @@ fn select_custom_project_dir(path: String) -> Result<String, String> {
     Ok(format!("已成功設定並儲存專案目錄: {}", path))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn apply_update() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -617,64 +743,52 @@ fn apply_update() -> Result<String, String> {
             }
         }
 
-        // 2. Stash any local working directory modifications so merge never aborts
-        let mut stash_cmd = Command::new("git");
-        stash_cmd.args(["stash", "--include-untracked"]).current_dir(&project_dir);
-        #[cfg(windows)]
-        stash_cmd.creation_flags(CREATE_NO_WINDOW);
-        let _ = stash_cmd.output();
+        // 2. Put local changes aside only if there are any, under a name the user can find again
+        let dirty = git_output(&project_dir, &["status", "--porcelain"])
+            .map(|o| !o.stdout.is_empty())
+            .unwrap_or(false);
+        let stash_name = format!("aether-auto-update-{}", unix_time());
+        if dirty && !git_ok(&project_dir, &["stash", "push", "--include-untracked", "-m", &stash_name]) {
+            return Err("無法暫存你的本地修改，為避免覆蓋檔案已取消更新。".to_string());
+        }
 
-        // 3. Fast-forward pull
-        let mut pull_cmd = Command::new("git");
-        pull_cmd.args(["pull", "origin", "main"]).current_dir(&project_dir);
-        #[cfg(windows)]
-        pull_cmd.creation_flags(CREATE_NO_WINDOW);
+        // 3. Fast-forward only. A failed merge used to end in `git reset --hard`, discarding local commits.
+        if !git_ok(&project_dir, &["merge", "--ff-only", "origin/main"]) {
+            if dirty {
+                let _ = git_ok(&project_dir, &["stash", "pop"]);
+            }
+            return Err("你的專案有尚未推送的本地提交，無法自動更新；檔案都沒有被更動。請手動執行 git pull 合併。".to_string());
+        }
 
-        let pull_ok = match pull_cmd.output() {
-            Ok(output) => output.status.success(),
-            Err(_) => false,
-        };
-
-        if !pull_ok {
-            // Safe fallback: Hard reset to origin/main to guarantee clean update
-            let mut reset_cmd = Command::new("git");
-            reset_cmd.args(["reset", "--hard", "origin/main"]).current_dir(&project_dir);
-            #[cfg(windows)]
-            reset_cmd.creation_flags(CREATE_NO_WINDOW);
-            let reset_ok = reset_cmd.output().map(|o| o.status.success()).unwrap_or(false);
-            if !reset_ok {
-                return Err("更新合併失敗，請手動執行 git pull 或備份修改後重試。".to_string());
+        // 4. Bring the local changes back
+        let mut stash_note = String::new();
+        if dirty {
+            if git_ok(&project_dir, &["stash", "apply"]) {
+                let _ = git_ok(&project_dir, &["stash", "drop"]);
+            } else {
+                // Conflicts with the new version: clear the half-applied state, keep the stash for the user
+                let _ = git_ok(&project_dir, &["reset", "--hard", "HEAD"]);
+                stash_note = format!(
+                    "\n⚠️ 你的部分本地修改與新版衝突，已完整保存在 git stash「{}」，可用 git stash list 查看後手動還原。",
+                    stash_name
+                );
             }
         }
 
-        // 4. Update python dependencies in case requirements changed
-        if let Some(python_bin) = find_python() {
-            let req_file = project_dir.join("backend").join("requirements.txt");
-            if req_file.exists() {
-                let mut pip_cmd = if python_bin.contains(" ") {
-                    let parts: Vec<&str> = python_bin.split_whitespace().collect();
-                    let mut c = Command::new(parts[0]);
-                    c.args(&parts[1..]);
-                    c
-                } else {
-                    Command::new(&python_bin)
-                };
-                pip_cmd.args(["-m", "pip", "install", "-r", &req_file.to_string_lossy(), "--quiet"]);
-                pip_cmd.current_dir(&project_dir);
-                #[cfg(windows)]
-                pip_cmd.creation_flags(CREATE_NO_WINDOW);
-                let _ = pip_cmd.output();
-            }
-        }
+        // 5. Update python dependencies in case requirements changed
+        let pip_note = install_requirements(&project_dir, true);
 
-        // 5. Purge Chromium profile caches so updated assets and HTML load immediately
+        // 6. Purge Chromium profile caches so updated assets and HTML load immediately
         let home = env::var("USERPROFILE").unwrap_or_default();
         let cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Cache");
         let code_cache_dir = PathBuf::from(&home).join(".aether").join("desktop_profile").join("Default").join("Code Cache");
         let _ = std::fs::remove_dir_all(&cache_dir);
         let _ = std::fs::remove_dir_all(&code_cache_dir);
 
-        Ok("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！".to_string())
+        match pip_note {
+            None => Ok(format!("✅ 已成功更新至主分支最新版本，並自動同步相依套件與快取！{}", stash_note)),
+            Some(note) => Ok(format!("✅ 已更新至主分支最新版本。⚠️ {}{}", note, stash_note)),
+        }
     } else {
         // Non-git installation: download and update files directly
         download_and_extract_repo(&project_dir)?;
@@ -687,9 +801,14 @@ fn apply_update() -> Result<String, String> {
     }
 }
 
-fn get_latest_launcher_url() -> Result<String, String> {
-    let api_url = "https://api.github.com/repos/hankyleisplay/AetherAI-Studio/releases/latest";
-    let resp = ureq::get(api_url)
+struct LauncherAsset {
+    url: String,
+    /// "sha256:<hex>" as published by GitHub for the release asset
+    digest: Option<String>,
+}
+
+fn latest_launcher_asset() -> Result<LauncherAsset, String> {
+    let resp = ureq::get(RELEASE_API_URL)
         .set("User-Agent", &format!("AetherLauncher-v{}", CURRENT_VERSION))
         .set("Accept", "application/vnd.github.v3+json")
         .timeout(std::time::Duration::from_secs(8))
@@ -697,36 +816,48 @@ fn get_latest_launcher_url() -> Result<String, String> {
         .map_err(|e| format!("GitHub API 連線失敗: {}", e))?;
 
     let json: serde_json::Value = resp.into_json().map_err(|e| format!("解析回應失敗: {}", e))?;
-    if let Some(assets) = json.get("assets").and_then(|a| a.as_array()) {
-        for asset in assets {
-            if let Some(name) = asset.get("name").and_then(|n| n.as_str()) {
-                if name == "AetherLauncher.exe" {
-                    if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
-                        return Ok(url.to_string());
-                    }
-                }
-            }
+    let assets = json.get("assets").and_then(|a| a.as_array()).cloned().unwrap_or_default();
+    for asset in assets {
+        if asset.get("name").and_then(|n| n.as_str()) != Some("AetherLauncher.exe") {
+            continue;
+        }
+        if let Some(url) = asset.get("browser_download_url").and_then(|u| u.as_str()) {
+            return Ok(LauncherAsset {
+                url: url.to_string(),
+                digest: asset.get("digest").and_then(|d| d.as_str()).map(|d| d.to_lowercase()),
+            });
         }
     }
     Err("在最新 GitHub Release 中未找到 AetherLauncher.exe 發行資產。".to_string())
 }
 
-#[tauri::command]
+fn sha256_file(path: &Path) -> Result<String, String> {
+    let mut file = std::fs::File::open(path).map_err(|e| format!("讀取檔案失敗: {}", e))?;
+    let mut hasher = Sha256::new();
+    std::io::copy(&mut file, &mut hasher).map_err(|e| format!("讀取檔案失敗: {}", e))?;
+    Ok(hasher.finalize().iter().map(|b| format!("{:02x}", b)).collect())
+}
+
+#[tauri::command(async)]
 fn self_update_launcher(download_url: Option<String>) -> Result<String, String> {
     let current_exe = match env::current_exe() {
         Ok(p) => p,
         Err(e) => return Err(format!("無法獲取當前執行檔路徑: {}", e)),
     };
 
-    let target_url = if let Some(url) = download_url {
-        if !url.trim().is_empty() {
-            url
-        } else {
-            get_latest_launcher_url()?
+    // The executable replaces this one, so it must come from this project's releases and match the published
+    // hash. The page may pass a URL, but only one on the release download path is accepted, and the hash is
+    // always looked up from the GitHub API.
+    if let Some(url) = download_url.as_deref() {
+        if !url.trim().is_empty() && !url.starts_with(RELEASE_DOWNLOAD_PREFIX) {
+            return Err("更新來源不是官方 GitHub Release，已拒絕。".to_string());
         }
-    } else {
-        get_latest_launcher_url()?
-    };
+    }
+    let asset = latest_launcher_asset()?;
+    let target_url = asset.url.clone();
+    if !target_url.starts_with(RELEASE_DOWNLOAD_PREFIX) {
+        return Err("更新來源不是官方 GitHub Release，已拒絕。".to_string());
+    }
 
     // 1. Download to temporary file
     let temp_exe = current_exe.with_extension("exe.new");
@@ -736,7 +867,7 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
 
     let resp = ureq::get(&target_url)
         .set("User-Agent", "AetherLauncher-Updater")
-        .timeout(std::time::Duration::from_secs(60))
+        .timeout(std::time::Duration::from_secs(300))
         .call()
         .map_err(|e| format!("下載最新啟動器失敗: {}", e))?;
 
@@ -752,6 +883,19 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
     if metadata.len() < 1_000_000 {
         let _ = std::fs::remove_file(&temp_exe);
         return Err("下載之檔案大小異常，已取消更新。".to_string());
+    }
+
+    let mut verify_note = "（已通過 SHA-256 驗證）";
+    match asset.digest.as_deref() {
+        Some(digest) if digest.starts_with("sha256:") => {
+            let actual = sha256_file(&temp_exe)?;
+            if actual != digest["sha256:".len()..] {
+                let _ = std::fs::remove_file(&temp_exe);
+                return Err("下載的啟動器與官方發佈的 SHA-256 不符，可能已損毀或遭竄改，已取消更新。".to_string());
+            }
+        }
+        // Releases published before GitHub added asset digests have none to compare with
+        _ => verify_note = "（此 Release 未提供雜湊值，僅檢查檔案大小）",
     }
 
     // 2. Generate unique timestamped backup name to prevent collision
@@ -789,29 +933,34 @@ fn self_update_launcher(download_url: Option<String>) -> Result<String, String> 
         std::process::exit(0);
     });
 
-    Ok("✅ 啟動器已成功更新至最新版，正在為您自動重新啟動...".to_string())
+    Ok(format!("✅ 啟動器已成功更新至最新版{}，正在為您自動重新啟動...", verify_note))
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn close_all_instances(port: u16) -> Result<u32, String> {
     let port_str = port.to_string();
 
+    // Only processes that are recognisably Aether: its own start script with a --port argument, the health check,
+    // an app-mode browser window on this port, and whatever listens on the port *if* it is our server. Matching any
+    // command line containing "start.py", or any process on the port, killed unrelated programs.
     let ps_script = format!(
-        r#"$killed = 0;
-$pids = @();
-$conns = Get-NetTCPConnection -LocalPort {} -ErrorAction SilentlyContinue;
-if ($conns) {{ $pids += ($conns | Select-Object -ExpandProperty OwningProcess) }}
-$app_procs = Get-CimInstance Win32_Process -Filter "CommandLine LIKE '%aetherai_studio_3%' OR CommandLine LIKE '%start.py%' OR CommandLine LIKE '%test_backend.py%'" -ErrorAction SilentlyContinue;
-if ($app_procs) {{ $pids += ($app_procs | Select-Object -ExpandProperty ProcessId) }}
-$unique_pids = $pids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_ -ne $PID }};
-foreach ($p in $unique_pids) {{
+        r#"$killed = 0
+$ids = @()
+$sig = "CommandLine LIKE '%start.py%--port%' OR CommandLine LIKE '%test_backend.py%' OR CommandLine LIKE '%--app=http://localhost:{port}%' OR CommandLine LIKE '%--app=http://127.0.0.1:{port}%'"
+$ids += @(Get-CimInstance Win32_Process -Filter $sig -ErrorAction SilentlyContinue | Select-Object -ExpandProperty ProcessId)
+$conns = @(Get-NetTCPConnection -LocalPort {port} -State Listen -ErrorAction SilentlyContinue)
+foreach ($c in $conns) {{
+    $owner = Get-CimInstance Win32_Process -Filter "ProcessId = $($c.OwningProcess)" -ErrorAction SilentlyContinue
+    if ($owner -and $owner.CommandLine -match 'start\.py|uvicorn|backend\.app\.main') {{ $ids += $owner.ProcessId }}
+}}
+foreach ($id in ($ids | Select-Object -Unique | Where-Object {{ $_ -gt 0 -and $_ -ne $PID }})) {{
     try {{
-        Stop-Process -Id $p -Force -ErrorAction SilentlyContinue;
-        $killed++;
+        Stop-Process -Id $id -Force -ErrorAction Stop
+        $killed++
     }} catch {{}}
 }}
-Write-Host $killed;"#,
-        port_str
+Write-Output $killed"#,
+        port = port_str
     );
 
     // Also close CMD windows with title starting with Aether AI Studio
@@ -841,7 +990,8 @@ fn is_port_free(port: u16) -> bool {
 }
 
 fn find_available_port(start_port: u16) -> u16 {
-    for p in start_port..(start_port + 200) {
+    // Saturating: near 65535 the plain `+ 200` overflowed u16
+    for p in start_port..=start_port.saturating_add(200) {
         if is_port_free(p) {
             return p;
         }
@@ -849,7 +999,7 @@ fn find_available_port(start_port: u16) -> u16 {
     start_port
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String> {
     // If project is not installed yet, auto-install first!
     let project_dir = match find_project_root() {
@@ -869,11 +1019,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
         None => return Err("找不到系統 Python。請確認已安裝 Python 3.10+ 並加入系統 PATH。".to_string()),
     };
 
-    let quoted_python = if python_bin.contains(' ') && !python_bin.starts_with('"') && !python_bin.starts_with("py ") {
-        format!("\"{}\"", python_bin)
-    } else {
-        python_bin.clone()
-    };
+    let quoted_python = python_for_shell(&python_bin);
 
     let start_py = project_dir.join("start.py");
     if !start_py.exists() {
@@ -884,7 +1030,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
     let actual_port = if is_port_free(port) {
         port
     } else {
-        find_available_port(port + 1)
+        find_available_port(port.saturating_add(1))
     };
     let is_multi = actual_port != port;
     let port_str = actual_port.to_string();
@@ -901,9 +1047,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/c", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/c", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NO_WINDOW);
@@ -930,9 +1075,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/k", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/k", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NEW_CONSOLE);
@@ -959,9 +1103,8 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
                 low_spec_arg
             );
 
-            let mut cmd = Command::new("cmd.exe");
-            cmd.args(["/k", &exec_cmd])
-                .current_dir(&project_dir);
+            let mut cmd = cmd_shell("/k", &exec_cmd);
+            cmd.current_dir(&project_dir);
 
             #[cfg(windows)]
             cmd.creation_flags(CREATE_NEW_CONSOLE);
@@ -981,7 +1124,7 @@ fn launch_mode(mode: String, port: u16, low_spec: bool) -> Result<String, String
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn create_desktop_shortcut() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1009,14 +1152,14 @@ fn create_desktop_shortcut() -> Result<String, String> {
     let ps_script = format!(
         r#"$desktop = [Environment]::GetFolderPath('Desktop');
 $s = (New-Object -COM WScript.Shell).CreateShortcut("$desktop\Aether AI Studio.lnk");
-$s.TargetPath = '{}';
-$s.WorkingDirectory = '{}';
+$s.TargetPath = {};
+$s.WorkingDirectory = {};
 $s.Description = 'Aether AI Studio 官方專屬啟動器';
-$s.IconLocation = '{},0';
+$s.IconLocation = {};
 $s.Save();"#,
-        launcher_exe.replace('\\', "\\\\"),
-        project_dir.to_string_lossy().replace('\\', "\\\\"),
-        icon_location.replace('\\', "\\\\")
+        ps_quote(&launcher_exe),
+        ps_quote(&project_dir.to_string_lossy()),
+        ps_quote(&format!("{},0", icon_location))
     );
 
     let mut cmd = Command::new("powershell");
@@ -1036,7 +1179,7 @@ $s.Save();"#,
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn open_project_folder() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1060,7 +1203,7 @@ fn open_project_folder() -> Result<String, String> {
     }
 }
 
-#[tauri::command]
+#[tauri::command(async)]
 fn run_health_check() -> Result<String, String> {
     let project_dir = match find_project_root() {
         Some(p) => p,
@@ -1075,12 +1218,11 @@ fn run_health_check() -> Result<String, String> {
     let exec_cmd = format!(
         "chcp 65001 >nul & title Aether AI Studio {} [系統檢測] & {} test_backend.py & pause",
         CURRENT_VERSION,
-        python_bin
+        python_for_shell(&python_bin)
     );
 
-    let mut cmd = Command::new("cmd.exe");
-    cmd.args(["/k", &exec_cmd])
-        .current_dir(&project_dir);
+    let mut cmd = cmd_shell("/k", &exec_cmd);
+    cmd.current_dir(&project_dir);
 
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NEW_CONSOLE);

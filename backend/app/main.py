@@ -1,5 +1,7 @@
 import os
+import time
 import asyncio
+import subprocess
 # Prevent Blackwell/RTX 50 CUDA shared object initialization failure in Ollama
 if "OLLAMA_FLASH_ATTENTION" not in os.environ:
     os.environ["OLLAMA_FLASH_ATTENTION"] = "false"
@@ -7,21 +9,22 @@ import json
 from pathlib import Path
 from contextlib import asynccontextmanager
 from typing import Dict, Any, List, Optional
-from fastapi import FastAPI, HTTPException, BackgroundTasks, Request, UploadFile, File, Response
+from urllib.parse import urlsplit
+from fastapi import FastAPI, HTTPException, Request, UploadFile, File, Response
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse, JSONResponse
-import hmac
 from sse_starlette.sse import EventSourceResponse
 from pydantic import BaseModel
 
-from backend.app.config import settings, BASE_DIR
+from backend.app.config import settings, BASE_DIR, get_effective_workspace_dir, child_process_env, shell_command_in
 from backend.app.storage.database import db
 from backend.app.tools.registry import registry
 from backend.app.llm.provider import UnifiedLLMClient, ModelConfig
 from backend.app.agent.core import AgentOrchestrator
 from backend.app.coding.agent import CodingAgent, resolve_approval, request_stop
 from backend.app.services.telegram_bridge import telegram_bridge
+from backend.app.services import access, desktop_session
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -40,7 +43,9 @@ async def lifespan(app: FastAPI):
         recover_interrupted_jobs()
     except Exception as e:
         print(f"[Media] Startup warning: {e}")
+    desktop_watch = asyncio.create_task(desktop_session.watch())
     yield
+    desktop_watch.cancel()
     # Shutdown
     try:
         await telegram_bridge.stop()
@@ -49,10 +54,15 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title=settings.app_name, version=settings.version, lifespan=lifespan)
 
-# Enable CORS for local Vite development
+# CORS: only the Vite dev server needs cross-origin access. A wildcard here let any website the user
+# visited call this API from their browser (the request comes from localhost, so it skipped the PIN too).
+DEV_ORIGINS = {"http://localhost:5173", "http://127.0.0.1:5173"}
+EXTRA_ORIGINS = {o.strip().rstrip("/").lower() for o in os.environ.get("AETHER_ALLOWED_ORIGINS", "").split(",") if o.strip()}
+ALLOWED_ORIGINS = DEV_ORIGINS | EXTRA_ORIGINS
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=sorted(ALLOWED_ORIGINS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -62,29 +72,84 @@ app.add_middleware(
 # The PIN used to be checked only by the frontend, so any remote client could call the terminal,
 # file and git APIs directly. Enforce it server-side for every non-local /api request.
 PIN_EXEMPT_PATHS = {"/api/health", "/api/auth/status", "/api/auth/verify-pin"}
+# Remote requests while no PIN is set: everything except these is refused
+REMOTE_SETUP_PATHS = {"/api/health", "/api/auth/status"}
 LOCAL_HOSTS = {"127.0.0.1", "::1", "localhost"}
 PROXY_HEADERS = ("cf-connecting-ip", "x-forwarded-for", "x-real-ip", "forwarded")
+
+def _host_name(value: str) -> str:
+    """Hostname without the port from a Host-style header value ('[::1]:8000', 'localhost:8000')."""
+    value = (value or "").strip().lower()
+    if value.startswith("["):
+        return value[1:value.find("]")] if "]" in value else value
+    return value.rsplit(":", 1)[0] if value.count(":") == 1 else value
 
 def _is_local_request(request: Request) -> bool:
     # Cloudflare Tunnel / reverse proxies connect from localhost, so a proxy header means remote
     if any(h in request.headers for h in PROXY_HEADERS):
         return False
     host = request.client.host if request.client else ""
-    return host in LOCAL_HOSTS
+    if host not in LOCAL_HOSTS:
+        return False
+    # A loopback connection asking for some other host name is a header-less proxy or DNS rebinding
+    return _host_name(request.headers.get("host", "")) in LOCAL_HOSTS
 
-def _request_pin_ok(request: Request, pin: str) -> bool:
-    token = (request.headers.get("x-access-token") or request.headers.get("x-access-pin")
-             or request.cookies.get("aether_access_token") or "")
-    return hmac.compare_digest(token.encode("utf-8"), pin.encode("utf-8"))
+def _request_authorized(request: Request) -> bool:
+    """A remote request is allowed with a session token from /api/auth/verify-pin (header or cookie) or, for
+    scripts, the PIN itself in x-access-pin."""
+    token = request.headers.get("x-access-token") or request.cookies.get("aether_access_token")
+    if access.token_valid(token):
+        return True
+    pin_header = request.headers.get("x-access-pin")
+    return bool(pin_header) and access.check_pin(pin_header)
+
+def _origin_allowed(request: Request) -> bool:
+    """Reject browser requests made by another site (CSRF). Requests without an Origin header are not a browser
+    calling across sites, so curl, the Telegram bridge and plain same-origin GETs are unaffected."""
+    origin = request.headers.get("origin")
+    if not origin:
+        # Cross-site requests made without CORS (<img>, form GET) carry no Origin but do say where they come from
+        return (request.headers.get("sec-fetch-site") or "").lower() not in ("cross-site", "same-site")
+    origin = origin.strip().rstrip("/").lower()
+    if origin in ALLOWED_ORIGINS:
+        return True
+    netloc = urlsplit(origin).netloc
+    if not netloc:
+        return False  # "null": sandboxed iframes, file:// and data: pages
+    own_hosts = {h.strip().lower() for h in (
+        request.headers.get("host", ""), *request.headers.get("x-forwarded-host", "").split(",")) if h.strip()}
+    return netloc in own_hosts
 
 @app.middleware("http")
 async def enforce_web_access_pin(request: Request, call_next):
     path = request.url.path
-    if path.startswith("/api/") and path not in PIN_EXEMPT_PATHS and request.method != "OPTIONS":
-        pin = db.get_setting("web_access_pin")
-        if pin and not _is_local_request(request) and not _request_pin_ok(request, pin):
-            return JSONResponse(status_code=401, content={"detail": "PIN required"})
+    if path.startswith("/api/") and request.method != "OPTIONS":
+        if not _origin_allowed(request):
+            return JSONResponse(status_code=403, content={"detail": "Cross-origin request blocked"})
+        if not _is_local_request(request):
+            # The server listens on every interface so phones on the LAN can connect. Without a PIN that meant
+            # anyone on the same Wi-Fi could use the terminal; remote use now needs a PIN set on the host first.
+            if not access.pin_configured():
+                if path not in REMOTE_SETUP_PATHS:
+                    return JSONResponse(status_code=403, content={"detail": "remote_pin_required"})
+            elif path not in PIN_EXEMPT_PATHS and not _request_authorized(request):
+                return JSONResponse(status_code=401, content={"detail": "PIN required"})
     return await call_next(request)
+
+# Files from the workspace and media folders are written by the agent or downloaded from the web. Served from this
+# origin, an HTML or SVG file opened in a tab could call the local API; the sandbox CSP gives it an origin of its own.
+USER_FILE_HEADERS = {
+    "Content-Security-Policy": "sandbox allow-scripts allow-forms allow-modals allow-popups allow-downloads",
+    "X-Content-Type-Options": "nosniff",
+}
+
+def _project_dir(project: Optional[str] = None) -> Path:
+    """Folder that terminal and git commands run in: the named (or active) project, else the workspace root."""
+    return get_effective_workspace_dir(project or None).resolve()
+
+async def _run(cmd, **kwargs):
+    """subprocess.run off the event loop; a blocking call here froze every chat stream while it ran."""
+    return await asyncio.to_thread(subprocess.run, cmd, **kwargs)
 
 # Request Models
 class ChatRequest(BaseModel):
@@ -533,7 +598,7 @@ async def get_media_file(media_id: str):
     path = (media.media_dir() / item["file_name"]).resolve()
     if media.media_dir() not in path.parents or not path.exists():
         raise HTTPException(status_code=404, detail="Media file missing")
-    return FileResponse(str(path))
+    return FileResponse(str(path), headers=USER_FILE_HEADERS)
 
 @app.get("/api/media/{media_id}")
 async def get_media_item(media_id: str):
@@ -667,8 +732,15 @@ async def upload_file(file: UploadFile = File(...)):
         upload_dir = settings.workspace_dir / "uploads"
         upload_dir.mkdir(parents=True, exist_ok=True)
         # Sanitize filename
-        safe_name = Path(file.filename or "uploaded_file").name
+        safe_name = Path(file.filename or "uploaded_file").name or "uploaded_file"
         target_path = upload_dir / safe_name
+        # Uploading another file with the same name used to replace the first one silently
+        counter = 1
+        while target_path.exists():
+            stem, suffix = Path(safe_name).stem, Path(safe_name).suffix
+            target_path = upload_dir / f"{stem} ({counter}){suffix}"
+            counter += 1
+        safe_name = target_path.name
         content = await file.read()
         target_path.write_bytes(content)
         
@@ -704,17 +776,17 @@ async def export_session(session_id: str, format: str = "markdown"):
         ""
     ]
     for m in messages:
-        role_label = "👤 使用者" if m["role"] == "user" else "💧 Aether AI Studio 4.0 (AetherAgent)"
+        role_label = "👤 使用者" if m["role"] == "user" else "💧 Aether AI Studio (AetherAgent)"
         lines.append(f"### {role_label}")
         if m.get("thought"):
-            lines.append(f"> 💭 **思維鏈過程**:\n> {m['thought'].replace(chr(10), chr(10) + '> ')}")
+            lines.append(f"> 💭 **思維鏈過程**:\n> {str(m['thought']).replace(chr(10), chr(10) + '> ')}")
             lines.append("")
         if m.get("tool_calls"):
             lines.append("**🛠️ 工具執行記錄**:")
             for tc in m["tool_calls"]:
-                lines.append(f"- `{tc.get('name')}`: {tc.get('output', '')[:100]}...")
+                lines.append(f"- `{tc.get('name')}`: {str(tc.get('output') or '')[:100]}...")
             lines.append("")
-        lines.append(m["content"])
+        lines.append(m.get("content") or "")
         lines.append("")
         lines.append("---")
         lines.append("")
@@ -862,7 +934,7 @@ async def get_workspace_file(path: str, raw: bool = False):
     ext = target.suffix.lower()
     img_exts = [".png", ".jpg", ".jpeg", ".gif", ".webp", ".svg", ".bmp"]
     if ext in img_exts or raw:
-        return FileResponse(str(target))
+        return FileResponse(str(target), headers=USER_FILE_HEADERS)
     
     try:
         content = target.read_text(encoding="utf-8", errors="replace")
@@ -1288,8 +1360,6 @@ async def get_active_project():
 
 @app.post('/api/terminal/exec')
 async def execute_terminal_command(payload: TerminalExecPayload):
-    import subprocess
-    import time
     cmd = (payload.command or '').strip()
     if not cmd:
         return {'stdout': '', 'stderr': 'No command provided', 'exit_code': 1, 'duration_ms': 0}
@@ -1297,25 +1367,13 @@ async def execute_terminal_command(payload: TerminalExecPayload):
     for d in dangerous:
         if d in cmd:
             return {'stdout': '', 'stderr': f'Command rejected: contains dangerous pattern \'{d}\'', 'exit_code': 126, 'duration_ms': 0}
-    base = settings.workspace_dir.resolve()
     project_name = payload.project or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if project_name:
-        if project_name in projects_meta:
-            cand = Path(projects_meta[project_name].get('path', '')).resolve()
-            target_cwd = cand if cand.exists() and cand.is_dir() else base
-        else:
-            cand = base / 'projects' / project_name
-            target_cwd = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_cwd = base
+    target_cwd = _project_dir(project_name)
     start_time = time.time()
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-    env['PYTHONUTF8'] = '1'
+    env = child_process_env()
     try:
-        res = subprocess.run(
-            cmd,
+        res = await _run(
+            shell_command_in(cmd, str(target_cwd)),
             shell=True,
             capture_output=True,
             timeout=30,
@@ -1367,37 +1425,75 @@ async def execute_terminal_command(payload: TerminalExecPayload):
 
 @app.get('/api/auth/status')
 async def auth_status(request: Request):
-    pin = db.get_setting("web_access_pin")
-    if not pin:
-        return {"pin_protected": False, "authenticated": True}
-    is_authed = _is_local_request(request) or _request_pin_ok(request, pin)
-    return {"pin_protected": True, "authenticated": is_authed}
+    configured = access.pin_configured()
+    if _is_local_request(request):
+        return {"pin_protected": configured, "authenticated": True, "remote_setup_required": False}
+    if not configured:
+        return {"pin_protected": False, "authenticated": False, "remote_setup_required": True}
+    return {"pin_protected": True, "authenticated": _request_authorized(request), "remote_setup_required": False}
+
+PIN_MAX_FAILURES = 5
+PIN_LOCK_SECONDS = 60
+_pin_failures: Dict[str, Dict[str, float]] = {}
+
+def _pin_client_key(request: Request) -> str:
+    forwarded = request.headers.get("cf-connecting-ip") or request.headers.get("x-forwarded-for", "").split(",")[0]
+    return (forwarded or (request.client.host if request.client else "") or "unknown").strip()
 
 @app.post('/api/auth/verify-pin')
-async def verify_pin(payload: PinVerifyPayload, response: Response):
-    configured_pin = db.get_setting("web_access_pin")
-    if not configured_pin:
+async def verify_pin(payload: PinVerifyPayload, request: Request, response: Response):
+    if not access.pin_configured():
+        if not _is_local_request(request):
+            raise HTTPException(status_code=403, detail="remote_pin_required")
         return {"status": "ok", "authenticated": True, "token": "open"}
-    if hmac.compare_digest((payload.pin or "").strip().encode("utf-8"), configured_pin.encode("utf-8")):
+    # A short PIN is guessable in seconds without a limit on attempts
+    key = _pin_client_key(request)
+    now = time.time()
+    entry = _pin_failures.get(key)
+    if entry and entry["locked_until"] > now:
+        wait = int(entry["locked_until"] - now) + 1
+        raise HTTPException(status_code=429, detail=f"嘗試次數過多，請 {wait} 秒後再試", headers={"Retry-After": str(wait)})
+    if access.check_pin(payload.pin):
+        _pin_failures.pop(key, None)
+        # A random session token, not the PIN: the browser keeps it, so it must not reveal the PIN
+        token = access.issue_token()
         # Cookie covers requests the frontend can't add headers to (<img src>, downloads)
-        response.set_cookie("aether_access_token", configured_pin, httponly=True, samesite="lax", max_age=30 * 86400)
-        return {"status": "ok", "authenticated": True, "token": configured_pin}
+        response.set_cookie("aether_access_token", token, httponly=True, samesite="lax", max_age=access.SESSION_TTL_SECONDS)
+        return {"status": "ok", "authenticated": True, "token": token}
+    if len(_pin_failures) > 2000:
+        _pin_failures.clear()
+    entry = _pin_failures.setdefault(key, {"count": 0, "locked_until": 0.0})
+    entry["count"] += 1
+    if entry["count"] >= PIN_MAX_FAILURES:
+        entry["count"] = 0
+        entry["locked_until"] = now + PIN_LOCK_SECONDS
     raise HTTPException(status_code=401, detail="PIN 碼錯誤，請重新輸入")
 
 @app.post('/api/auth/set-pin')
 async def set_pin(payload: PinSetPayload):
-    configured_pin = db.get_setting("web_access_pin")
-    if configured_pin:
-        if payload.old_pin != configured_pin:
-            raise HTTPException(status_code=403, detail="原 PIN 碼驗證失敗，無法修改")
+    if access.pin_configured() and not access.check_pin(payload.old_pin):
+        raise HTTPException(status_code=403, detail="原 PIN 碼驗證失敗，無法修改")
     if not payload.enabled or not payload.new_pin:
-        db.set_setting("web_access_pin", None)
+        access.set_pin(None)
         return {"status": "disabled", "pin_protected": False}
     new_pin_clean = payload.new_pin.strip()
     if len(new_pin_clean) < 4:
         raise HTTPException(status_code=400, detail="PIN 碼長度至少需 4 位數")
-    db.set_setting("web_access_pin", new_pin_clean)
+    # Signs out every device; they log in again with the new PIN
+    access.set_pin(new_pin_clean)
     return {"status": "updated", "pin_protected": True}
+
+# ================= Desktop window lifetime =================
+
+@app.post('/api/desktop/heartbeat')
+async def desktop_heartbeat():
+    desktop_session.heartbeat()
+    return {"status": "ok", "desktop_mode": desktop_session.enabled()}
+
+@app.post('/api/desktop/closing')
+async def desktop_closing():
+    desktop_session.closing()
+    return {"status": "ok"}
 
 # ================= Web Filesystem Tree Browser (for Remote & Mobile) =================
 
@@ -1460,9 +1556,7 @@ active_terminal_processes: Dict[str, Any] = {}
 
 @app.post('/api/terminal/stream')
 async def stream_terminal_command(payload: TerminalExecPayload):
-    import subprocess
     import uuid
-    import time
     cmd = (payload.command or '').strip()
     if not cmd:
         raise HTTPException(status_code=400, detail="No command provided")
@@ -1471,34 +1565,23 @@ async def stream_terminal_command(payload: TerminalExecPayload):
         if d in cmd:
             raise HTTPException(status_code=400, detail=f"Command rejected: contains dangerous pattern '{d}'")
     
-    base = settings.workspace_dir.resolve()
     project_name = payload.project or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if project_name:
-        if project_name in projects_meta:
-            cand = Path(projects_meta[project_name].get('path', '')).resolve()
-            target_cwd = cand if cand.exists() and cand.is_dir() else base
-        else:
-            cand = base / 'projects' / project_name
-            target_cwd = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_cwd = base
+    target_cwd = _project_dir(project_name)
 
-    env = os.environ.copy()
-    env['PYTHONIOENCODING'] = 'utf-8'
-    env['PYTHONUTF8'] = '1'
+    env = child_process_env()
 
     proc_id = str(uuid.uuid4())
 
     async def terminal_generator():
         start_time = time.time()
+        proc = None
         yield {
             "event": "start",
             "data": json.dumps({"command": cmd, "cwd": str(target_cwd), "proc_id": proc_id})
         }
         try:
             proc = subprocess.Popen(
-                cmd,
+                shell_command_in(cmd, str(target_cwd)),
                 shell=True,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.STDOUT,
@@ -1537,6 +1620,12 @@ async def stream_terminal_command(payload: TerminalExecPayload):
             }
         finally:
             active_terminal_processes.pop(proc_id, None)
+            # The client closed the terminal or the stream was cancelled: don't leave the command running
+            if proc is not None and proc.poll() is None:
+                try:
+                    proc.kill()
+                except Exception:
+                    pass
 
     return EventSourceResponse(terminal_generator())
 
@@ -1566,15 +1655,8 @@ async def kill_terminal_command(payload: Optional[Dict[str, str]] = None):
 
 @app.get('/api/git/status')
 async def get_git_status(project: Optional[str] = None):
-    import subprocess
-    base = settings.workspace_dir.resolve()
     target_project = project or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if target_project and target_project in projects_meta:
-        cand = Path(projects_meta[target_project].get('path', '')).resolve()
-        target_dir = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_dir = base
+    target_dir = _project_dir(target_project)
 
     git_dir = target_dir / '.git'
     if not git_dir.exists():
@@ -1589,13 +1671,13 @@ async def get_git_status(project: Optional[str] = None):
         }
 
     try:
-        branch_res = subprocess.run(
+        branch_res = await _run(
             ["git", "branch", "--show-current"],
             capture_output=True, text=True, cwd=str(target_dir), timeout=5
         )
         branch = branch_res.stdout.strip() or "main"
 
-        status_res = subprocess.run(
+        status_res = await _run(
             ["git", "status", "--porcelain=v1"],
             capture_output=True, text=True, cwd=str(target_dir), timeout=5
         )
@@ -1631,74 +1713,63 @@ async def get_git_status(project: Optional[str] = None):
 
 @app.post('/api/git/commit')
 async def git_commit(payload: GitCommitPayload):
-    import subprocess
-    base = settings.workspace_dir.resolve()
     target_project = payload.project or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if target_project and target_project in projects_meta:
-        cand = Path(projects_meta[target_project].get('path', '')).resolve()
-        target_dir = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_dir = base
+    target_dir = _project_dir(target_project)
 
-    if payload.stage_all:
-        subprocess.run(["git", "add", "-A"], cwd=str(target_dir), check=True, timeout=10)
-
-    res = subprocess.run(
-        ["git", "commit", "-m", payload.message],
-        capture_output=True, text=True, cwd=str(target_dir), timeout=10
-    )
+    if not (target_dir / '.git').exists():
+        raise HTTPException(status_code=400, detail=f"Not a git repository: {target_dir}")
+    try:
+        if payload.stage_all:
+            add_res = await _run(["git", "add", "-A"], capture_output=True, text=True, cwd=str(target_dir), timeout=30)
+            if add_res.returncode != 0:
+                raise HTTPException(status_code=400, detail=add_res.stderr or add_res.stdout or "git add failed")
+        res = await _run(
+            ["git", "commit", "-m", payload.message],
+            capture_output=True, text=True, cwd=str(target_dir), timeout=30
+        )
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git timed out") from None
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="git is not installed") from None
     if res.returncode != 0:
         raise HTTPException(status_code=400, detail=res.stderr or res.stdout or "Commit failed")
     return {"status": "ok", "output": res.stdout.strip()}
 
 @app.post('/api/git/push')
 async def git_push(payload: Optional[GitPushPayload] = None):
-    import subprocess
-    base = settings.workspace_dir.resolve()
     p = payload or GitPushPayload()
     target_project = p.project or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if target_project and target_project in projects_meta:
-        cand = Path(projects_meta[target_project].get('path', '')).resolve()
-        target_dir = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_dir = base
+    target_dir = _project_dir(target_project)
 
     cmd = ["git", "push"]
     if p.remote and p.branch:
         cmd.extend([p.remote, p.branch])
-    res = subprocess.run(
-        cmd,
-        capture_output=True, text=True, cwd=str(target_dir), timeout=30
-    )
+    try:
+        res = await _run(cmd, capture_output=True, text=True, cwd=str(target_dir), timeout=60)
+    except subprocess.TimeoutExpired:
+        raise HTTPException(status_code=504, detail="git push timed out") from None
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail="git is not installed") from None
     if res.returncode != 0:
         raise HTTPException(status_code=400, detail=res.stderr or res.stdout or "Push failed")
     return {"status": "ok", "output": res.stdout.strip() or res.stderr.strip()}
 
 @app.post('/api/git/ai-commit-msg')
 async def git_ai_commit_msg(payload: Optional[Dict[str, str]] = None):
-    import subprocess
-    base = settings.workspace_dir.resolve()
     project = (payload or {}).get("project") or db.get_setting('active_project')
-    projects_meta = db.get_setting('projects_metadata') or {}
-    if project and project in projects_meta:
-        cand = Path(projects_meta[project].get('path', '')).resolve()
-        target_dir = cand if cand.exists() and cand.is_dir() else base
-    else:
-        target_dir = base
+    target_dir = _project_dir(project)
 
-    diff_res = subprocess.run(
-        ["git", "diff", "HEAD"],
-        capture_output=True, text=True, cwd=str(target_dir), timeout=5
-    )
-    diff = diff_res.stdout[:3000].strip()
-    if not diff:
-        diff_res2 = subprocess.run(
-            ["git", "status", "--porcelain=v1"],
-            capture_output=True, text=True, cwd=str(target_dir), timeout=5
-        )
-        diff = diff_res2.stdout[:2000].strip()
+    diff = ""
+    try:
+        diff_res = await _run(["git", "diff", "HEAD"], capture_output=True, text=True, encoding="utf-8",
+                              errors="replace", cwd=str(target_dir), timeout=10)
+        diff = (diff_res.stdout or "")[:3000].strip()
+        if not diff:
+            diff_res2 = await _run(["git", "status", "--porcelain=v1"], capture_output=True, text=True,
+                                   encoding="utf-8", errors="replace", cwd=str(target_dir), timeout=10)
+            diff = (diff_res2.stdout or "")[:2000].strip()
+    except Exception:
+        diff = ""
 
     if not diff:
         return {"commit_message": "chore: 更新工作區檔案"}
@@ -1708,9 +1779,16 @@ async def git_ai_commit_msg(payload: Optional[Dict[str, str]] = None):
     client = UnifiedLLMClient(active_config.model_copy(update={"max_tokens": 100, "temperature": 0.3}))
     prompt = f"請根據以下 Git Diff 或變更內容，產出一句簡短有力的 Conventional Commits 繁體中文 Commit 訊息（如 'feat: 新增資料夾選取器與終端串流' 或 'fix: 修復工作區路徑隔離'），只輸出該訊息本身，不要附帶其他說明：\n\n{diff}"
     try:
-        msg = await client.generate(prompt)
-        msg_clean = msg.strip().replace('"', '').replace("`", "").splitlines()[0]
-        return {"commit_message": msg_clean}
+        msg = ""
+        async for chunk in client.stream_chat([{"role": "user", "content": prompt}]):
+            if chunk.type == "token" and chunk.content:
+                msg += chunk.content
+            elif chunk.type == "error":
+                raise RuntimeError(chunk.content or "LLM error")
+        msg_lines = [ln for ln in msg.strip().replace('"', '').replace("`", "").splitlines() if ln.strip()]
+        if not msg_lines:
+            raise RuntimeError("empty commit message")
+        return {"commit_message": msg_lines[0].strip()}
     except Exception:
         return {"commit_message": "feat: 更新專案代碼與架構"}
 
