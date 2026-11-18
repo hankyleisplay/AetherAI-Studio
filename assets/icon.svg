@@ -1,50 +1,63 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <!-- Aether AI Studio app icon: a liquid-glass orb with the hexagonal Aether core, in the same aurora colours as the
+       app (cyan #5ee7ff, blue #4f9cff, violet #a78bfa, pink #ff7ab8 over deep navy). Kept free of fine detail so it
+       stays readable down to 16 px. Every icon file in the project is generated from this one. -->
   <defs>
-    <radialGradient id="bgGrad" cx="50%" cy="50%" r="50%" fx="30%" fy="30%">
-      <stop offset="0%" stop-color="#141d33" />
-      <stop offset="60%" stop-color="#090d18" />
-      <stop offset="100%" stop-color="#04060c" />
-    </radialGradient>
-    <linearGradient id="orbGrad1" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#00f2fe" />
-      <stop offset="50%" stop-color="#4facfe" />
-      <stop offset="100%" stop-color="#7928ca" />
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1a2366" />
+      <stop offset="0.55" stop-color="#0d1238" />
+      <stop offset="1" stop-color="#080a22" />
     </linearGradient>
-    <linearGradient id="orbGrad2" x1="100%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#ff0080" />
-      <stop offset="70%" stop-color="#7928ca" />
-      <stop offset="100%" stop-color="#00f2fe" />
-    </linearGradient>
-    <radialGradient id="specular" cx="35%" cy="30%" r="60%">
-      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.8" />
-      <stop offset="30%" stop-color="#ffffff" stop-opacity="0.2" />
-      <stop offset="100%" stop-color="#ffffff" stop-opacity="0" />
+    <radialGradient id="bgGlow" cx="50%" cy="8%" r="75%">
+      <stop offset="0" stop-color="#4f7dff" stop-opacity="0.55" />
+      <stop offset="1" stop-color="#4f7dff" stop-opacity="0" />
     </radialGradient>
-    <filter id="liquidGlow" x="-20%" y="-20%" width="140%" height="140%">
-      <feGaussianBlur stdDeviation="8" result="blur" />
-      <feComposite in="SourceGraphic" in2="blur" operator="over" />
+    <linearGradient id="orb" x1="0.15" y1="0.1" x2="0.85" y2="0.95">
+      <stop offset="0" stop-color="#5ee7ff" />
+      <stop offset="0.45" stop-color="#4f9cff" />
+      <stop offset="1" stop-color="#8b5cf6" />
+    </linearGradient>
+    <linearGradient id="swirl" x1="1" y1="0.1" x2="0.1" y2="1">
+      <stop offset="0" stop-color="#ff7ab8" />
+      <stop offset="0.6" stop-color="#a78bfa" />
+      <stop offset="1" stop-color="#a78bfa" stop-opacity="0" />
+    </linearGradient>
+    <radialGradient id="sheen" cx="34%" cy="26%" r="58%">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.85" />
+      <stop offset="0.35" stop-color="#ffffff" stop-opacity="0.22" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0" />
+    </radialGradient>
+    <linearGradient id="rim" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.55" />
+      <stop offset="0.5" stop-color="#ffffff" stop-opacity="0.08" />
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0.22" />
+    </linearGradient>
+    <filter id="glow" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="9" />
     </filter>
+    <clipPath id="orbClip"><circle cx="128" cy="132" r="76" /></clipPath>
   </defs>
 
-  <!-- Squircle Base with Metallic Glass Border -->
-  <rect x="8" y="8" width="240" height="240" rx="54" fill="url(#bgGrad)" stroke="rgba(255,255,255,0.18)" stroke-width="2.5" />
-  
-  <!-- Subtle Grid Lines -->
-  <path d="M48 8v240 M88 8v240 M128 8v240 M168 8v240 M208 8v240" stroke="rgba(0,242,254,0.04)" stroke-width="1" />
-  <path d="M8 48h240 M8 88h240 M8 128h240 M8 168h240 M8 208h240" stroke="rgba(0,242,254,0.04)" stroke-width="1" />
+  <!-- Squircle base -->
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bg)" />
+  <rect x="8" y="8" width="240" height="240" rx="56" fill="url(#bgGlow)" />
 
-  <!-- Outer Ambient Glow Ring -->
-  <circle cx="128" cy="128" r="82" fill="none" stroke="url(#orbGrad1)" stroke-width="3" opacity="0.4" filter="url(#liquidGlow)" />
+  <!-- Light spilling from the orb -->
+  <circle cx="128" cy="132" r="78" fill="#5ee7ff" opacity="0.35" filter="url(#glow)" />
 
-  <!-- Central Liquid Crystal Orb -->
-  <circle cx="128" cy="128" r="68" fill="url(#orbGrad1)" opacity="0.9" />
-  <path d="M70 128 C70 90, 100 64, 138 68 C176 72, 196 110, 184 148 C172 186, 120 196, 92 180 C74 170, 70 148, 70 128 Z" fill="url(#orbGrad2)" opacity="0.75" />
+  <!-- Liquid orb -->
+  <circle cx="128" cy="132" r="76" fill="url(#orb)" />
+  <g clip-path="url(#orbClip)">
+    <path d="M58 150 C70 100 120 92 150 110 C178 127 200 120 214 96 L214 214 L58 214 Z" fill="url(#swirl)" opacity="0.8" />
+    <ellipse cx="104" cy="98" rx="56" ry="34" fill="url(#sheen)" transform="rotate(-24 104 98)" />
+  </g>
+  <circle cx="128" cy="132" r="75" fill="none" stroke="url(#rim)" stroke-width="3" />
 
-  <!-- Liquid Glass Caustic Specular Flare -->
-  <ellipse cx="112" cy="104" rx="42" ry="26" fill="url(#specular)" transform="rotate(-25 112 104)" />
-  
-  <!-- Modern Geometric Aether Core Node -->
-  <polygon points="128,84 162,104 162,144 128,164 94,144 94,104" fill="none" stroke="#ffffff" stroke-width="3.5" opacity="0.9" />
-  <circle cx="128" cy="124" r="10" fill="#00f2fe" filter="url(#liquidGlow)" />
-  <circle cx="128" cy="124" r="5" fill="#ffffff" />
+  <!-- Aether core -->
+  <polygon points="128,92 162,111.5 162,150.5 128,170 94,150.5 94,111.5" fill="none" stroke="#ffffff" stroke-width="7" stroke-linejoin="round" opacity="0.95" />
+  <circle cx="128" cy="131" r="16" fill="#ffffff" opacity="0.35" filter="url(#glow)" />
+  <circle cx="128" cy="131" r="9.5" fill="#ffffff" />
+
+  <!-- Glass edge of the squircle -->
+  <rect x="9.5" y="9.5" width="237" height="237" rx="54.5" fill="none" stroke="url(#rim)" stroke-width="3" />
 </svg>

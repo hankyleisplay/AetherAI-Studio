@@ -97,10 +97,11 @@ button:focus-visible,
 }
 
 .logo-badge img {
-  width: 30px;
-  height: 30px;
+  width: 48px;
+  height: 48px;
   object-fit: contain;
-  border-radius: 8px;
+  border-radius: 13px;
+  box-shadow: 0 6px 18px rgba(79, 156, 255, 0.35);
 }
 
 .header-titles h1 {

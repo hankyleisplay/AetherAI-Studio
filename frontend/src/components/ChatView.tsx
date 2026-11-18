@@ -589,9 +589,7 @@ export const ChatView: React.FC<ChatViewProps> = ({
         {messages.length === 0 ? (
           /* Empty State Welcome Screen */
           <div className="h-full flex flex-col items-center justify-center max-w-2xl mx-auto text-center px-4 py-8">
-            <div className="w-16 h-16 rounded-3xl glass-panel flex items-center justify-center mb-5 shadow-[0_0_40px_rgba(94,231,255,0.3)]">
-              <Sparkles className="w-8 h-8 text-cyan-300" />
-            </div>
+            <img src="/icon.png" alt="" className="w-20 h-20 rounded-[1.4rem] mb-5 shadow-[0_10px_40px_rgba(79,156,255,0.35)]" draggable={false} />
 
             <h2 className="text-2xl md:text-3xl font-extrabold bg-gradient-to-r from-white via-cyan-100 to-cyan-300 bg-clip-text text-transparent mb-2">
               {t('brand_name', 'Aether AI Studio')}

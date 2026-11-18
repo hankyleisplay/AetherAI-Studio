@@ -196,9 +196,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           {/* Logo, Brand and Collapse Button */}
           <div className="p-4 border-b border-white/[0.08] flex items-center justify-between">
             <div className="flex items-center gap-2.5 overflow-hidden">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-cyan-500 to-indigo-600 flex items-center justify-center shadow-[0_0_18px_rgba(0,242,254,0.35)] shrink-0">
-                <Sparkles className="w-4 h-4 text-white" />
-              </div>
+              <img src="/icon.png" alt="" className="w-9 h-9 rounded-xl shrink-0 shadow-[0_4px_14px_rgba(79,156,255,0.35)]" draggable={false} />
               <div className="overflow-hidden">
                 <div className="flex items-center gap-1.5">
                   <h1 className="text-sm font-extrabold bg-gradient-to-r from-white via-cyan-200 to-indigo-300 bg-clip-text text-transparent truncate">
