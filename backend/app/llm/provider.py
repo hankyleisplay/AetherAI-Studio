@@ -8,16 +8,32 @@ import asyncio
 import httpx
 from typing import Dict, Any, List, Optional, AsyncGenerator
 from urllib.parse import urlsplit
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
+
+# Local models run through Ollama only; configs saved by older versions for these are moved to Ollama
+RETIRED_LOCAL_PROVIDERS = {"lm_studio", "openai_compatible"}
+OLLAMA_DEFAULT_URL = "http://127.0.0.1:11434"
+
 
 class ModelConfig(BaseModel):
-    provider: str = "ollama"  # "ollama", "openai_compatible", "anthropic", "gemini"
-    base_url: str = "http://localhost:11434"
+    provider: str = "ollama"  # "ollama" (local) or a cloud provider: "openai", "anthropic", "gemini", "deepseek", "groq"
+    base_url: str = OLLAMA_DEFAULT_URL
     api_key: Optional[str] = None
     model: str = ""
     temperature: float = 0.7
     max_tokens: int = 8192
     context_window: int = 16384
+    # Ollama: pick context window / output length from the GPU and model so it stays on the GPU
+    auto_tune: bool = True
+    # Ollama thinking models: True / False turns reasoning on / off; None leaves the model's default
+    think: Optional[bool] = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _migrate_retired_provider(cls, data: Any) -> Any:
+        if isinstance(data, dict) and data.get("provider") in RETIRED_LOCAL_PROVIDERS:
+            data = {**data, "provider": "ollama", "base_url": OLLAMA_DEFAULT_URL, "model": "", "api_key": None}
+        return data
 
 OLLAMA_KEEP_ALIVE = "30m"
 
@@ -147,8 +163,6 @@ class UnifiedLLMClient:
 
     DEFAULT_PROVIDER_MODELS: Dict[str, List[str]] = {
         "ollama": [],
-        "openai_compatible": [],
-        "lm_studio": [],
         "deepseek": ["deepseek-chat", "deepseek-reasoner"],
         "openai": ["gpt-4o", "gpt-4o-mini", "gpt-4.1", "gpt-4.1-mini", "o3-mini", "o1"],
         "anthropic": ["claude-3-7-sonnet-latest", "claude-3-5-sonnet-20241022", "claude-3-5-haiku-20241022", "claude-3-opus-20240229"],
@@ -258,7 +272,7 @@ class UnifiedLLMClient:
                         "provider": "ollama"
                     }
 
-                elif provider in ["openai_compatible", "lm_studio", "deepseek", "groq", "openai"]:
+                elif provider in ["deepseek", "groq", "openai"]:
                     base = self.config.base_url.rstrip("/")
                     urls_to_try = [f"{base}/models"]
                     if not base.endswith("/v1"):
@@ -283,23 +297,14 @@ class UnifiedLLMClient:
                             pass
 
                     latency = round((time.time() - start) * 1000, 1)
-                    if provider in ["openai_compatible", "lm_studio"]:
-                        return {
-                            "success": False,
-                            "latency_ms": latency,
-                            "models": [],
-                            "error": f"無法連線至 {provider} 服務或尚未載入模型",
-                            "provider": provider
-                        }
-                    else:
-                        has_key = bool(self.config.api_key and self.config.api_key.strip())
-                        return {
-                            "success": has_key,
-                            "latency_ms": latency,
-                            "models": fallback_models if has_key else [],
-                            "error": None if has_key else f"尚未填寫 {provider} API Key",
-                            "provider": provider
-                        }
+                    has_key = bool(self.config.api_key and self.config.api_key.strip())
+                    return {
+                        "success": has_key,
+                        "latency_ms": latency,
+                        "models": fallback_models if has_key else [],
+                        "error": None if has_key else f"尚未填寫 {provider} API Key",
+                        "provider": provider
+                    }
 
                 elif provider == "anthropic":
                     latency = round((time.time() - start) * 1000, 1)
@@ -372,7 +377,7 @@ class UnifiedLLMClient:
             async for chunk in self._stream_gemini(messages, tools):
                 yield chunk
         else:
-            # Default to OpenAI compatible format (OpenAI, DeepSeek, Groq, LM Studio, vLLM, etc.)
+            # OpenAI-format cloud APIs (OpenAI, DeepSeek, Groq)
             async for chunk in self._stream_openai_compatible(messages, tools):
                 yield chunk
 
@@ -615,6 +620,19 @@ class UnifiedLLMClient:
             if not url:
                 yield LLMResponseChunk(type="error", content=ollama_unreachable_message(self.config.base_url, last_err))
                 return
+            from backend.app.services import ollama_manager
+            base = url[: -len("/api/chat")]
+            caps = await ollama_manager.capabilities(base, self.config.model)
+            if self.config.auto_tune:
+                auto = await ollama_manager.auto_settings(base, self.config.model, options["num_ctx"],
+                                                          options["num_predict"])
+                options["num_ctx"] = auto["context_window"]
+                options["num_predict"] = min(auto["max_tokens"], auto["context_window"])
+            if "thinking" in caps and self.config.think is not None:
+                payload["think"] = bool(self.config.think)
+            if tools and caps and "tools" not in caps:
+                # Models without tool support reject the request ("does not support tools"): chat without them
+                payload.pop("tools", None)
             try:
                 # Helper to process an Ollama stream response
                 async def _consume_stream(resp):

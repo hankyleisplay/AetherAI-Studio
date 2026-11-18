@@ -18,7 +18,7 @@ from typing import Any, Dict, List, Optional
 import httpx
 
 GB = 1024 ** 3
-LOCAL_PROVIDERS = {"ollama", "lm_studio", "openai_compatible"}
+LOCAL_PROVIDERS = {"ollama"}
 
 _gpu_cache: Dict[str, Any] = {"ts": 0.0, "data": None}
 _show_cache: Dict[str, Dict[str, Any]] = {}

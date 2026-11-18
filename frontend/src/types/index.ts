@@ -146,13 +146,45 @@ export interface Persona {
 }
 
 export interface ModelConfig {
-  provider: 'ollama' | 'openai_compatible' | 'lm_studio' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'openai';
+  provider: 'ollama' | 'anthropic' | 'gemini' | 'deepseek' | 'groq' | 'openai';
   base_url: string;
   api_key?: string;
   model: string;
   temperature: number;
   max_tokens: number;
   context_window?: number;
+  /** Ollama: choose context window / output length from the GPU and model */
+  auto_tune?: boolean;
+  /** Ollama thinking models: on / off, or null for the model's default */
+  think?: boolean | null;
+}
+
+export interface OllamaInstalledModel {
+  name: string;
+  size_bytes: number;
+  modified_at?: string;
+  parameter_size?: string;
+  quantization?: string;
+  family?: string;
+  capabilities: string[];
+}
+
+export interface OllamaLoadedModel {
+  name: string;
+  size_bytes: number;
+  vram_bytes: number;
+  gpu_percent: number | null;
+  context_length?: number;
+  expires_at?: string;
+}
+
+export interface OllamaModelsInfo {
+  base_url: string;
+  installed: OllamaInstalledModel[];
+  loaded: OllamaLoadedModel[];
+  active: ModelConfig;
+  auto: { context_window: number; max_tokens: number; source: string } | null;
+  started_by_aether: boolean;
 }
 
 export interface HardwareIssue {
@@ -191,6 +223,8 @@ export interface HardwareCheckResult {
   } | null;
   issues: HardwareIssue[];
   recommended: { context_window: number; max_tokens: number } | null;
+  /** Ollama auto-tune: the values chat uses (null when auto-tune is off) */
+  auto?: { context_window: number; max_tokens: number; source: string } | null;
 }
 
 export interface ToolDefinition {

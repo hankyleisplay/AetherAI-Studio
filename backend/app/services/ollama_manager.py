@@ -26,7 +26,8 @@ from backend.app.llm.provider import direct_connection_kwargs, ollama_base_candi
 
 PID_FILE = DATA_DIR / "ollama_autostart.pid"
 LOG_FILE = DATA_DIR / "ollama_autostart.log"
-START_TIMEOUT_SECONDS = 25
+# Ollama's first start on Windows (GPU discovery, antivirus scan) can take a minute or more
+START_TIMEOUT_SECONDS = 120
 
 # Ordered from largest to smallest: the first whose memory need fits is recommended
 MODEL_CHOICES: List[Dict[str, Any]] = [
@@ -39,6 +40,7 @@ MODEL_CHOICES: List[Dict[str, Any]] = [
 _lock = asyncio.Lock()
 _started: Optional[subprocess.Popen] = None
 _adopted_pid: Optional[int] = None
+_started_at: Optional[float] = None
 
 
 def autostart_enabled() -> bool:
@@ -118,7 +120,9 @@ def _adopt_previous() -> None:
     except (OSError, ValueError):
         pid = 0
     if pid and _process_alive(pid):
+        global _started_at
         _adopted_pid = pid
+        _started_at = _started_at or time.monotonic()
     else:
         PID_FILE.unlink(missing_ok=True)
 
@@ -131,13 +135,62 @@ def _log_tail(lines: int = 6) -> str:
         return ""
 
 
-async def ensure_running(base_url: str, wait: bool = True) -> Dict[str, Any]:
+def _launch_alive() -> bool:
+    """An Ollama process this app launched (or adopted) is still running."""
+    _adopt_previous()
+    if _started is not None:
+        return _started.poll() is None
+    return _adopted_pid is not None and _process_alive(_adopted_pid)
+
+
+def _starting_state(base_url: str) -> Dict[str, Any]:
+    elapsed = int(time.monotonic() - _started_at) if _started_at else 0
+    state: Dict[str, Any] = {"status": "starting", "base_url": base_url, "elapsed": elapsed, "log_tail": _log_tail(4)}
+    if elapsed > START_TIMEOUT_SECONDS:
+        state.update(status="failed",
+                     error=f"Ollama 已啟動 {elapsed} 秒仍沒有回應" + (f"：\n{state['log_tail']}" if state["log_tail"] else ""))
+    return state
+
+
+def _launch(base_url: str) -> Optional[Dict[str, Any]]:
+    """Start `ollama serve`. Returns an error state, or None when it was launched."""
+    global _started, _started_at
+    exe = find_ollama_executable()
+    if not exe:
+        return {"status": "not_installed", "base_url": base_url, "download_url": "https://ollama.com/download"}
+    env = dict(os.environ)
+    env["OLLAMA_HOST"] = _listen_address(base_url)
+    env.setdefault("OLLAMA_FLASH_ATTENTION", "false")
+    kwargs: Dict[str, Any] = {}
+    if os.name == "nt":
+        kwargs["creationflags"] = (getattr(subprocess, "CREATE_NO_WINDOW", 0)
+                                   | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
+    else:
+        kwargs["start_new_session"] = True
+    try:
+        LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        # Fresh log per start, so an old failure is never reported as the current one
+        log = open(LOG_FILE, "wb")
+        _started = subprocess.Popen([exe, "serve"], env=env, stdin=subprocess.DEVNULL, stdout=log,
+                                    stderr=subprocess.STDOUT, **kwargs)
+        log.close()
+        _started_at = time.monotonic()
+        PID_FILE.write_text(str(_started.pid))
+        print(f"[Ollama] 已在背景啟動 Ollama（PID {_started.pid}，{env['OLLAMA_HOST']}）")
+        return None
+    except OSError as e:
+        _started = None
+        return {"status": "failed", "base_url": base_url, "error": f"無法啟動 Ollama：{e}"}
+
+
+async def ensure_running(base_url: str, wait: bool = True, timeout: float = START_TIMEOUT_SECONDS) -> Dict[str, Any]:
     """Make sure Ollama answers at `base_url`, starting it if needed.
 
-    Returns {"status": "running" | "started" | "starting" | "not_installed" | "remote" | "disabled" | "failed",
-             "base_url": ..., "error": ...}.
+    With wait=False this returns at once ("starting" while Ollama boots), so the UI can poll instead of a request
+    hanging for as long as Ollama takes; the lock only guards launching, never the wait.
+
+    Returns {"status": "running" | "started" | "starting" | "not_installed" | "remote" | "disabled" | "failed", ...}.
     """
-    global _started
     found = await reachable_base(base_url)
     if found:
         return {"status": "running", "base_url": found, "started_by_aether": started_by_aether()}
@@ -148,53 +201,38 @@ async def ensure_running(base_url: str, wait: bool = True) -> Dict[str, Any]:
         return {"status": "disabled", "base_url": base_url}
 
     async with _lock:
-        # Another request may have started it while this one waited for the lock
-        found = await reachable_base(base_url)
+        found = await reachable_base(base_url, timeout=1.0)
         if found:
             return {"status": "running", "base_url": found, "started_by_aether": started_by_aether()}
-
-        if _started is None or _started.poll() is not None:
-            exe = find_ollama_executable()
-            if not exe:
-                return {"status": "not_installed", "base_url": base_url,
-                        "download_url": "https://ollama.com/download"}
-            env = dict(os.environ)
-            env["OLLAMA_HOST"] = _listen_address(base_url)
-            env.setdefault("OLLAMA_FLASH_ATTENTION", "false")
-            kwargs: Dict[str, Any] = {}
-            if os.name == "nt":
-                kwargs["creationflags"] = (getattr(subprocess, "CREATE_NO_WINDOW", 0)
-                                           | getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0))
-            else:
-                kwargs["start_new_session"] = True
-            try:
-                LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
-                log = open(LOG_FILE, "ab")
-                _started = subprocess.Popen([exe, "serve"], env=env, stdin=subprocess.DEVNULL, stdout=log,
-                                            stderr=subprocess.STDOUT, **kwargs)
-                log.close()
-                PID_FILE.write_text(str(_started.pid))
-                print(f"[Ollama] 已在背景啟動 Ollama（PID {_started.pid}，{env['OLLAMA_HOST']}）")
-            except OSError as e:
-                _started = None
-                return {"status": "failed", "base_url": base_url, "error": f"無法啟動 Ollama：{e}"}
-
-        if not wait:
-            return {"status": "starting", "base_url": base_url}
-
-        deadline = time.monotonic() + START_TIMEOUT_SECONDS
-        while time.monotonic() < deadline:
-            await asyncio.sleep(0.4)
-            found = await reachable_base(base_url, timeout=1.0)
-            if found:
-                return {"status": "started", "base_url": found, "started_by_aether": True}
-            if _started is not None and _started.poll() is not None:
+        if not _launch_alive():
+            if _started is not None:
+                # The previous launch exited without ever answering: report why instead of looping
                 tail = _log_tail()
                 _forget_started()
-                return {"status": "failed", "base_url": base_url,
-                        "error": "Ollama 啟動後立即結束" + (f"：\n{tail}" if tail else "")}
-        return {"status": "failed", "base_url": base_url,
-                "error": f"Ollama 在 {START_TIMEOUT_SECONDS} 秒內沒有回應" + (f"：\n{_log_tail()}" if _log_tail() else "")}
+                if not wait:
+                    return {"status": "failed", "base_url": base_url,
+                            "error": "Ollama 啟動後立即結束" + (f"：\n{tail}" if tail else "")}
+            failure = _launch(base_url)
+            if failure:
+                return failure
+
+    if not wait:
+        return _starting_state(base_url)
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        await asyncio.sleep(0.5)
+        found = await reachable_base(base_url, timeout=1.0)
+        if found:
+            return {"status": "started", "base_url": found, "started_by_aether": True}
+        if not _launch_alive():
+            tail = _log_tail()
+            _forget_started()
+            return {"status": "failed", "base_url": base_url,
+                    "error": "Ollama 啟動後立即結束" + (f"：\n{tail}" if tail else "")}
+    state = _starting_state(base_url)
+    state.update(status="failed", error=f"Ollama 啟動 {state['elapsed']} 秒後仍沒有回應，請稍後再試")
+    return state
 
 
 def started_by_aether() -> bool:
@@ -203,9 +241,10 @@ def started_by_aether() -> bool:
 
 
 def _forget_started() -> None:
-    global _started, _adopted_pid
+    global _started, _adopted_pid, _started_at
     _started = None
     _adopted_pid = None
+    _started_at = None
     PID_FILE.unlink(missing_ok=True)
 
 
@@ -288,3 +327,188 @@ async def pull_model(base_url: str, name: str) -> AsyncGenerator[Dict[str, Any],
                     "total": total,
                     "percent": round(completed * 100 / total, 1) if total else None,
                 }
+
+
+# ---------------------------------------------------------------------------------------------------------------
+# Model management
+# ---------------------------------------------------------------------------------------------------------------
+
+_show_cache: Dict[str, Dict[str, Any]] = {}
+_auto_cache: Dict[str, Dict[str, Any]] = {}
+
+
+def _client(base_url: str, timeout: float = 10.0) -> httpx.AsyncClient:
+    return httpx.AsyncClient(timeout=httpx.Timeout(timeout, connect=3.0), **direct_connection_kwargs(base_url))
+
+
+async def model_info(base_url: str, name: str) -> Dict[str, Any]:
+    """/api/show for a model (capabilities, parameters, context length), cached by name + digest."""
+    key = f"{base_url}|{name}"
+    if key in _show_cache:
+        return _show_cache[key]
+    async with _client(base_url) as client:
+        r = await client.post(f"{base_url}/api/show", json={"model": name})
+        r.raise_for_status()
+        data = r.json()
+    mi = data.get("model_info") or {}
+    arch = mi.get("general.architecture")
+    info = {
+        "capabilities": data.get("capabilities") or [],
+        "context_length": mi.get(f"{arch}.context_length") if arch else None,
+        "details": data.get("details") or {},
+    }
+    _show_cache[key] = info
+    return info
+
+
+async def capabilities(base_url: str, name: str) -> List[str]:
+    try:
+        return (await model_info(base_url, name)).get("capabilities") or []
+    except Exception:
+        return []
+
+
+async def list_models_detailed(base_url: str) -> List[Dict[str, Any]]:
+    async with _client(base_url) as client:
+        r = await client.get(f"{base_url}/api/tags")
+        r.raise_for_status()
+        raw = r.json().get("models", [])
+    sem = asyncio.Semaphore(4)
+
+    async def one(m: Dict[str, Any]) -> Dict[str, Any]:
+        name = m.get("name") or m.get("model")
+        details = m.get("details") or {}
+        async with sem:
+            caps = await capabilities(base_url, name)
+        return {
+            "name": name,
+            "size_bytes": m.get("size") or 0,
+            "modified_at": m.get("modified_at"),
+            "parameter_size": details.get("parameter_size"),
+            "quantization": details.get("quantization_level"),
+            "family": details.get("family"),
+            "capabilities": caps,
+        }
+
+    return list(await asyncio.gather(*(one(m) for m in raw if m.get("name") or m.get("model"))))
+
+
+async def loaded_models(base_url: str) -> List[Dict[str, Any]]:
+    async with _client(base_url) as client:
+        r = await client.get(f"{base_url}/api/ps")
+        r.raise_for_status()
+        out = []
+        for m in r.json().get("models", []):
+            size = m.get("size") or 0
+            vram = m.get("size_vram") or 0
+            out.append({
+                "name": m.get("name") or m.get("model"),
+                "size_bytes": size,
+                "vram_bytes": vram,
+                "gpu_percent": round(vram * 100 / size) if size else None,
+                "context_length": m.get("context_length"),
+                "expires_at": m.get("expires_at"),
+            })
+        return out
+
+
+async def delete_model(base_url: str, name: str) -> None:
+    async with _client(base_url) as client:
+        r = await client.request("DELETE", f"{base_url}/api/delete", json={"model": name})
+        if r.status_code not in (200, 204):
+            raise RuntimeError(r.text[:300] or f"HTTP {r.status_code}")
+    for key in [k for k in _show_cache if k.endswith(f"|{name}")]:
+        _show_cache.pop(key, None)
+    _auto_cache.pop(f"{base_url}|{name}", None)
+
+
+async def load_model(base_url: str, name: str, num_ctx: Optional[int], keep_alive: str) -> None:
+    """Load a model into memory with the same context size chat will use (a different size forces a reload)."""
+    body: Dict[str, Any] = {"model": name, "keep_alive": keep_alive}
+    if num_ctx:
+        body["options"] = {"num_ctx": int(num_ctx)}
+    async with _client(base_url, timeout=300.0) as client:
+        r = await client.post(f"{base_url}/api/generate", json=body)
+        if r.status_code != 200:
+            raise RuntimeError(r.text[:300] or f"HTTP {r.status_code}")
+
+
+async def unload_model(base_url: str, name: str) -> None:
+    async with _client(base_url) as client:
+        r = await client.post(f"{base_url}/api/generate", json={"model": name, "keep_alive": 0})
+        if r.status_code != 200:
+            raise RuntimeError(r.text[:300] or f"HTTP {r.status_code}")
+
+
+async def auto_settings(base_url: str, name: str, fallback_ctx: int, fallback_max: int) -> Dict[str, int]:
+    """Context window / max output that keep this model on the GPU, from the hardware evaluator.
+
+    Worked out once per model and then kept: changing num_ctx between requests makes Ollama reload the model.
+    """
+    key = f"{base_url}|{name}"
+    if key in _auto_cache:
+        return _auto_cache[key]
+    result = {"context_window": int(fallback_ctx or 8192), "max_tokens": int(fallback_max or 4096), "source": "fallback"}
+    try:
+        from backend.app.services.hardware import evaluate_generation_settings, get_hardware_info
+        await asyncio.to_thread(get_hardware_info)  # warm the cache off the event loop (nvidia-smi can be slow)
+        ev = await evaluate_generation_settings("ollama", name, base_url, 32768, int(fallback_max or 4096))
+        rec = ev.get("recommended") or {}
+        if rec.get("context_window"):
+            ctx = int(rec["context_window"])
+            if not (ev.get("hardware") or {}).get("gpu_detected"):
+                # On the CPU every extra token of context costs prompt time; keep it moderate
+                ctx = min(ctx, 8192)
+            result = {"context_window": ctx, "max_tokens": int(min(rec.get("max_tokens") or ctx // 2, ctx // 2 or 1024)),
+                      "source": "auto"}
+    except Exception as e:
+        print(f"[Ollama] 自動參數評估失敗，使用目前設定：{e}")
+    if result["source"] == "auto":
+        # Only a real evaluation is kept; a fallback (Ollama busy, model unknown) is retried next time
+        _auto_cache[key] = result
+    return result
+
+
+def forget_auto_settings(base_url: Optional[str] = None, name: Optional[str] = None) -> None:
+    if base_url and name:
+        _auto_cache.pop(f"{base_url}|{name}", None)
+    else:
+        _auto_cache.clear()
+
+
+async def chat_context(base_url: str, cfg: Dict[str, Any]) -> int:
+    """The num_ctx chat requests will use for this config (preloading with any other size wastes the load)."""
+    ctx = int(cfg.get("context_window") or 4096)
+    if cfg.get("auto_tune", True):
+        auto = await auto_settings(base_url, cfg.get("model") or "", ctx, int(cfg.get("max_tokens") or 4096))
+        ctx = auto["context_window"]
+    return ctx
+
+
+async def preload(base_url: str, cfg: Dict[str, Any]) -> Dict[str, Any]:
+    """Load the active model ahead of the first message so it does not pay the load time."""
+    from backend.app.llm.provider import OLLAMA_KEEP_ALIVE
+    name = cfg.get("model") or ""
+    if not name:
+        return {"status": "skipped"}
+    found = await reachable_base(base_url)
+    if not found:
+        return {"status": "unreachable"}
+    ctx = await chat_context(found, cfg)
+    started = time.monotonic()
+    await load_model(found, name, ctx, OLLAMA_KEEP_ALIVE)
+    return {"status": "loaded", "model": name, "num_ctx": ctx, "seconds": round(time.monotonic() - started, 1)}
+
+
+async def preload_quietly(base_url: str, cfg: Dict[str, Any], wait_for_start: bool = False) -> None:
+    try:
+        if wait_for_start:
+            state = await ensure_running(base_url, wait=True)
+            if state.get("status") not in ("running", "started"):
+                return
+            base_url = state["base_url"]
+        result = await preload(base_url, cfg)
+        if result.get("status") == "loaded":
+            print(f"[Ollama] 已預先載入 {result['model']}（num_ctx {result['num_ctx']}，{result['seconds']} 秒）")
+    except Exception as e:
+        print(f"[Ollama] 預先載入略過：{e}")

@@ -88,6 +88,19 @@ Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop
 
 ---
 
+## 二之一、本機模型改為只接 Ollama（4.2.3）
+
+- **卡在「正在啟動本機 Ollama…」**：啟動 Ollama 時後端會鎖住並等待最多 25 秒，多個請求（啟動流程、模型測試、狀態查詢）
+  排隊等待，Windows 上 Ollama 第一次啟動較慢時畫面就一直卡住。現在只在「啟動程序」那一刻上鎖，請求立即回覆
+  `starting`（附已等待秒數與 Ollama 自己的記錄），前端每 2 秒查詢一次；超過 20 秒會顯示 Ollama 的訊息與「重新偵測」，
+  Ollama 啟動後立即結束時直接顯示原因。啟動完成後自動重新載入模型清單與標題列的模型。
+- 前端在 Ollama 還在啟動時探測不到模型，會把已選的模型清空：改成只有 Ollama 確實回應且沒有該模型時才清除。
+- 移除 LM Studio 與本機 OpenAI 相容端點；舊設定自動改為 Ollama（`127.0.0.1:11434`）。
+- Ollama 優化：設定新增「本機模型 (Ollama)」分頁（已載入模型與 GPU 佔用、釋放、預先載入、使用、刪除、下載）；
+  啟動時與切換模型時在背景預先載入（與對話相同的 `num_ctx`，避免重新載入）；依顯示卡自動決定上下文與最大輸出
+  （每個模型只算一次，避免 Ollama 反覆重新載入；沒有獨立顯示卡時上下文上限 8192）；支援思考的模型在輸入列顯示
+  「思考：開／關」；不支援工具的模型不再傳送工具（避免 `does not support tools` 錯誤）。
+
 ## 三、驗證方式
 
 - 後端：`python test_backend.py` 全數通過（19 大項，含版本一致性 4.2.0）。
@@ -106,3 +119,5 @@ Python 啟動器（`launcher.py`、`start.py`）、Electron 桌面殼（`desktop
 - Windows 編譯：GitHub Actions（`.github/workflows/build-launcher.yml`）。
 - **未能在 Windows 實機測試**：「一鍵關閉」、建立捷徑、路徑含空白或單引號、自更新的實際替換流程。
   請下載 Actions 產出的 `AetherLauncher.exe` 試跑。
+- Ollama：以假的 `ollama serve`（延遲 28 秒啟動、立即結束兩種情況）測試啟動流程；Playwright 測試啟動卡片、
+  思考開關（確認送出的 `think`）、模型管理頁的預先載入／釋放／使用，以及自動調整數值。

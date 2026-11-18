@@ -21,7 +21,8 @@ import {
   Target,
   Image as ImageIcon,
   Terminal,
-  FolderGit2
+  FolderGit2,
+  Brain
 } from 'lucide-react';
 import { Message, AgentState, Persona } from '../types';
 import { MessageItem } from './MessageItem';
@@ -57,6 +58,10 @@ interface ChatViewProps {
   onToggleTerminal?: () => void;
   /** Shown above the input, e.g. the local Ollama setup card */
   topNotice?: React.ReactNode;
+  /** The active model can reason before answering (Ollama "thinking" capability) */
+  thinkSupported?: boolean;
+  thinkEnabled?: boolean;
+  onToggleThink?: () => void;
 }
 
 export const ChatView: React.FC<ChatViewProps> = ({
@@ -78,7 +83,10 @@ export const ChatView: React.FC<ChatViewProps> = ({
   onOpenNewProject,
   isTerminalOpen = false,
   onToggleTerminal,
-  topNotice
+  topNotice,
+  thinkSupported = false,
+  thinkEnabled = true,
+  onToggleThink
 }) => {
   const { t, currentLang } = useI18n();
   const [inputText, setInputText] = useState('');
@@ -919,6 +927,27 @@ export const ChatView: React.FC<ChatViewProps> = ({
                 )}
                 <span className="hidden sm:inline text-[11px]">{isListening ? t('voice_listening', '聆聽中...') : t('voice_input', '語音輸入')}</span>
               </button>
+
+              {/* Thinking mode (models that reason before answering) */}
+              {thinkSupported && onToggleThink && (
+                <button
+                  type="button"
+                  onClick={onToggleThink}
+                  disabled={isStreaming}
+                  aria-pressed={thinkEnabled}
+                  className={`p-1.5 px-2 rounded-full glass-button transition-all flex items-center gap-1 text-xs ${
+                    thinkEnabled
+                      ? 'text-violet-200 border-violet-400/40 shadow-[0_0_10px_rgba(167,139,250,0.25)]'
+                      : 'text-slate-400 hover:text-violet-200'
+                  }`}
+                  title={thinkEnabled
+                    ? t('think_on_hint', '思考模式：開啟（回答前先推理，較準確但較慢）')
+                    : t('think_off_hint', '思考模式：關閉（直接回答，速度較快）')}
+                >
+                  <Brain className="w-3.5 h-3.5" />
+                  <span className="hidden sm:inline text-[11px]">{thinkEnabled ? t('think_on', '思考：開') : t('think_off', '思考：關')}</span>
+                </button>
+              )}
 
               {/* Prompt Enhancer Button (v3.5) */}
               <button

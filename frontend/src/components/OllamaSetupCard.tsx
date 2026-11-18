@@ -13,6 +13,10 @@ export interface OllamaSetupState {
   base_url?: string;
   error?: string;
   download_url?: string;
+  /** Seconds since Aether launched Ollama (while it is starting) */
+  elapsed?: number;
+  /** Last lines Ollama wrote while starting */
+  log_tail?: string;
   models?: string[];
   recommended?: OllamaModelChoice & { basis: 'gpu' | 'cpu'; memory_gb: number };
   choices?: OllamaModelChoice[];
@@ -41,10 +45,36 @@ export const OllamaSetupCard: React.FC<OllamaSetupCardProps> = ({ setup, pull, o
   const pulling = Boolean(pull && !pull.error);
 
   if (setup.status === 'checking' || setup.status === 'starting') {
+    const elapsed = setup.elapsed ?? 0;
+    const slow = setup.status === 'starting' && elapsed >= 20;
     return (
-      <div className="glass-panel rounded-3xl px-4 py-3 flex items-center gap-3 text-sm text-slate-200 animate-in fade-in">
-        <Loader2 className="w-4 h-4 animate-spin text-cyan-300 shrink-0" />
-        <span>{t('ollama_checking', '正在啟動本機 Ollama…')}</span>
+      <div className="glass-panel rounded-3xl px-4 py-3 text-sm text-slate-200 animate-in fade-in">
+        <div className="flex items-center gap-3">
+          <Loader2 className="w-4 h-4 animate-spin text-cyan-300 shrink-0" />
+          <span className="flex-1 min-w-0">
+            {setup.status === 'checking'
+              ? t('ollama_checking', '正在啟動本機 Ollama…')
+              : t('ollama_starting_elapsed', '正在啟動本機 Ollama…（已等待 {s} 秒）', { s: elapsed })}
+          </span>
+          {slow && (
+            <button type="button" onClick={onRecheck} className="px-3 py-1 rounded-full glass-button text-[11px] font-semibold text-slate-100 flex items-center gap-1 shrink-0">
+              <RefreshCw className="w-3 h-3" />
+              {t('ollama_recheck', '重新偵測')}
+            </button>
+          )}
+        </div>
+        {slow && (
+          <div className="mt-2 pl-7">
+            <p className="text-[11px] text-slate-400">
+              {t('ollama_starting_slow', '第一次啟動需要偵測顯示卡，可能要一分鐘左右。如果一直沒有完成，下面是 Ollama 自己的訊息：')}
+            </p>
+            {setup.log_tail && (
+              <pre className="mt-1.5 max-h-28 overflow-auto rounded-xl bg-black/30 px-3 py-2 text-[10.5px] leading-relaxed text-slate-300 font-mono whitespace-pre-wrap break-all">
+                {setup.log_tail}
+              </pre>
+            )}
+          </div>
+        )}
       </div>
     );
   }

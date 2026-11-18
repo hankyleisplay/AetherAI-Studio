@@ -3,7 +3,7 @@ import { LiquidBackground } from './components/LiquidBackground';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
 import { ChatView } from './components/ChatView';
-import { SettingsModal } from './components/SettingsModal';
+import { SettingsModal, SettingsTab } from './components/SettingsModal';
 import { PersonaModal } from './components/PersonaModal';
 import { WorkspaceDrawer } from './components/WorkspaceDrawer';
 import { SwarmModal } from './components/SwarmModal';
@@ -12,6 +12,7 @@ import { ProjectModal } from './components/ProjectModal';
 import { PinLockModal } from './components/PinLockModal';
 import { MediaStudioModal } from './components/MediaStudioModal';
 import { OllamaSetupCard, OllamaSetupState, OllamaPullState } from './components/OllamaSetupCard';
+import { pullOllamaModel } from './utils/ollama';
 import { Session, Message, Persona, ModelConfig, ToolDefinition, AgentState, ToolCall, CodeExecutionMode } from './types';
 import { useI18n } from './i18n/I18nContext';
 
@@ -26,7 +27,7 @@ export const App: React.FC = () => {
   const [agentState, setAgentState] = useState<AgentState>('idle');
   const [isStreaming, setIsStreaming] = useState<boolean>(false);
   const [isSettingsOpen, setIsSettingsOpen] = useState<boolean>(false);
-  const [settingsTab, setSettingsTab] = useState<'model' | 'telegram' | 'tools'>('model');
+  const [settingsTab, setSettingsTab] = useState<SettingsTab>('model');
   // On phones the sidebar is a full-screen overlay, so start closed there
   const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(() => typeof window === 'undefined' || window.innerWidth >= 768);
   const [isPersonaModalOpen, setIsPersonaModalOpen] = useState<boolean>(false);
@@ -164,7 +165,7 @@ export const App: React.FC = () => {
     setIsEcoMode(prev => !prev);
   };
 
-  const handleOpenSettings = (tab: 'model' | 'telegram' | 'tools' = 'model') => {
+  const handleOpenSettings = (tab: SettingsTab = 'model') => {
     setSettingsTab(tab);
     setIsSettingsOpen(true);
   };
@@ -175,13 +176,17 @@ export const App: React.FC = () => {
     model: '',
     temperature: 0.7,
     max_tokens: 8192,
-    context_window: 16384
+    context_window: 16384,
+    auto_tune: true,
+    think: null
   });
   const [availableModels, setAvailableModels] = useState<string[]>([]);
   const [isProbingModels, setIsProbingModels] = useState<boolean>(false);
   // Local Ollama first-run state: shown when Ollama is missing, could not start, or has no model yet
   const [ollamaSetup, setOllamaSetup] = useState<OllamaSetupState | null>(null);
   const [ollamaPull, setOllamaPull] = useState<OllamaPullState | null>(null);
+  // Set while Ollama is starting, so the model list is reloaded once when it comes up
+  const ollamaWaitingRef = useRef<boolean>(false);
   const [bookmarkVersion, setBookmarkVersion] = useState<number>(0);
 
   const abortControllerRef = useRef<AbortController | null>(null);
@@ -310,8 +315,13 @@ export const App: React.FC = () => {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data: OllamaSetupState = await res.json();
       if ((data.status === 'running' || data.status === 'started') && (data.models || []).length > 0) {
+        // Ollama just finished starting: load the model list and the active model into the header
+        const wasWaiting = ollamaWaitingRef.current;
+        ollamaWaitingRef.current = false;
         setOllamaSetup(null);
+        if (wasWaiting) fetchActiveModel();
       } else {
+        ollamaWaitingRef.current = data.status === 'starting';
         setOllamaSetup(data);
       }
     } catch (e: any) {
@@ -319,51 +329,24 @@ export const App: React.FC = () => {
     }
   };
 
+  // The server answers at once while Ollama boots ("starting"), so ask again every 2 seconds until it is up
+  useEffect(() => {
+    if (ollamaSetup?.status !== 'starting' && ollamaSetup?.status !== 'checking') return;
+    const timer = window.setTimeout(fetchOllamaStatus, 2000);
+    return () => clearTimeout(timer);
+  }, [ollamaSetup]);
+
   const handlePullOllamaModel = async (model: string) => {
     setOllamaPull({ model, percent: null, status: '' });
     try {
-      const res = await fetch('/api/ollama/pull', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ model })
-      });
-      if (!res.ok || !res.body) {
-        const err = await res.json().catch(() => ({}));
-        throw new Error(err.detail || `HTTP ${res.status}`);
-      }
-      const reader = res.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      let buffer = '';
-      let event = 'message';
-      let finished = false;
-      while (!finished) {
-        const { done, value } = await reader.read();
-        if (done) break;
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-        for (const raw of lines) {
-          const line = raw.trim();
-          if (!line) { event = 'message'; continue; }
-          if (line.startsWith('event:')) { event = line.slice(6).trim(); continue; }
-          if (!line.startsWith('data:')) continue;
-          const data = JSON.parse(line.slice(5).trim());
-          if (event === 'progress') {
-            setOllamaPull({ model, percent: typeof data.percent === 'number' ? data.percent : null, status: data.status || '' });
-          } else if (event === 'error') {
-            throw new Error(data.error || 'download failed');
-          } else if (event === 'done') {
-            finished = true;
-          }
-        }
-      }
-      if (!finished) throw new Error(t('ollama_pull_interrupted', '連線中斷'));
+      await pullOllamaModel(model, p => setOllamaPull({ model, percent: p.percent, status: p.status }));
       setOllamaPull(null);
       setOllamaSetup(null);
       // The server made the new model the active one; reload the config and model list
       fetchActiveModel();
     } catch (e: any) {
-      setOllamaPull({ model, percent: null, status: '', error: e.message });
+      const msg = e.message === 'interrupted' ? t('ollama_pull_interrupted', '連線中斷') : e.message;
+      setOllamaPull({ model, percent: null, status: '', error: msg });
     }
   };
 
@@ -384,6 +367,7 @@ export const App: React.FC = () => {
         const detected: string[] = Array.isArray(data.models) ? data.models : [];
         setAvailableModels(detected);
         if (configToProbe.provider === 'ollama' && (detected.length === 0 || !data.success)) {
+          if (data.starting) setOllamaSetup(prev => (prev && prev.status !== 'checking' ? prev : { status: 'starting' }));
           fetchOllamaStatus();
         } else {
           setOllamaSetup(null);
@@ -400,8 +384,8 @@ export const App: React.FC = () => {
             });
           }
         } else {
-          // No models detected - clear fake or nonexistent model
-          if (configToProbe.model && ['ollama', 'lm_studio', 'openai_compatible'].includes(configToProbe.provider)) {
+          // Ollama answered and has none of these models: clear the stale choice (never while it is still starting)
+          if (configToProbe.model && configToProbe.provider === 'ollama' && data.success) {
             const updatedConfig = { ...configToProbe, model: '' };
             setModelConfig(updatedConfig);
             await fetch('/api/models/active', {
@@ -550,6 +534,25 @@ export const App: React.FC = () => {
 
   const handleQuickSelectModel = async (modelName: string) => {
     const updated = { ...modelConfig, model: modelName };
+    await handleSaveModelConfig(updated);
+  };
+
+  // What the active Ollama model can do: shows the thinking toggle only for models that reason
+  const [modelCaps, setModelCaps] = useState<string[]>([]);
+  useEffect(() => {
+    setModelCaps([]);
+    if (modelConfig.provider !== 'ollama' || !modelConfig.model) return;
+    const controller = new AbortController();
+    fetch(`/api/ollama/capabilities?model=${encodeURIComponent(modelConfig.model)}`, { signal: controller.signal })
+      .then(r => (r.ok ? r.json() : { capabilities: [] }))
+      .then(d => setModelCaps(Array.isArray(d.capabilities) ? d.capabilities : []))
+      .catch(() => {});
+    return () => controller.abort();
+  }, [modelConfig.provider, modelConfig.model, ollamaSetup === null]);
+
+  const handleToggleThink = async () => {
+    // Unset means the model's default, which is "on" for thinking models
+    const updated = { ...modelConfig, think: modelConfig.think === false };
     await handleSaveModelConfig(updated);
   };
 
@@ -810,7 +813,7 @@ export const App: React.FC = () => {
         const noModelMsg: Message = {
           id: assistantMsgId,
           role: 'assistant',
-          content: t('no_model_message', '❌ **未偵測到可用的 AI 模型**\n\n目前本機尚未安裝或載入任何 AI 模型：\n- 若使用 **Ollama**：請在終端機執行 `ollama pull llama3` 或 `ollama pull qwen2.5:7b` 下載模型。\n- 若使用 **LM Studio** 或 **OpenAI 相容端點**：請確認本地伺服器已啟動並載入模型。\n- 若使用 **雲端 API**（Gemini / OpenAI / Anthropic / DeepSeek）：請點擊右上角設定圖示填入 API Key。'),
+          content: t('no_model_message', '❌ **未偵測到可用的 AI 模型**\n\n- **本機（Ollama）**：在上方卡片按「下載」，或到「設定 → 本機模型 (Ollama)」下載一個模型，Aether 會自動在背景啟動 Ollama。\n- **雲端 API**（Gemini / OpenAI / Anthropic / DeepSeek / Groq）：點擊右上角設定圖示填入 API Key。'),
           created_at: new Date().toISOString()
         };
         setMessages(prev => [...prev, userMsg, noModelMsg]);
@@ -1263,6 +1266,9 @@ export const App: React.FC = () => {
           onEditPrompt={stableEditPrompt}
           temperature={modelConfig.temperature}
           onTemperatureChange={handleTemperatureChange}
+          thinkSupported={modelConfig.provider === 'ollama' && modelCaps.includes('thinking')}
+          thinkEnabled={modelConfig.think !== false}
+          onToggleThink={handleToggleThink}
           personas={personas}
           activePersona={activePersona}
           mode={mode}

@@ -1,4 +1,5 @@
 import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import type { SettingsTab } from './SettingsModal';
 import { 
   Globe, 
   Code2, 
@@ -30,7 +31,7 @@ interface HeaderProps {
   agentState: AgentState;
   tools: ToolDefinition[];
   onToggleTool: (name: string, enabled: boolean) => void;
-  onOpenSettings: (tab?: 'model' | 'telegram' | 'tools') => void;
+  onOpenSettings: (tab?: SettingsTab) => void;
   onExportSession?: () => void;
   onOpenWorkspace?: () => void;
   onOpenSwarm?: () => void;
@@ -482,7 +483,20 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </div>
 
-              <div className="pt-1 mt-1 border-t border-white/10 px-2">
+              <div className="pt-1 mt-1 border-t border-white/10 px-2 space-y-0.5">
+                {modelConfig.provider === 'ollama' && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsModelMenuOpen(false);
+                      onOpenSettings('ollama');
+                    }}
+                    className="w-full px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyan-300 hover:bg-cyan-500/15 flex items-center justify-center gap-1.5 transition-colors"
+                  >
+                    <Cpu className="w-3.5 h-3.5" />
+                    <span>{t('manage_local_models', '管理本機模型（下載／載入／釋放）')}</span>
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => {

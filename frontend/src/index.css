@@ -27,3 +27,7 @@ mark, .mark-highlight {
   line-height: inherit;
 }
 
+
+/* Horizontal strips (e.g. the settings tabs) that scroll without showing a scrollbar */
+.scrollbar-none { scrollbar-width: none; }
+.scrollbar-none::-webkit-scrollbar { display: none; }

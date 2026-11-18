@@ -35,6 +35,7 @@ import {
 } from 'lucide-react';
 import { ModelConfig, ToolDefinition, HardwareCheckResult, HardwareIssue, CodeToolInfo } from '../types';
 import { useI18n } from '../i18n/I18nContext';
+import { OllamaManagerPanel } from './OllamaManagerPanel';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -45,8 +46,10 @@ interface SettingsModalProps {
   tools?: ToolDefinition[];
   onToggleTool?: (name: string, enabled: boolean) => Promise<void>;
   onRefreshTools?: () => Promise<void>;
-  initialTab?: 'model' | 'telegram' | 'tools' | 'security';
+  initialTab?: SettingsTab;
 }
+
+export type SettingsTab = 'model' | 'ollama' | 'telegram' | 'tools' | 'security';
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
   isOpen,
@@ -60,7 +63,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   initialTab = 'model'
 }) => {
   const { t } = useI18n();
-  const [activeTab, setActiveTab] = useState<'model' | 'telegram' | 'tools' | 'security'>(initialTab);
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab);
   const [toolSearch, setToolSearch] = useState('');
   const [isBatchToggling, setIsBatchToggling] = useState(false);
   const [formData, setFormData] = useState<ModelConfig>({ ...config });
@@ -206,7 +209,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         if (onModelsDetected) {
           onModelsDetected([]);
         }
-        if (['ollama', 'lm_studio', 'openai_compatible'].includes(targetConfig.provider)) {
+        if (targetConfig.provider === 'ollama' && data.success) {
           setFormData((prev) => ({ ...prev, model: '' }));
         }
       }
@@ -273,7 +276,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       clearTimeout(timer);
       controller.abort();
     };
-  }, [isOpen, activeTab, formData.provider, formData.model, formData.base_url, formData.context_window, formData.max_tokens]);
+  }, [isOpen, activeTab, formData.provider, formData.model, formData.base_url, formData.context_window, formData.max_tokens, formData.auto_tune]);
 
   if (!isOpen) return null;
 
@@ -293,16 +296,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       id: 'ollama',
       name: 'Ollama (本地/Local)',
       type: 'local',
-      url: 'http://localhost:11434',
-      defaultModel: 'llama3:latest',
-      requireKey: false
-    },
-    {
-      id: 'lm_studio',
-      name: 'LM Studio (本地/Local)',
-      type: 'local',
-      url: 'http://localhost:1234/v1',
-      defaultModel: 'local-model',
+      url: 'http://127.0.0.1:11434',
+      defaultModel: '',
       requireKey: false
     },
     {
@@ -350,7 +345,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const handleSelectPreset = (preset: typeof presets[0]) => {
     let providerName = preset.id;
     if (preset.id === 'claude') providerName = 'anthropic';
-    if (preset.id === 'lm_studio') providerName = 'openai_compatible';
 
     const nextConfig: ModelConfig = {
       ...formData,
@@ -533,10 +527,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         {/* Tab Switcher */}
-        <div className="flex border-b border-white/10 px-6 pt-2 gap-4 bg-white/[0.02]">
+        <div className="flex border-b border-white/10 px-6 pt-2 gap-4 bg-white/[0.02] overflow-x-auto scrollbar-none">
           <button
             onClick={() => setActiveTab('model')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'model'
                 ? 'border-cyan-400 text-cyan-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -547,8 +541,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
 
           <button
+            onClick={() => setActiveTab('ollama')}
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
+              activeTab === 'ollama'
+                ? 'border-cyan-400 text-cyan-300'
+                : 'border-transparent text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <HardDrive className="w-3.5 h-3.5" />
+            <span>{t('tab_ollama', '本機模型 (Ollama)')}</span>
+          </button>
+
+          <button
             onClick={() => setActiveTab('security')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'security'
                 ? 'border-emerald-400 text-emerald-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -560,7 +566,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('tools')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'tools'
                 ? 'border-cyan-400 text-cyan-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -579,7 +585,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <button
             onClick={() => setActiveTab('telegram')}
-            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 ${
+            className={`pb-2.5 text-xs font-semibold border-b-2 transition-all flex items-center gap-1.5 whitespace-nowrap shrink-0 ${
               activeTab === 'telegram'
                 ? 'border-cyan-400 text-cyan-300'
                 : 'border-transparent text-slate-400 hover:text-slate-200'
@@ -603,7 +609,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </label>
               <div className="flex flex-wrap gap-1.5">
                 {presets.map((p) => {
-                  const isCurrent = formData.base_url === p.url;
+                  const isCurrent = p.id === 'ollama' ? formData.provider === 'ollama' : formData.base_url === p.url;
                   return (
                     <button
                       key={p.id}
@@ -643,7 +649,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             {/* API Key */}
             <div>
               <label className="text-xs font-semibold text-slate-300 block mb-1">
-                {t('api_key', 'API Key (本地 Ollama / LM Studio 可留空)')}
+                {t('api_key', 'API Key（本機 Ollama 可留空）')}
               </label>
               <div className="relative">
                 <input
@@ -782,6 +788,28 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 />
               </div>
 
+              {formData.provider === 'ollama' && (
+                <label className="flex items-start gap-3 p-3 rounded-xl border border-cyan-400/20 bg-cyan-400/5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={formData.auto_tune !== false}
+                    onChange={(e) => setFormData({ ...formData, auto_tune: e.target.checked })}
+                    className="mt-0.5 accent-cyan-400 cursor-pointer"
+                  />
+                  <span className="text-xs">
+                    <span className="font-semibold text-cyan-100 block">{t('auto_tune_label', '自動調整效能設定（建議）')}</span>
+                    <span className="text-[11px] text-slate-400 leading-relaxed block mt-0.5">
+                      {formData.auto_tune !== false && hwCheck?.auto
+                        ? t('auto_tune_values', '依你的顯示卡與模型自動決定：上下文 {ctx}、最大輸出 {mt}，讓模型完整放在 GPU 上執行。', {
+                            ctx: hwCheck.auto.context_window, mt: hwCheck.auto.max_tokens
+                          })
+                        : t('auto_tune_desc', '依你的顯示卡與模型自動決定上下文長度與最大輸出，讓模型完整放在 GPU 上執行。關閉後可手動設定。')}
+                    </span>
+                  </span>
+                </label>
+              )}
+
+              {!(formData.provider === 'ollama' && formData.auto_tune !== false) && (<>
               <div>
                 <div className="flex justify-between text-xs text-slate-300 mb-1">
                   <span>{t('max_tokens', '最大輸出長度 (Max Tokens)')}: {formData.max_tokens}</span>
@@ -811,6 +839,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   className="w-full accent-cyan-400 cursor-pointer"
                 />
               </div>
+              </>)}
 
               {/* Hardware capability evaluation */}
               {(hwCheck || isCheckingHw) && (() => {
@@ -881,7 +910,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                       </ul>
                     ) : null}
 
-                    {rec && recDiffers && (verdict === 'warn' || verdict === 'danger') && (
+                    {rec && recDiffers && formData.auto_tune === false && (verdict === 'warn' || verdict === 'danger') && (
                       <button
                         type="button"
                         onClick={applyHwRecommendation}
@@ -915,6 +944,23 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               </button>
             </div>
           </div>
+        )}
+
+        {activeTab === 'ollama' && (
+          <OllamaManagerPanel
+            activeModel={config.provider === 'ollama' ? config.model : ''}
+            onUseModel={async (name) => {
+              const next: ModelConfig = {
+                ...config,
+                provider: 'ollama',
+                base_url: config.provider === 'ollama' ? config.base_url : 'http://127.0.0.1:11434',
+                api_key: config.provider === 'ollama' ? config.api_key : '',
+                model: name
+              };
+              setFormData(next);
+              await onSaveConfig(next);
+            }}
+          />
         )}
 
         {/* Content Body: Tab 2 - Telegram Bridge */}

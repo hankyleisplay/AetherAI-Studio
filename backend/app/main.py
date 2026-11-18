@@ -48,9 +48,11 @@ async def lifespan(app: FastAPI):
     ollama_start = None
     try:
         saved_cfg = db.get_setting("active_model_config") or {}
+        saved_cfg = ModelConfig(**saved_cfg).model_dump() if saved_cfg else {}
         if (saved_cfg.get("provider") or "ollama") == "ollama":
-            ollama_start = asyncio.create_task(
-                ollama_manager.ensure_running(saved_cfg.get("base_url") or "http://127.0.0.1:11434"))
+            # Start Ollama, then load the active model so the first message does not wait for it
+            ollama_start = asyncio.create_task(ollama_manager.preload_quietly(
+                saved_cfg.get("base_url") or "http://127.0.0.1:11434", saved_cfg, wait_for_start=True))
     except Exception as e:
         print(f"[Ollama] Startup warning: {e}")
     yield
@@ -294,6 +296,9 @@ async def get_active_model_config():
             saved["max_tokens"] = 8192
             db.set_setting("active_model_config", saved)
         cfg = ModelConfig(**saved)
+        if cfg.provider != saved.get("provider"):
+            # LM Studio / custom local endpoints were retired: the config now points at Ollama
+            db.set_setting("active_model_config", cfg.model_dump())
     else:
         cfg = ModelConfig(
             provider="ollama",
@@ -328,17 +333,32 @@ async def get_active_model_config():
 
     return cfg.model_dump()
 
+_preload_task: Optional[asyncio.Task] = None
+
 @app.post("/api/models/active")
 async def save_active_model_config(config: ModelConfig):
+    global _preload_task
+    previous = db.get_setting("active_model_config") or {}
     db.set_setting("active_model_config", config.model_dump())
+    if config.provider == "ollama" and config.model:
+        changed = any(previous.get(k) != v for k, v in config.model_dump(
+            include={"model", "base_url", "context_window", "auto_tune"}).items())
+        if changed:
+            # Load the newly chosen model now, in the background, instead of on the first message
+            if _preload_task and not _preload_task.done():
+                _preload_task.cancel()
+            _preload_task = asyncio.create_task(ollama_manager.preload_quietly(config.base_url, config.model_dump()))
     return {"status": "saved", "config": config.model_dump()}
 
 # Model Testing & Discovery
 @app.post("/api/models/test")
 async def test_model_connection(config: ModelConfig):
     if config.provider == "ollama":
-        # Start Ollama if it is installed but not running, instead of reporting "no models"
-        await ollama_manager.ensure_running(config.base_url)
+        # Start Ollama if it is installed but not running (without waiting: the setup card polls its progress)
+        state = await ollama_manager.ensure_running(config.base_url, wait=False)
+        if state["status"] == "starting":
+            return {"success": False, "models": [], "provider": "ollama", "starting": True,
+                    "error": "Ollama 正在啟動中…"}
     client = UnifiedLLMClient(config)
     result = await client.test_connection()
     return result
@@ -353,12 +373,37 @@ def _active_ollama_base(override: Optional[str] = None) -> str:
     saved = db.get_setting("active_model_config") or {}
     return override or saved.get("base_url") or "http://127.0.0.1:11434"
 
+class OllamaModelPayload(BaseModel):
+    model: str
+    base_url: Optional[str] = None
+
+_OLLAMA_NAME_RE = r"[A-Za-z0-9][A-Za-z0-9._\-/]*(:[A-Za-z0-9._\-]+)?"
+
+def _valid_ollama_name(name: str) -> str:
+    import re
+    name = (name or "").strip()
+    if not re.fullmatch(_OLLAMA_NAME_RE, name):
+        raise HTTPException(status_code=400, detail="模型名稱格式不正確")
+    return name
+
+async def _running_ollama(base_url: Optional[str]) -> str:
+    state = await ollama_manager.ensure_running(_active_ollama_base(base_url), wait=False)
+    if state["status"] not in ("running", "started"):
+        detail = "Ollama 正在啟動中，請稍候" if state["status"] == "starting" else (
+            state.get("error") or f"Ollama 無法使用（{state['status']}）")
+        raise HTTPException(status_code=409, detail=detail)
+    return state["base_url"]
+
 @app.get("/api/ollama/status")
 async def ollama_status(base_url: Optional[str] = None):
-    """Start Ollama if needed and report what the first-run setup card needs: installed, running, models."""
+    """Start Ollama if needed and report what the setup card needs: installed, running, models.
+
+    Never waits for Ollama to finish starting: while it boots this answers "starting" (with the seconds elapsed
+    and Ollama's own log) and the page asks again.
+    """
     from backend.app.services.hardware import get_hardware_info
     base = _active_ollama_base(base_url)
-    state = await ollama_manager.ensure_running(base)
+    state = await ollama_manager.ensure_running(base, wait=False)
     models: List[str] = []
     if state["status"] in ("running", "started"):
         try:
@@ -373,16 +418,74 @@ async def ollama_status(base_url: Optional[str] = None):
         "choices": ollama_manager.MODEL_CHOICES,
     }
 
+@app.get("/api/ollama/models")
+async def ollama_models(base_url: Optional[str] = None):
+    """Installed models with size / quantization / capabilities, what is loaded in memory, and the auto settings."""
+    base = await _running_ollama(base_url)
+    try:
+        installed, loaded = await asyncio.gather(ollama_manager.list_models_detailed(base),
+                                                 ollama_manager.loaded_models(base))
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"讀取 Ollama 模型失敗：{e}")
+    saved = ModelConfig(**(db.get_setting("active_model_config") or {})).model_dump()
+    auto = None
+    if saved.get("provider") == "ollama" and saved.get("model"):
+        try:
+            auto = await ollama_manager.auto_settings(base, saved["model"], saved["context_window"], saved["max_tokens"])
+        except Exception:
+            auto = None
+    return {"base_url": base, "installed": installed, "loaded": loaded, "active": saved, "auto": auto,
+            "started_by_aether": ollama_manager.started_by_aether()}
+
+@app.get("/api/ollama/capabilities")
+async def ollama_capabilities(model: str, base_url: Optional[str] = None):
+    """What a model can do (thinking / tools / vision), for the chat bar's toggles. Empty when unknown."""
+    name = _valid_ollama_name(model)
+    found = await ollama_manager.reachable_base(_active_ollama_base(base_url))
+    return {"model": name, "capabilities": await ollama_manager.capabilities(found, name) if found else []}
+
+@app.post("/api/ollama/delete")
+async def ollama_delete(payload: OllamaModelPayload):
+    name = _valid_ollama_name(payload.model)
+    base = await _running_ollama(payload.base_url)
+    try:
+        await ollama_manager.delete_model(base, name)
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"刪除失敗：{e}")
+    from backend.app.llm.provider import clear_probe_cache
+    clear_probe_cache()
+    saved = db.get_setting("active_model_config") or {}
+    if saved.get("provider") == "ollama" and saved.get("model") == name:
+        db.set_setting("active_model_config", {**saved, "model": ""})
+    return {"status": "deleted", "model": name}
+
+@app.post("/api/ollama/preload")
+async def ollama_preload(payload: OllamaModelPayload):
+    name = _valid_ollama_name(payload.model)
+    base = await _running_ollama(payload.base_url)
+    saved = ModelConfig(**(db.get_setting("active_model_config") or {})).model_dump()
+    try:
+        return await ollama_manager.preload(base, {**saved, "model": name})
+    except Exception as e:
+        raise HTTPException(status_code=502, detail=f"載入失敗：{e}")
+
+@app.post("/api/ollama/unload")
+async def ollama_unload(payload: OllamaModelPayload):
+    """Free the memory a model holds (all loaded models when model is "*")."""
+    base = await _running_ollama(payload.base_url)
+    names = [m["name"] for m in await ollama_manager.loaded_models(base)] if payload.model == "*" \
+        else [_valid_ollama_name(payload.model)]
+    for name in names:
+        try:
+            await ollama_manager.unload_model(base, name)
+        except Exception as e:
+            raise HTTPException(status_code=502, detail=f"釋放 {name} 失敗：{e}")
+    return {"status": "unloaded", "models": names}
+
 @app.post("/api/ollama/pull")
 async def ollama_pull(payload: OllamaPullPayload):
-    import re
-    name = (payload.model or "").strip()
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._\-/]*(:[A-Za-z0-9._\-]+)?", name):
-        raise HTTPException(status_code=400, detail="模型名稱格式不正確")
-    state = await ollama_manager.ensure_running(_active_ollama_base(payload.base_url))
-    if state["status"] not in ("running", "started"):
-        raise HTTPException(status_code=409, detail=state.get("error") or f"Ollama 無法使用（{state['status']}）")
-    base = state["base_url"]
+    name = _valid_ollama_name(payload.model)
+    base = await _running_ollama(payload.base_url)
 
     async def progress():
         ok = False
@@ -413,13 +516,20 @@ async def ollama_pull(payload: OllamaPullPayload):
 @app.post("/api/models/hardware-check")
 async def hardware_check(config: ModelConfig):
     from backend.app.services.hardware import evaluate_generation_settings
-    return await evaluate_generation_settings(
+    ctx, max_tokens, auto = config.context_window, config.max_tokens, None
+    if config.provider == "ollama" and config.auto_tune and config.model:
+        # Judge the values chat will actually use
+        auto = await ollama_manager.auto_settings(config.base_url, config.model, ctx, max_tokens)
+        ctx, max_tokens = auto["context_window"], auto["max_tokens"]
+    result = await evaluate_generation_settings(
         provider=config.provider,
         model=config.model,
         base_url=config.base_url,
-        context_window=config.context_window,
-        max_tokens=config.max_tokens,
+        context_window=ctx,
+        max_tokens=max_tokens,
     )
+    result["auto"] = auto
+    return result
 
 async def generate_ai_session_title(session_id: str, prompt_snippet: str, config: ModelConfig) -> str:
     """Generate a concise, insightful conversation title (4-8 Chinese characters) using AI."""
@@ -502,7 +612,7 @@ async def chat_stream(request: ChatRequest):
 
     if active_config.provider == "ollama":
         # Bring up a local Ollama that is installed but not running (no-op when it already answers)
-        await ollama_manager.ensure_running(active_config.base_url)
+        await ollama_manager.ensure_running(active_config.base_url, timeout=60)
 
     # Validate that an active model is configured
     if not active_config.model or not active_config.model.strip():
